@@ -2,7 +2,7 @@
 # Roadmap — Ember
 
 **Current stage: Define**
-**Next up:** answer the Define questions with the user.
+**Next up:** Natalie reviews and signs off `docs/Product_Scope.md` (drafted 2026-09-09 from her decisions; see §7 there). Then Plan: feasibility spike (Telegram send, web push on her phone, Cloudflare cron) before Tech_Scope.md.
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.
