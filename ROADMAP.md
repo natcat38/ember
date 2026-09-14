@@ -2,7 +2,7 @@
 # Roadmap — Ember
 
 **Current stage: Define**
-**Next up:** Natalie reviews and signs off `docs/Product_Scope.md` (drafted 2026-09-09 from her decisions; see §7 there). Then Plan: feasibility spike (Telegram send, web push on her phone, Cloudflare cron) before Tech_Scope.md.
+**Next up:** UX deep-dive session (brief: `docs/UX_Session_Brief.md`) produces `docs/UX_Flows.md`; Natalie signs off Product_Scope + UX_Flows together. Then Plan: feasibility spike before Tech_Scope.md.
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.
@@ -12,6 +12,7 @@ Agents: read this file at session start, state the current stage and next unchec
 - [ ] One paragraph: who is this for, what pain does it remove? If the honest answer is "my resume", still pick a fictional real user — it forces every later decision.
 - [ ] One sentence: what does this repo prove to a recruiter (stack keywords + one differentiator)?
 - [ ] Name the cut line: the smallest version that is complete and presentable.
+- [ ] `docs/UX_Flows.md`: persona paths, screen inventory, the seven flows tap by tap with copy, edge states, notification interactions, cat states, onboarding, design-process plan (see `docs/UX_Session_Brief.md`).
 - [ ] `docs/Product_Scope.md`: background & problem · proposed solution (behaviour, not tech) · hard rules/validation with exact UI copy · decision matrix for any state machine · explicit out-of-scope list · phases with the cut line marked.
 
 Exit: user has signed off the product scope. Skills: superpowers:brainstorming, grill-with-docs, feature-scope-docs.
