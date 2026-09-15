@@ -5,7 +5,7 @@ Status: **draft, signed off section by section** (Define stage). Builds on `Prod
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
 2. Screen inventory and navigation ✅ signed off 2026-09-16
-3. The seven flows in detail — *in progress (3.1–3.6 done)*
+3. The seven flows in detail — *all 7 drafted 2026-09-16, awaiting sign-off*
 4. Edge and state screens — *to draft*
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
@@ -294,3 +294,31 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 - The ring and cat are non-interactive — they react and get out of the way; nothing to dismiss.
 
 **Copy:** unlock offer *"Chunk done. Ninety seconds, if you want it."* → *[Play] [Skip]*.
+
+### 3.7 Review (evening shutdown)
+
+**Purpose:** end the day with an explicit, guilt-free stop — the opposite of an open-ended list that never lets you clock off.
+
+**Entry points**
+- Evening: **one gentle invite** — a single soft nudge *"Ready to wrap up?"*, counted within the 3/day cap and silenced during quiet hours.
+- A manual **wrap up** action, available any time of day.
+
+**Every tap — three steps** (scope §2.7, fixed)
+1. *"Anything urgent still open?"* → shows any due-today/overdue not done, with quick reschedule / let-go / mark-done. Or *"Nothing urgent."* → next.
+2. *"Tomorrow's list is ready: N things."* → a peek at tomorrow's pre-built Today. Reassurance, not a planning task.
+3. *"That's it for today. You're done."* → the explicit stop.
+
+Then optional, never required: one-line journal (*"One line about today, whatever comes to mind."*) + a mood tap (*Rough · Meh · Okay · Good · Great*).
+
+**Zero-done variant** (from §1): step 3 becomes *"Some days are for resting. Tomorrow's list is ready when you are."* No tally of what wasn't done.
+
+**Decisions the app makes silently**
+- Tomorrow's Today is built at shutdown (or overnight in phase 2); *"N things"* is that count.
+- Journal + mood are logged, non-punitive (*phase-3 seam: client-side encrypted per scope; phase-4 seam: mood may feed adaptive timing*). They change nothing tonight.
+- Shutdown runs **once a day**; reopening afterward doesn't re-run it.
+
+**Bail-outs**
+- Skip journal and mood — *"You're done"* is the real end; the rest comes after it.
+- Exit any time. Shutdown is a ritual on offer, never mandatory.
+
+**Copy:** invite *"Ready to wrap up?"*; the three fixed step lines; journal placeholder *"One line about today, whatever comes to mind."*; mood *Rough · Meh · Okay · Good · Great*; zero-done close *"Some days are for resting. Tomorrow's list is ready when you are."*
