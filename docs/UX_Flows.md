@@ -5,7 +5,7 @@ Status: **draft, signed off section by section** (Define stage). Builds on `Prod
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
 2. Screen inventory and navigation ✅ signed off 2026-09-16
-3. The seven flows in detail — *in progress (3.1 Capture done)*
+3. The seven flows in detail — *in progress (3.1 Capture, 3.2 Triage done)*
 4. Edge and state screens — *to draft*
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
@@ -153,3 +153,30 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 - Mid-Focus capture: sending returns you straight to the running session; the timer never paused.
 
 **Copy:** placeholder *"What's on your mind?"*; empty-state sub-line *"One thing or ten. Just get it out of your head."*; confirmation *Added*; chips *Deadline* / *Quick*; close *Done*.
+
+### 3.2 Triage
+
+**Purpose:** turn a raw captured thought into a rankable task with the least possible input — deadline? depends? size. Priority is computed from these and never shown as a formula.
+
+**Entry points**
+- Tap an untriaged task in Inbox → the Task view shows the triage questions inline, above its chunk area.
+- As part of the morning **Pick**, when Inbox has untriaged items and Today has room, the app offers to sort a few (detailed in §3.4 — the app adds the structure).
+
+**Every tap** (≤3, in any order)
+1. **Deadline?** *[Not yet]* / *[Pick a date]* → native date picker. Default: none.
+2. **Is this holding up anything else?** *[No]* / *[Yes]* → a bottleneck bump.
+3. **Size:** XS · S · M · L · XL, one tap. Skipped automatically if **Quick** pre-set XS at capture.
+
+**Decisions the app makes silently**
+- **Size alone makes a task rankable.** Deadline and "holding up" are optional refinements. A Quick-flagged task (XS) is already rankable with zero further taps.
+- Priority is computed from deadline proximity (back-planned into 25-min sessions), the "holding up" flag, and size. The user sees only *where it lands in Today* and the frog flag — never a number or formula.
+- A task with no deadline and no dependency is "far out" — it won't push into Today except on a light day (*"Light day. Want to get ahead on X?"*).
+- The "holding up" flag is a **single boolean nudge, not a dependency graph.** Ember does not model task-to-task links (out of scope: no GTD projects/contexts). It only bumps priority.
+- The size→sessions numbers (XS = 1 session, etc., padded 20%) are a formula → they belong in `Tech_Scope.md`, not here. Flagged, deferred.
+- Completing triage moves the task **Inbox → Active**.
+
+**Bail-outs**
+- Skip triage entirely: an untriaged task just sits in Inbox. It never nags and never ranks. A valid resting place, not a failure.
+- Partial triage is fine — answer in any order, leave whenever. As long as it has a size, it can rank.
+
+**Copy:** *"Has a deadline?"* → *[Not yet] [Pick a date]*; *"Is this holding up anything else?"* → *[No] [Yes]*; size *XS · S · M · L · XL*. *Phase-4 seam:* beside size, *"Similar tasks took you about N sessions."*
