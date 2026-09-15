@@ -5,7 +5,7 @@ Status: **draft, signed off section by section** (Define stage). Builds on `Prod
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
 2. Screen inventory and navigation ✅ signed off 2026-09-16
-3. The seven flows in detail — *in progress (3.1–3.5 done)*
+3. The seven flows in detail — *in progress (3.1–3.6 done)*
 4. Edge and state screens — *to draft*
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
@@ -268,3 +268,29 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 - **Done early** completes the chunk before the timer elapses → straight to Reward.
 
 **Copy:** break prompt *"Take 5?"*; resume *"Back to it?"*; controls *Pause / Done / Exit*. Break screen: a calm visual + optional breathing guide, copy kept minimal.
+
+### 3.6 Reward
+
+**Purpose:** make finishing a chunk feel good, without the reward becoming a time-sink or a second job.
+
+**Entry points**
+- A chunk marked **Done** — from Focus, or checked off in Today / a Task view.
+
+**Two layers**
+1. **Always-on, instant:** progress ring fills (Apple-rings style — *"3 of 5"*), cat curls up purring. Short animation (~300–400ms); a slightly bigger moment only on the **last chunk of the day**, never on every check (confetti fatigue is real). Free and guaranteed.
+2. **Optional ≤90s unlock:** a trivia question, the Lichess daily puzzle, or a Wikipedia "on this day" fact. Always skippable.
+
+**User control: auto-served, skippable, every chunk**
+- After every completed chunk, the app **serves one unlock** (rotating through trivia / puzzle / fact, or a default set once in Settings, with a *surprise me* option). No in-moment "which treat" decision.
+- Offered every chunk, always one tap to skip. Thin content self-caps the time cost; trivia is one quick question per completion, so it can't be chained.
+
+**Decisions the app makes silently**
+- The unlock content is **naturally thin by design** — the Lichess daily puzzle is once a day, "on this day" is one static fact — so it's hard to binge. Trivia is served one question per completion.
+- Skipping is one tap and costs nothing; the ring + cat already happened.
+- *This is not the pomodoro break.* The restful break (breathing/calm) lives in Focus; the game unlock lives here, at completion.
+
+**Bail-outs**
+- Skip the unlock → straight to the next chunk or back to Today.
+- The ring and cat are non-interactive — they react and get out of the way; nothing to dismiss.
+
+**Copy:** unlock offer *"Chunk done. Ninety seconds, if you want it."* → *[Play] [Skip]*.
