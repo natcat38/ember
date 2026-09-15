@@ -5,7 +5,7 @@ Status: **draft, signed off section by section** (Define stage). Builds on `Prod
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
 2. Screen inventory and navigation ✅ signed off 2026-09-16
-3. The seven flows in detail — *in progress (3.1–3.4 done)*
+3. The seven flows in detail — *in progress (3.1–3.5 done)*
 4. Edge and state screens — *to draft*
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
@@ -238,3 +238,33 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 - Dismiss the morning confirm without accepting → Today still exists as built; the confirm just doesn't nag again that day.
 
 **Copy:** morning confirm *"Here's today: N things. Good to go?"*; controls *Do this first* / *Not today* / *Pin to today*; overflow *"N more waiting. They'll come up when there's room."*; light day *"Light day. Want to get ahead on X?"*
+
+### 3.5 Focus
+
+**Purpose:** one chunk, full screen, timer running, everything else out of the way. "One thing at a time" made literal.
+
+**Entry points**
+- **Start** on a chunk — from Today, the frog, or a Task view.
+
+**Every tap**
+1. Start → Focus mode: the chunk text fills the screen, timer begins, the rest of the UI **dims (not blocked — you can still peek).** Cat: stretching.
+2. Minimal controls only: **Pause**, **Done**, **Exit**. Capture stays reachable without pausing.
+3. Timer ends or **Done**:
+   - **Chunk done** → Reward (§3.6).
+   - **Timer done, chunk not done** → restful break, then a gentle *"Back to it?"* to resume the same chunk.
+
+**Two different rest moments — do not conflate:**
+- **Pomodoro break** (after a 25, chunk unfinished) = the **restful** one: a calm screen or breathing guide. No games here.
+- **Chunk completion** = the **reward** (§3.6): ring fills, cat reacts, optional ≤90s unlock. Games live here, not in the pomodoro break.
+
+**Decisions the app makes silently**
+- Default **25/5**. **Flowtime** (count-up, stop when you stop) is the alternative, set in Settings with a per-session switch at start. *(Flowtime's phase placement is a Plan call; the 25/5 timer is the phase-1 loop.)*
+- The timer runs on **wall-clock**. Backgrounding or locking the phone fails nothing — no tree-death punishment (Forest's punitive model, off-thesis). Return shows elapsed time.
+- Sessions log against the chunk, including a partial session if you bail — feeds phase-4 estimate-vs-actual.
+- The 5-min break is **offered, not auto-forced** (*"Take 5?"* → *"Back to it?"*); no strict auto-flow.
+
+**Bail-outs**
+- **Pause** stops the timer, stays in focus. **Exit** returns the chunk to Todo with sessions logged — no penalty, no guilt.
+- **Done early** completes the chunk before the timer elapses → straight to Reward.
+
+**Copy:** break prompt *"Take 5?"*; resume *"Back to it?"*; controls *Pause / Done / Exit*. Break screen: a calm visual + optional breathing guide, copy kept minimal.
