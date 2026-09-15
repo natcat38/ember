@@ -5,7 +5,7 @@ Status: **draft, signed off section by section** (Define stage). Builds on `Prod
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
 2. Screen inventory and navigation ✅ signed off 2026-09-16
-3. The seven flows in detail — *in progress (3.1 Capture, 3.2 Triage done)*
+3. The seven flows in detail — *in progress (3.1 Capture, 3.2 Triage, 3.3 Chunk done)*
 4. Edge and state screens — *to draft*
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
@@ -180,3 +180,32 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 - Partial triage is fine — answer in any order, leave whenever. As long as it has a size, it can rank.
 
 **Copy:** *"Has a deadline?"* → *[Not yet] [Pick a date]*; *"Is this holding up anything else?"* → *[No] [Yes]*; size *XS · S · M · L · XL*. *Phase-4 seam:* beside size, *"Similar tasks took you about N sessions."*
+
+### 3.3 Chunk
+
+**Purpose:** get to the very next physical action, so starting is never "where do I even begin."
+
+**Entry points**
+- Task view, below triage: a prompt and the breakdown button.
+- Tapping **Start** on a task with no chunks yet → it asks for the next action first, inline, then starts.
+
+**Every tap**
+1. Task view shows *"What's the very next physical action?"* with a text field, and a **Break this down for me** button beside it.
+2. **Manual:** type one next action → it becomes chunk 1. Add more if you want, but you never have to — one next thing is enough to start.
+3. **AI** (*phase-4 seam; before that, manual only*): tap *Break this down for me* → 3–6 editable steps come back. Edit, delete, reorder, then **accept** → added as the task's chunks. Nothing commits until you accept.
+4. Chunks show as a checklist under the task. Each chunk runs Todo → In focus → Done.
+
+**Decisions the app makes silently**
+- A task needs **≥1 chunk to enter Focus.** No chunk = the Start tap asks for the next action rather than blocking you.
+- **Chunks belong to the task; Today still surfaces only ≤5 across everything.** A 6-step breakdown doesn't blow the day — the rest wait behind the *"N more waiting"* line and surface as room opens.
+- **Chunks are flat — no sub-chunks.** One level only; recursive breakdown is the Goblin trap. *(ponytail: flat.)*
+- A chunk can take one or more focus sessions; sessions log against it. Chunk ≠ session.
+- AI cap reached → falls back to manual with the fixed line: *"Out of breakdowns for today. Try: what's the very next physical action?"* The daily cap **number** depends on the chosen free-tier LLM → deferred to `Tech_Scope.md`.
+- **Each press of *Break this down for me* counts against the daily cap, whether or not the result is accepted** — the press is what calls the paid LLM. Cost-driven, not a preference.
+- **Manual gives one next action; AI gives the full 3–6.** Deliberate asymmetry: manual keeps you on just the next thing, AI does the whole breakdown on request.
+
+**Bail-outs**
+- Don't chunk: the task ranks and sits; Start prompts the one-line next action whenever you're ready. Chunking is never a separate chore.
+- Bad AI breakdown: edit it down or discard and type your own.
+
+**Copy:** *"What's the very next physical action?"*; button *Break this down for me*; cap reached *"Out of breakdowns for today. Try: what's the very next physical action?"*
