@@ -5,7 +5,7 @@ Status: **draft, signed off section by section** (Define stage). Builds on `Prod
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
 2. Screen inventory and navigation ✅ signed off 2026-09-16
-3. The seven flows in detail — *in progress (3.1 Capture, 3.2 Triage, 3.3 Chunk done)*
+3. The seven flows in detail — *in progress (3.1–3.4 done)*
 4. Edge and state screens — *to draft*
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
@@ -209,3 +209,32 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 - Bad AI breakdown: edit it down or discard and type your own.
 
 **Copy:** *"What's the very next physical action?"*; button *Break this down for me*; cap reached *"Out of breakdowns for today. Try: what's the very next physical action?"*
+
+### 3.4 Pick
+
+**Purpose:** each morning, hand the user a short, ranked, *doable* Today — never the backlog. At most 5 chunks, sized to the free time the day actually has.
+
+**Entry points**
+- First open of the day → Today is built and shown as a light morning confirm (below).
+- *Phase-2 seam:* the scheduler builds Today overnight so a morning nudge can say it's ready. *(Phase 1: built on first open; no server.)*
+
+**The morning moment: light confirm**
+Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to go?"* Accept in one tap, or tweak first (pin / defer, below). A small intention-setting beat, not a plan-the-day ritual.
+
+**How Today is built (silent decisions)**
+- Ranked chunks from Active tasks, top-down, until the smaller of **5 chunks** or **the free-floating time available today** is filled. Hard blocks are excluded from capacity; chunks are never pinned to clock times.
+- **The frog:** the single top-ranked chunk, flagged *Do this first / Not today*. On a deadline day, the due-today task's chunk is auto-frog. *(Phase-4 seam: bias the frog toward tasks the user tends to avoid, once there's history.)*
+- **Overflow:** anything past the cap sits behind *"N more waiting. They'll come up when there's room."*
+- **Light day:** if free time exceeds what's due soon, one far-future task is offered — *"Light day. Want to get ahead on X?"* — never forced.
+- **Empty:** nothing to rank, or all done → the empty-Today state (§4), not a blank cap-5 grid.
+- **Finish behaviour: done means done.** Clearing all of Today does **not** auto-refill five more — you get the completion and an optional *get-ahead* offer you can decline. Auto-refill would rebuild the endless-list overwhelm the whole app exists to prevent.
+
+**User control: swap, defer, and pin**
+- *Not today* defers any chunk; the next-ranked chunk fills the slot.
+- **Pin** a specific task into Today: it takes a slot and bumps the lowest-ranked chunk out. Full agency within the 5-cap, for the days you know "I must do X today."
+
+**Bail-outs**
+- Ignore Today entirely and just open Capture or a specific task. Today is an offer, not a gate.
+- Dismiss the morning confirm without accepting → Today still exists as built; the confirm just doesn't nag again that day.
+
+**Copy:** morning confirm *"Here's today: N things. Good to go?"*; controls *Do this first* / *Not today* / *Pin to today*; overflow *"N more waiting. They'll come up when there's room."*; light day *"Light day. Want to get ahead on X?"*
