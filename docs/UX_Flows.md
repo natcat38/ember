@@ -4,8 +4,8 @@ Status: **draft, signed off section by section** (Define stage). Builds on `Prod
 
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
-2. Screen inventory and navigation — *drafted 2026-09-16, awaiting sign-off*
-3. The seven flows in detail — *to draft*
+2. Screen inventory and navigation ✅ signed off 2026-09-16
+3. The seven flows in detail — *in progress (3.1 Capture done)*
 4. Edge and state screens — *to draft*
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
@@ -118,3 +118,38 @@ The research is blunt: the visible surface must stay tiny. The whole app hangs o
 ### Desktop delta
 
 Same screens, no new ones. The wider canvas shows **Today and the active Focus side by side**, with a persistent capture bar along the top instead of a summoned sheet. Inbox and Settings stay behind the same drawer. Desktop shows more at once; it does not add surface.
+
+---
+
+## 3. The seven flows in detail
+
+Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry points, every tap, the decisions the app makes silently, every bail-out, and exact copy. `Product_Scope.md` §3 copy is fixed; this section extends it, never changes it.
+
+### 3.1 Capture
+
+**Purpose:** get a thought out of your head with zero friction. One field. Nothing required but text.
+
+**Entry points**
+- Persistent capture button on Today (desktop: the always-there top capture bar).
+- Global — reachable from any screen, including mid-Focus (dump a stray thought without leaving the session).
+- *Phase-2 seam:* send any message to the Telegram bot → it becomes a captured task in Inbox.
+- *Optional, later:* register Ember as a PWA share target so text shared from another app lands in capture. Not core.
+
+**Every tap (phone)**
+1. Tap capture button → bottom sheet slides up, field already focused, keyboard up. Placeholder: *"What's on your mind?"* When Inbox is empty or it's first run, the sub-line shows: *"One thing or ten. Just get it out of your head."*
+2. Type text → **Send** (or the keyboard's enter). The item flashes a quiet *Added* and the field **clears but stays open** — dump five things in a row without reopening anything.
+3. Optional, revealed not forced: two chips under the field — **Deadline** (opens the native date picker) and **Quick**. Both collapsed by default; nothing required.
+4. Close with **Done** or a swipe-down.
+
+**Decisions the app makes silently**
+- A new capture enters **Inbox** state — not Today, not triaged. Triage is deferred to the Task view when the task is about to enter Today.
+- **Quick** pre-sets **size = XS**, so triage can skip the size question later. It changes nothing about scheduling or priority.
+- **No deduplication.** Two similar captures are two tasks; silently merging could hide a real second thing. *(ponytail: no dedup in v1.)*
+- Empty or whitespace-only send is ignored, no error.
+- Inbox orders newest first.
+
+**Bail-outs**
+- Dismiss the sheet with **unsent** text → the text is **kept as a draft in the sheet** (reopening shows it), not committed to Inbox. No half-typed thought lost; no Inbox clutter. Sending is the only thing that commits.
+- Mid-Focus capture: sending returns you straight to the running session; the timer never paused.
+
+**Copy:** placeholder *"What's on your mind?"*; empty-state sub-line *"One thing or ten. Just get it out of your head."*; confirmation *Added*; chips *Deadline* / *Quick*; close *Done*.
