@@ -261,7 +261,6 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 +------------------------------------+
 | Outline heaps chapter              |
 | Start this step                    |
-| Break this step down               |
 | Rename                             |
 | Delete step                        |
 +------------------------------------+
@@ -270,7 +269,7 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 ```
 
 - **Task menu:** *Rename task* and *Let it go*. Let it go lives only here, away from Start and Pin (§4).
-- **Step menu:** *Start this step*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area). *Break this step down* appears **only if Natalie picks "split in place"** on the open sub-steps question; `UX_Flows.md` §3.3 currently keeps chunks flat, and without that decision the row is left out.
+- **Step menu:** *Start this step*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area). The frame follows the signed-off rule (`UX_Flows.md` §3.3, chunks are flat), so it has no split row. If Natalie picks "split in place" on the open sub-steps question, a *Break this step down* row is added here.
 
 ## 7. Inbox
 
