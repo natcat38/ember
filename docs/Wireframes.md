@@ -199,6 +199,7 @@ Phone frames are drawn at a 375px-wide screen.
 | Size  [XS] [S] [M] [L] [XL]        |
 +------------------------------------+
 | Chunks                             |
+| [Break this down for me]           |
 | [x] Read heaps intro               |
 | [ ] Outline heaps chapter [>] ...  |
 | [ ] Do 3 heap problems    [>] ...  |
@@ -206,7 +207,6 @@ Phone frames are drawn at a 375px-wide screen.
 | | What's the very next physical  | |
 | | action?                        | |
 | +--------------------------------+ |
-| [Break this down for me]           |
 +------------------------------------+
 | [Start]           [Pin to today]   |
 | Let it go                          |
@@ -229,6 +229,7 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 ```
 
+- In **Chunks**, *Break this down for me* sits first, above the list (Natalie's call, from canvas review): the task's name is already the big question, so breaking it down is the first move. The field under the list adds one step by hand (the only way before the AI breakdown ships in phase 4).
 - *Pin to today* shows only when the task is not already in Today (§3.4).
 - *Let it go* is a plain text button at the bottom: quiet, not red, not destructive-looking (§4).
 - The header `...` holds *Rename* and *Let it go*.
