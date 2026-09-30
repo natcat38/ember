@@ -1,6 +1,6 @@
 # Ember: Wireframes
 
-Status: **approved by Natalie 2026-09-30**, with four open decisions listed below (Plan stage, design track, `UX_Flows.md` §8 step 1). Step 2 (critique + accessibility check) appends its findings to this file.
+Status: **approved by Natalie 2026-09-30** (Plan stage, design track, `UX_Flows.md` §8 step 1). The four decisions raised in canvas review are settled (see *Decisions from canvas review*). Step 2's critique and accessibility findings are at the end of this file.
 
 *Generated file: edit `scripts/wireframes.py`, then run `python scripts/wireframes.py docs/Wireframes.md`.*
 
@@ -303,7 +303,7 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 
 - *Remove* is the main button; *Keep it* or a tap on the dimmed area closes the prompt with nothing changed. On *Remove* the signed-off confirmation shows as before: *"Moved out of the way. It's still here if you want it back."* The Telegram button asks the same question in the chat (`UX_Flows.md` §5).
 - Focus opens on *Keep it*, the choice that changes nothing, so a stray Enter cannot remove the task.
-- **Step menu:** *Start this step*, *Move up*, *Move down*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area).
+- **Step menu:** *Start this step*, *Break this step down*, *Move up*, *Move down*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area).
 - **Reordering steps** (Natalie's call, from canvas review): on touch, hold a step for about half a second, then drag it; with a mouse, click and drag it directly. No handle on the row. *Move up* / *Move down* in the step menu do the same for keyboard and screen-reader users, who cannot drag. The rows turn off the phone's press-and-hold text menu so the hold starts a drag instead. The big *Start* at the bottom always starts the first unfinished step in this order; each row's own start button starts that step directly. 
 - **Smaller steps** (Natalie's call, 2026-09-30; full rules in `UX_Flows.md` §3.3): *Break this step down* turns the step into a heading with its smaller steps indented under it. Two levels at most. Before phase 4 the split is manual: an indented field labelled *Add a smaller step*, with its own **(+)**, opens under the heading, and works like the main add field. In the frame, *Outline heaps chapter* has been split: its checkbox ticks itself when both smaller steps are done (ticking it by hand finishes the rest), and it has no `[>]` because Focus runs on one smaller step at a time.
 - **Menu differences by row:** a smaller step's menu has no *Break this step down* (no third level). A parent's menu swaps *Start this step* and *Break this step down* for *Add a smaller step*; its *Move up* / *Move down* move the whole group, and a smaller step moves only within its parent. *Delete step* on a parent asks *"Delete this step and its N smaller steps?"*
@@ -529,7 +529,7 @@ For Natalie's review; none of these change `UX_Flows.md` behaviour.
 5. **Inbox has two sections**, Needs sorting and Waiting, plus the collapsed Removed.
 6. **Wrap up the day** lives in the drawer.
 7. **Triage collapses** to a one-line summary with *Edit* once answered.
-8. **Rename a task** via the Task view's `...` menu. No document specified renaming until now. A step's own `...` menu holds *Start this step*, *Rename*, and *Delete step*; editing steps was also unspecified.
+8. **Rename a task** via the Task view's `...` menu. No document specified renaming until now. A step's own `...` menu holds *Start this step*, *Rename*, and *Delete step* (reordering and splitting were added later in review); editing steps was also unspecified.
 9. **The desktop right pane** is never empty: Focus while running, otherwise the selected task.
 10. **New copy:** *Let's go* / *Adjust*, *Pin a task*, *Take 5* / *Skip break*, *Back to it* / *Stop here*, *Needs sorting*, *Waiting*, *Not set up*, *Hours you're already busy. Ember plans around them.*, *Add a block*, *Rename*, *Close*, and for the Settings pages: *Your day starts when quiet hours end, so Today is rebuilt at 08:00.*, *25 minutes of focus, then a 5-minute break.*, *Count up and stop when you stop. The break grows with how long you worked.*, *You can switch for one session when you start it.*, *After each finished step, Ember offers one quick reward. You can always skip it.*
 
@@ -551,6 +551,34 @@ Raised in canvas review and decided on 2026-09-30. Each is drawn and written int
 2. **"Let it go" label. Decided 2026-09-30:** *Remove from list*, everywhere the button appears (task menu, overdue message, Telegram). The collapsed Inbox section and the task state are renamed *Removed*. Behaviour is unchanged: the task is restorable, so the confirmation copy stays. `Product_Scope.md` §3 and `UX_Flows.md` updated.
 3. **"Chunk" or "step". Decided 2026-09-30:** *step* everywhere the user can see it (Task view heading *Steps*, Reward *Step done*, the Rewards setting, screen-reader labels). The docs keep *chunk* as the internal term, with a glossary line in `Product_Scope.md` and `UX_Flows.md` §3.3.
 4. **Undo on removing. Decided 2026-09-30:** no Undo; *Remove from list* asks first instead (*Remove "<task>" from your list?* with *[Keep it] [Remove]*), in the app and in Telegram. Drawn under Menus (§6).
+
+## Step 2: critique and accessibility check (2026-09-30)
+
+Usability critique (`design:design-critique`) and a WCAG 2.1 AA check (`design:accessibility-review`) of the frames above and the canvas boards. Each finding needs Natalie's call: **fix** or **waive**. Status shows where each one stands. Contrast values are not picked here; the targets are stated and the design direction must meet them.
+
+**What already holds:** every icon-only button has a name; every input has a label (visible or screen-reader); every control is at least 44 px (radio buttons sit inside full-width tappable rows); the cat is hidden from screen readers; dialogs are named; the timer uses a timer role; drag reordering has a keyboard route (*Move up* / *Move down*); swipes always have a visible button.
+
+### Usability
+
+- **C1. The end-of-25 prompt has no way to say "finished".** Severity: high. When a 25 ends the app cannot know whether the step is done, but the prompt only offers *Take 5* and *Skip break*. Someone who finished at the bell has no route to Reward from there. Proposed fix: a third choice on that prompt, *I finished it*, which goes to Reward (changes `UX_Flows.md` §3.5). Status: proposed.
+- **C2. Reward interrupts every tick on Today.** Severity: medium. §3.6 serves the unlock card after every completed step, including check-offs on Today, so ticking three things done in a row shows three overlays. Proposed fix: a tick on Today or in the Task view plays only the ring and the cat; the unlock card follows steps finished in Focus (changes §3.6). Status: proposed.
+- **C3. Two add fields look the same.** Severity: medium. With a split step open, the Task view shows *Add a smaller step* and *Type one step*, both with a round (+). Proposed fix: the indented field appears only right after *Break this step down* or the parent's *Add a smaller step*, and closes when it loses focus while empty. Status: proposed.
+- **C4. Ticking a parent: side effects unspecified.** Severity: medium. Rule 2 marks all remaining smaller steps done, but not whether that fires one Reward or several, or what unticking does. Proposed fix: one Reward for the parent; unticking the parent straight away puts its smaller steps back as they were. Status: proposed.
+- **C5. "Done" means two different things.** Severity: medium. The capture sheet's close button says *Done*, and Focus's *Done* finishes a step. Proposed fix: the capture sheet's close reads *Close* (first run still reads *That's it for now*). Signed-off copy, `UX_Flows.md` §3.1. Status: proposed.
+- **C6. The frog's start button doesn't look like a start.** Severity: low. *Do this first* starts Focus, but every other start uses the `[>]` icon. Proposed fix: keep the scope label and add the start icon to the button. Status: proposed.
+- **C7. Frog card for a smaller step.** Severity: low. The *from:* line names the task; a smaller step also has a parent step. Proposed fix: *from: Revise DSA basics · Outline heaps chapter*. Status: proposed.
+- **C8. Removing says the same thing twice.** Severity: low. The prompt says *"You can bring it back from Inbox any time."*, then the confirmation says *"Moved out of the way. It's still here if you want it back."* Proposed fix: drop the prompt's second line and keep the signed-off confirmation. Status: proposed.
+- **C9. Deleting a plain step is permanent and unprompted.** Severity: low. Removing a task (restorable) asks first; deleting a step (not restorable) does not. Proposed: waive, since a step is one line to retype and a prompt on every delete adds friction. Status: proposed waive.
+
+### Accessibility (WCAG 2.1 AA)
+
+- **A1. Status messages are not announced** (4.1.3). Severity: medium. *Added*, the ring moving to *3 of 5*, *"Moved out of the way..."* and *"Back on your list."* appear without focus moving, so screen-reader users miss them. Proposed fix: add a target, "status messages use a polite live region", and build them that way. Status: proposed.
+- **A2. Checkboxes are toggle buttons with flipping labels** (4.1.2). Severity: medium. The boards use a button labelled *Mark X done* with a pressed state, which reads as "Mark X not done, toggle button, pressed". Proposed fix: a real checkbox named by the step text, with the state carried by checked or unchecked; update the screen-reader label target to match. Status: proposed.
+- **A3. The 90-second bar is a time limit** (2.2.1). Severity: medium. If the bar running out closes the unlock mid-puzzle, that is a time limit the user cannot extend. Proposed fix: the bar is a hint only; when it runs out, the next-step offer appears under the unlock and nothing closes. Status: proposed.
+- **A4. Sheets and dialogs need focus rules** (2.4.3, 2.1.2). Severity: low. Capture sheet, step menu, remove prompt, and drawer: focus moves in on open, stays inside while open, Escape closes, and focus returns to the control that opened it. Proposed fix: add as a target. Status: proposed.
+- **A5. The task menu is marked as an ARIA menu** (4.1.2). Severity: low. `role="menu"` commits to arrow-key handling. Proposed fix: plain buttons in a popover, which need no extra keyboard code. Status: proposed.
+- **A6. Borders and outlines need contrast too** (1.4.11). Severity: low. Field borders, checkbox outlines, and chip outlines must reach 3:1 against their background; the targets list only covers text. Proposed fix: add the target. The grey-box greys are placeholders, not candidates. Status: proposed.
+- **A7. *Add a smaller step* has no visible label once typing starts** (3.3.2). Severity: low. The placeholder is the only visible label; the screen-reader label is present. Proposed: waive, since the parent heading directly above names what the field is for. Status: proposed waive.
 
 ## Open for `Tech_Scope.md`
 
