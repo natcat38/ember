@@ -6,7 +6,7 @@ Status: **draft, awaiting Natalie's review** (Plan stage, design track, `UX_Flow
 
 Plain-text layouts: what is on each screen and where. No colour, type, or style; those come from the chosen visual direction (§8 steps 3 to 5). All behaviour and copy come from `UX_Flows.md`; section references are given under each frame.
 
-**Legend:** `=` drawer menu · `(2/5)` progress ring · `*` frog · `[ ]` chunk not done · `[x]` chunk done · `[>]` start · `(>)` send ·`...` more actions · `>` opens a sub-screen · `<-` back · `cat, <state>` where the cat sits and its state · `[Button]` tappable.
+**Legend:** `=` drawer menu · `(2/5)` progress ring · `*` frog · `[ ]` chunk not done · `[x]` chunk done · `[>]` start · `(>)` send · `(+)` add · `...` more actions · `>` opens a sub-screen · `<-` back · `cat, <state>` where the cat sits and its state · `[Button]` tappable.
 
 Phone frames are drawn at a 375px-wide screen.
 
@@ -205,10 +205,11 @@ Phone frames are drawn at a 375px-wide screen.
 | [x] Read heaps intro               |
 | [ ] Outline heaps chapter [>] ...  |
 | [ ] Do 3 heap problems    [>] ...  |
-| +--------------------------------+ |
-| | What's the very next physical  | |
-| | action?                        | |
-| +--------------------------------+ |
+| What's the very next physical      |
+| action?                            |
+| +--------------------------+       |
+| | Type one step            |  (+)  |
+| +--------------------------+       |
 +------------------------------------+
 | [Start]           [Pin to today]   |
 +------------------------------------+
@@ -232,6 +233,7 @@ Phone frames are drawn at a 375px-wide screen.
 
 - A line under *Break this down for me* names the task it splits: *Splits "Revise DSA basics" into 3 to 6 steps you can edit.* (Natalie's call, from canvas review: make it obvious which task gets broken down.) The button label itself is scope copy (`Product_Scope.md` §3) and is unchanged.
 - In **Chunks**, *Break this down for me* sits first, above the list (Natalie's call, from canvas review): the task's name is already the big question, so breaking it down is the first move. The field under the list adds one step by hand (the only way before the AI breakdown ships in phase 4).
+- **Adding a step by hand:** the question *"What's the very next physical action?"* is the field's label, *Type one step* is its placeholder. Enter or the round **(+)** button adds the step to the bottom of the list; the field clears and stays ready for the next one; an empty entry is ignored. Same pattern as the capture sheet's send button (canvas review).
 - *Pin to today* shows only when the task is not already in Today (§3.4).
 - *Let it go* lives only in the header `...` menu, next to *Rename* (Natalie's call, from canvas review). A button under *Start* and *Pin to today* was too easy to hit by accident while setting a task up. It moves the task out of Today and Inbox into the collapsed Let go section; it is not the back arrow, which only leaves the screen (§4).
 

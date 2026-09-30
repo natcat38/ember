@@ -191,7 +191,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 
 **Every tap**
 1. Task view shows *"What's the very next physical action?"* with a text field, and a **Break this down for me** button beside it.
-2. **Manual:** type one next action → it becomes chunk 1. Add more if you want, but you never have to — one next thing is enough to start.
+2. **Manual:** type one next action and press enter or the **+** button → it's added to the bottom of the list, and the field clears and stays ready for another. Add more if you want, but you never have to — one next thing is enough to start. The question *"What's the very next physical action?"* is the field's label; its placeholder is *"Type one step"* (wireframe review, 2026-09-30).
 3. **AI** (*phase-4 seam; before that, manual only*): tap *Break this down for me* → 3–6 editable steps come back. Edit, delete, reorder, then **accept** → added as the task's chunks. Nothing commits until you accept.
 4. Chunks show as a checklist under the task. Each chunk runs Todo → In focus → Done.
 
