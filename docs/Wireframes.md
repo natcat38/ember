@@ -192,8 +192,6 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 | <-  Revise DSA basics          ... |
 +------------------------------------+
-| Not now? [Snooze]                  |
-+------------------------------------+
 | Has a deadline?                    |
 | [Not yet]     [Pick a date]        |
 | Is this holding up anything else?  |
@@ -215,7 +213,8 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 ```
 
-- *"Not now? [Snooze]"* shows only when the user arrived from a notification (§5).
+- This is the screen for one task, opened from Today, Inbox, or a notification. It is **not** a step after capture: a captured thought goes to Inbox, and triage happens here only when the user opens the task or the morning Pick offers to sort a few (§3.1, §3.2).
+- Arriving from a **web-push notification** adds one line under the header, *"Not now? [Snooze]"*, because web push carries no buttons of its own (§5). It is not part of setting up a task, so this frame leaves it out (removed after Natalie's canvas review).
 - Triage sits at the top until answered. Once it has answers it collapses to a one-line summary:
 
 ```
