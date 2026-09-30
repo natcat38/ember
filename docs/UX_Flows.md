@@ -198,7 +198,8 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 **Decisions the app makes silently**
 - A task needs **≥1 chunk to enter Focus.** No chunk = the Start tap asks for the next action rather than blocking you.
 - **Chunks belong to the task; Today still surfaces only ≤5 across everything.** A 6-step breakdown doesn't blow the day — the rest wait behind the *"N more waiting"* line and surface as room opens.
-- **Chunks are flat — no sub-chunks.** One level only; recursive breakdown is the Goblin trap. *(ponytail: flat.)*
+- **Chunks are flat — no sub-chunks.** One level only; recursive breakdown is the Goblin trap. *(ponytail: flat.)* *(Under review 2026-09-30: Natalie is choosing between flat, split-in-place, and nesting.)*
+- **Editing a step:** each step's `...` opens a menu with *Start this step*, *Rename*, and *Delete step* (wireframe review, 2026-09-30).
 - A chunk can take one or more focus sessions; sessions log against it. Chunk ≠ session.
 - AI cap reached → falls back to manual with the fixed line: *"Out of breakdowns for today. Try: what's the very next physical action?"* The daily cap **number** depends on the chosen free-tier LLM → deferred to `Tech_Scope.md`.
 - **Each press of *Break this down for me* counts against the daily cap, whether or not the result is accepted** — the press is what calls the paid LLM. Cost-driven, not a preference.
@@ -208,7 +209,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 - Don't chunk: the task ranks and sits; Start prompts the one-line next action whenever you're ready. Chunking is never a separate chore.
 - Bad AI breakdown: edit it down or discard and type your own.
 
-**Copy:** *"What's the very next physical action?"*; button *Break this down for me*; cap reached *"Out of breakdowns for today. Try: what's the very next physical action?"*
+**Copy:** *"What's the very next physical action?"*; button *Break this down for me*, with a line under it naming the task, *Splits "Revise DSA basics" into 3 to 6 steps you can edit.* (added in wireframe review, 2026-09-30); cap reached *"Out of breakdowns for today. Try: what's the very next physical action?"*
 
 ### 3.4 Pick
 

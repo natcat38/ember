@@ -2,7 +2,7 @@
 
 Status: **draft, awaiting Natalie's review** (Plan stage, design track, `UX_Flows.md` §8 step 1). Step 2 (critique + accessibility check) appends its findings to this file.
 
-**Visual version:** the same 15 frames as grey-box artboards on the Claude Design canvas [Ember Wireframes](https://claude.ai/artifact/QhDkyqicqW946mMs25F9xf) (private). This file stays the written record; changes made on the canvas get written back here.
+**Visual version:** the same 17 frames as grey-box artboards on the Claude Design canvas [Ember Wireframes](https://claude.ai/artifact/QhDkyqicqW946mMs25F9xf) (private). This file stays the written record; changes made on the canvas get written back here.
 
 Plain-text layouts: what is on each screen and where. No colour, type, or style; those come from the chosen visual direction (§8 steps 3 to 5). All behaviour and copy come from `UX_Flows.md`; section references are given under each frame.
 
@@ -200,6 +200,8 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 | Chunks                             |
 | [Break this down for me]           |
+| Splits "Revise DSA basics" into    |
+| 3 to 6 steps you can edit.         |
 | [x] Read heaps intro               |
 | [ ] Outline heaps chapter [>] ...  |
 | [ ] Do 3 heap problems    [>] ...  |
@@ -228,9 +230,47 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 ```
 
+- A line under *Break this down for me* names the task it splits: *Splits "Revise DSA basics" into 3 to 6 steps you can edit.* (Natalie's call, from canvas review: make it obvious which task gets broken down.) The button label itself is scope copy (`Product_Scope.md` §3) and is unchanged.
 - In **Chunks**, *Break this down for me* sits first, above the list (Natalie's call, from canvas review): the task's name is already the big question, so breaking it down is the first move. The field under the list adds one step by hand (the only way before the AI breakdown ships in phase 4).
 - *Pin to today* shows only when the task is not already in Today (§3.4).
 - *Let it go* lives only in the header `...` menu, next to *Rename* (Natalie's call, from canvas review). A button under *Start* and *Pin to today* was too easy to hit by accident while setting a task up. It moves the task out of Today and Inbox into the collapsed Let go section; it is not the back arrow, which only leaves the screen (§4).
+
+### Menus
+
+The task menu (the header `...`), a small dropdown:
+
+```
++------------------------------------+
+| <-  Revise DSA basics         (...)|
++------------------------------------+
+|                   +---------------+|
+| (Task view,       | Rename task   ||
+|  dimmed)          | Let it go     ||
+|                   +---------------+|
+|                                    |
+|                                    |
++------------------------------------+
+```
+
+A step's menu (the `...` on a step row), a sheet from the bottom:
+
+```
++------------------------------------+
+| (Task view, dimmed)                |
+|                                    |
++------------------------------------+
+| Outline heaps chapter              |
+| Start this step                    |
+| Break this step down               |
+| Rename                             |
+| Delete step                        |
++------------------------------------+
+|              Cancel                |
++------------------------------------+
+```
+
+- **Task menu:** *Rename task* and *Let it go*. Let it go lives only here, away from Start and Pin (§4).
+- **Step menu:** *Start this step*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area). *Break this step down* appears **only if Natalie picks "split in place"** on the open sub-steps question; `UX_Flows.md` §3.3 currently keeps chunks flat, and without that decision the row is left out.
 
 ## 7. Inbox
 
@@ -393,7 +433,7 @@ For Natalie's review; none of these change `UX_Flows.md` behaviour.
 5. **Inbox has two sections**, Needs sorting and Waiting, plus the collapsed Let go.
 6. **Wrap up the day** lives in the drawer.
 7. **Triage collapses** to a one-line summary with *Edit* once answered.
-8. **Rename a task** via the Task view's `...` menu. No document specified renaming until now.
+8. **Rename a task** via the Task view's `...` menu. No document specified renaming until now. A step's own `...` menu holds *Start this step*, *Rename*, and *Delete step*; editing steps was also unspecified.
 9. **The desktop right pane** is never empty: Focus while running, otherwise the selected task.
 10. **New copy:** *Let's go* / *Adjust*, *Pin a task*, *Take 5* / *Skip break*, *Back to it* / *Stop here*, *Needs sorting*, *Waiting*, *Not set up*, *Hours you're already busy. Ember plans around them.*, *Add a block*, *Rename*, *Close*.
 
