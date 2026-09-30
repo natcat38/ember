@@ -1,6 +1,8 @@
 # Ember: Wireframes
 
-Status: **draft, awaiting Natalie's review** (Plan stage, design track, `UX_Flows.md` §8 step 1). Step 2 (critique + accessibility check) appends its findings to this file.
+Status: **approved by Natalie 2026-09-30**, with four open decisions listed below (Plan stage, design track, `UX_Flows.md` §8 step 1). Step 2 (critique + accessibility check) appends its findings to this file.
+
+*Generated file: edit `scripts/wireframes.py`, then run `python scripts/wireframes.py docs/Wireframes.md`.*
 
 **Visual version:** the same 20 frames as grey-box artboards on the Claude Design canvas [Ember Wireframes](https://claude.ai/artifact/QhDkyqicqW946mMs25F9xf) (private). This file stays the written record; changes made on the canvas get written back here.
 
@@ -510,6 +512,15 @@ Targets to meet, not measurements. Step 2 checks the frames against them and the
 - Visible keyboard focus on every control; focus order follows reading order.
 - Screen-reader labels: `[>]` → "Start *chunk name*", `...` → "More actions for *chunk name*", checkbox → "Mark *chunk name* done", ring → "2 of 5 done today". The cat is hidden from screen readers (§6).
 - Reduced motion: still poses for the cat, no sheet or card animations.
+
+## Open decisions (Natalie's)
+
+Raised in canvas review, 2026-09-30; not yet answered. Nothing here is drawn until decided.
+
+1. **Sub-steps.** Can a step be broken into smaller steps? (1) keep flat, as signed off in `UX_Flows.md` §3.3; (2) split in place: a step's menu gets *Break this step down*, which replaces it with 3 to 6 steps in the same one-level list; (3) real nesting: each step holds a collapsible sub-list. Natalie answered "3" in the thread, but that was taken as the reordering choice; whether it also meant nesting is unconfirmed.
+2. **"Let it go" label.** Natalie suggested "Remove" or "Delete". It is signed-off scope copy (`Product_Scope.md` §3), and the task is restorable, so "Delete" would be inaccurate. Options: (1) keep *Let it go*; (2) *Remove from list*; (3) *Delete*, only if behaviour changes to real deletion with confirm/undo.
+3. **"Chunk" or "step".** User-facing copy uses both (Reward and Rewards say *chunk*; Task view says *step*). Proposed: *step* everywhere the user can see it.
+4. **Undo on letting go.** Offered: an *Undo* button on the *"Moved out of the way. It's still here if you want it back."* confirmation.
 
 ## Open for `Tech_Scope.md`
 
