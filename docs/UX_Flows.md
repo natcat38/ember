@@ -248,7 +248,7 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 
 **Every tap**
 1. Start → Focus mode: the chunk text fills the screen, timer begins, the rest of the UI **dims (not blocked — you can still peek).** Cat: stretching.
-2. Minimal controls only: **Pause**, **Done**, **Exit**. Capture stays reachable without pausing.
+2. Minimal controls only: **Pause** (large, centred), **Done**, **Stop for now**. Capture stays reachable without pausing. (*Stop for now* was *Exit* until wireframe review, 2026-09-30; renamed so it can't be mistaken for Done.)
 3. Timer ends or **Done**:
    - **Chunk done** → Reward (§3.6).
    - **Timer done, chunk not done** → restful break, then a gentle *"Back to it?"* to resume the same chunk.
@@ -264,10 +264,10 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 - The 5-min break is **offered, not auto-forced** (*"Take 5?"* → *"Back to it?"*); no strict auto-flow.
 
 **Bail-outs**
-- **Pause** stops the timer, stays in focus. **Exit** returns the chunk to Todo with sessions logged — no penalty, no guilt.
+- **Pause** stops the timer, stays in focus. **Stop for now** returns the chunk to Todo with sessions logged — no penalty, no guilt.
 - **Done early** completes the chunk before the timer elapses → straight to Reward.
 
-**Copy:** break prompt *"Take 5?"*; resume *"Back to it?"*; controls *Pause / Done / Exit*. Break screen: a calm visual + optional breathing guide, copy kept minimal.
+**Copy:** break prompt *"Take 5?"*; resume *"Back to it?"*; controls *Pause / Done / Stop for now*. Break screen: a calm visual + optional breathing guide, copy kept minimal.
 
 ### 3.6 Reward
 
