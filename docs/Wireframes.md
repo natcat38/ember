@@ -241,12 +241,12 @@ The task menu (the header `...`), a small dropdown:
 
 ```
 +------------------------------------+
-| <-  Revise DSA basics         (...)|
+| <-  Revise DSA basics        (...) |
 +------------------------------------+
-|                   +---------------+|
-| (Task view,       | Rename task   ||
-|  dimmed)          | Let it go     ||
-|                   +---------------+|
+|                  +---------------+ |
+| (Task view,      | Rename task   | |
+|  dimmed)         | Let it go     | |
+|                  +---------------+ |
 |                                    |
 |                                    |
 +------------------------------------+
