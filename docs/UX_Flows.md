@@ -198,7 +198,15 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 **Decisions the app makes silently**
 - A task needs **≥1 chunk to enter Focus.** No chunk = the Start tap asks for the next action rather than blocking you.
 - **Chunks belong to the task; Today still surfaces only ≤5 across everything.** A 6-step breakdown doesn't blow the day — the rest wait behind the *"N more waiting"* line and surface as room opens.
-- **Chunks are flat — no sub-chunks.** One level only; recursive breakdown is the Goblin trap. *(ponytail: flat.)* *(Under review 2026-09-30: Natalie is choosing between flat, split-in-place, and nesting.)*
+- **Two levels at most: a step can be split once into smaller steps** (wireframe review, 2026-09-30; replaces "chunks are flat"). The smaller steps stay under their parent, because the parent's name is how the user recognises the work. The cap of two levels keeps out recursive breakdown, the Goblin trap. The rules:
+  1. **Splitting:** a step's `...` menu has *Break this step down*. Before phase 4 it's manual: the step becomes a heading and an indented field opens under it, labelled *Add a smaller step*. From phase 4 the AI returns 3–6 smaller steps with the same edit-then-accept flow, and each press counts against the daily cap like *Break this down for me*.
+  2. **Parent checkbox:** ticks itself when its last smaller step is done. Ticking it by hand marks all its remaining smaller steps done.
+  3. **No start button on a parent.** Focus always runs on one smaller step. The Task view's *Start* begins the first unfinished smaller step in list order.
+  4. **Today surfaces smaller steps, never the parent**, so the cap of 5 still counts real actions. Each row names its parent as context.
+  5. **Reordering:** smaller steps move only within their own parent. Moving a parent moves its whole group. Nothing is dragged between levels.
+  6. **No third level:** a smaller step's menu has no *Break this step down*.
+  7. **Deleting a parent** asks first: *"Delete this step and its N smaller steps?"* Deleting the last smaller step turns the parent back into a plain step.
+  8. **States:** Todo → In focus → Done applies only to steps with no smaller steps. A parent's state is derived: Done when all its smaller steps are Done, otherwise Todo.
 - **Editing a step:** each step's `...` opens a menu with *Start this step*, *Move up*, *Move down*, *Rename*, and *Delete step* (wireframe review, 2026-09-30).
 - **Reordering steps:** hold a step (touch) or click it (mouse) and drag; *Move up* / *Move down* cover keyboard and screen-reader users. The Task view's *Start* begins the first unfinished step in list order; any step's own start button begins that step (wireframe review, 2026-09-30).
 - A chunk can take one or more focus sessions; sessions log against it. Chunk ≠ session.

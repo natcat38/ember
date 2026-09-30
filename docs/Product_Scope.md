@@ -75,6 +75,8 @@ After any absence, the home screen looks like a normal day: no red, no count of 
 ### Chunk
 Todo → In focus → Done. A chunk in focus that is abandoned returns to Todo with sessions logged.
 
+A chunk can be split once into smaller chunks; two levels at most (wireframe review, 2026-09-30). The state machine above applies only to chunks with no children. A parent's state is derived: Done when all its children are Done, otherwise Todo. Ticking a parent by hand marks its remaining children Done. Today and Focus only ever surface chunks with no children. Full rules: `UX_Flows.md` §3.3.
+
 ### Reminder for a task
 | State | Meaning |
 |---|---|

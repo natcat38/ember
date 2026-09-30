@@ -157,7 +157,12 @@ TASK = frame([
     ' Splits "Revise DSA basics" into',
     " 3 to 6 steps you can edit.",
     " [x] Read heaps intro",
-    " [ ] Outline heaps chapter [>] ...",
+    " [ ] Outline heaps chapter     ...",
+    "     [x] Open notes doc    [>] ...",
+    "     [ ] List 5 heap ops   [>] ...",
+    "     +--------------------+",
+    "     | Add a smaller step |  (+)",
+    "     +--------------------+",
     " [ ] Do 3 heap problems    [>] ...",
     " What's the very next physical",
     " action?",
@@ -192,6 +197,7 @@ STEP_MENU = frame([
     "---",
     " Outline heaps chapter",
     " Start this step",
+    " Break this step down",
     " Move up",
     " Move down",
     " Rename",
@@ -373,6 +379,7 @@ Phone frames are drawn at a 375px-wide screen.
 - The frog card sits first and is larger. Its buttons are the scope's own pair, *Do this first* (starts Focus on it) and *Not today* (§3.4).
 - Each other row has three controls: the checkbox marks the chunk done without Focus (goes to Reward), `[>]` starts Focus, and `...` offers *Not today* and *Open task*. Tapping the row text opens the Task view.
 - Done chunks stay on the list, dimmed, below the open ones, so the day's progress stays visible.
+- A smaller step (one split off a bigger step, `UX_Flows.md` §3.3) shows its parent step's name as a dimmed second line, so the row says where it belongs. Today counts smaller steps, never their parent. The frog card's *from:* line still names the task.
 - An overdue task shows *"Was due Tue"* in plain text under its title (§4). Overdue tasks rank at the top, so one is usually the frog.
 - The overflow line links to Inbox (§3.4).
 
@@ -449,7 +456,9 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 
 - **Task menu:** *Rename task* and *Let it go*. Let it go lives only here, away from Start and Pin (§4).
 - **Step menu:** *Start this step*, *Move up*, *Move down*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area).
-- **Reordering steps** (Natalie's call, from canvas review): on touch, hold a step for about half a second, then drag it; with a mouse, click and drag it directly. No handle on the row. *Move up* / *Move down* in the step menu do the same for keyboard and screen-reader users, who cannot drag. The rows turn off the phone's press-and-hold text menu so the hold starts a drag instead. The big *Start* at the bottom always starts the first unfinished step in this order; each row's own start button starts that step directly. The frame follows the signed-off rule (`UX_Flows.md` §3.3, chunks are flat), so it has no split row. If Natalie picks "split in place" on the open sub-steps question, a *Break this step down* row is added here.
+- **Reordering steps** (Natalie's call, from canvas review): on touch, hold a step for about half a second, then drag it; with a mouse, click and drag it directly. No handle on the row. *Move up* / *Move down* in the step menu do the same for keyboard and screen-reader users, who cannot drag. The rows turn off the phone's press-and-hold text menu so the hold starts a drag instead. The big *Start* at the bottom always starts the first unfinished step in this order; each row's own start button starts that step directly. 
+- **Smaller steps** (Natalie's call, 2026-09-30; full rules in `UX_Flows.md` §3.3): *Break this step down* turns the step into a heading with its smaller steps indented under it. Two levels at most. Before phase 4 the split is manual: an indented field labelled *Add a smaller step*, with its own **(+)**, opens under the heading, and works like the main add field. In the frame, *Outline heaps chapter* has been split: its checkbox ticks itself when both smaller steps are done (ticking it by hand finishes the rest), and it has no `[>]` because Focus runs on one smaller step at a time.
+- **Menu differences by row:** a smaller step's menu has no *Break this step down* (no third level). A parent's menu swaps *Start this step* and *Break this step down* for *Add a smaller step*; its *Move up* / *Move down* move the whole group, and a smaller step moves only within its parent. *Delete step* on a parent asks *"Delete this step and its N smaller steps?"*
 
 ## 7. Inbox
 
@@ -545,7 +554,7 @@ Targets to meet, not measurements. Step 2 checks the frames against them and the
 
 Raised in canvas review, 2026-09-30; not yet answered. Nothing here is drawn until decided.
 
-1. **Sub-steps.** Can a step be broken into smaller steps? (1) keep flat, as signed off in `UX_Flows.md` §3.3; (2) split in place: a step's menu gets *Break this step down*, which replaces it with 3 to 6 steps in the same one-level list; (3) real nesting: each step holds a collapsible sub-list. Natalie answered "3" in the thread, but that was taken as the reordering choice; whether it also meant nesting is unconfirmed.
+1. **Sub-steps. Decided 2026-09-30:** a step can be split once into smaller steps that stay under it; two levels at most. Drawn in the Task view (§6); rules in `UX_Flows.md` §3.3, state machine in `Product_Scope.md`.
 2. **"Let it go" label.** Natalie suggested "Remove" or "Delete". It is signed-off scope copy (`Product_Scope.md` §3), and the task is restorable, so "Delete" would be inaccurate. Options: (1) keep *Let it go*; (2) *Remove from list*; (3) *Delete*, only if behaviour changes to real deletion with confirm/undo.
 3. **"Chunk" or "step".** User-facing copy uses both (Reward and Rewards say *chunk*; Task view says *step*). Proposed: *step* everywhere the user can see it.
 4. **Undo on letting go.** Offered: an *Undo* button on the *"Moved out of the way. It's still here if you want it back."* confirmation.
