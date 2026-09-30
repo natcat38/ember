@@ -6,7 +6,7 @@ Status: **draft, awaiting Natalie's review** (Plan stage, design track, `UX_Flow
 
 Plain-text layouts: what is on each screen and where. No colour, type, or style; those come from the chosen visual direction (§8 steps 3 to 5). All behaviour and copy come from `UX_Flows.md`; section references are given under each frame.
 
-**Legend:** `=` drawer menu · `(2/5)` progress ring · `*` frog · `[ ]` chunk not done · `[x]` chunk done · `[>]` start · `...` more actions · `>` opens a sub-screen · `<-` back · `cat, <state>` where the cat sits and its state · `[Button]` tappable.
+**Legend:** `=` drawer menu · `(2/5)` progress ring · `*` frog · `[ ]` chunk not done · `[x]` chunk done · `[>]` start · `(>)` send ·`...` more actions · `>` opens a sub-screen · `<-` back · `cat, <state>` where the cat sits and its state · `[Button]` tappable.
 
 Phone frames are drawn at a 375px-wide screen.
 
@@ -102,10 +102,9 @@ Phone frames are drawn at a 375px-wide screen.
 | - finish DS assignment             |
 | - prep for interview               |
 | [Deadline] [Quick]                 |
-| +--------------------------------+ |
-| | What's on your mind?_          | |
-| +--------------------------------+ |
-|                            [Send]  |
+| +--------------------------+       |
+| | What's on your mind?_    |  (>)  |
+| +--------------------------+       |
 +------------------------------------+
 | (keyboard)                         |
 +------------------------------------+
@@ -113,7 +112,7 @@ Phone frames are drawn at a 375px-wide screen.
 
 - Rises from the capture bar with the field focused and the keyboard up. Each sent item stacks above the field, which clears and stays open (§3.1).
 - *Deadline* and *Quick* sit above the field (Natalie's call, from canvas review). *Deadline* opens the native date picker; *Quick* pre-sets size XS. Both optional.
-- *Send* is the only button under the field, on the right under the thumb, so the sheet offers one action (Natalie's call, from canvas review).
+- *Send* is a round icon button right beside the field, like WhatsApp (Natalie's call, from canvas review): typing and sending sit on one line, and it is the sheet's only action. Screen readers announce it as "Send".
 - *Done* sits at the sheet's top-left and closes it; on first run it reads *"That's it for now"* (§7). Tapping the dimmed background or swiping down also closes it. Unsent text is kept as a draft, so an accidental tap on the background loses nothing.
 
 ## 4. Focus
