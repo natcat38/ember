@@ -9,8 +9,8 @@ Contents:
 4. Edge and state screens ✅ signed off 2026-09-30
 5. Notification interaction design ✅ signed off 2026-09-30
 6. The cat ✅ signed off 2026-09-30
-7. Onboarding — *drafted 2026-09-30, awaiting sign-off*
-8. Design process plan — *to draft*
+7. Onboarding ✅ signed off 2026-09-30
+8. Design process plan — *drafted 2026-09-30, awaiting sign-off*
 
 ## Open scope changes (fold into Product_Scope at the scope pass)
 
@@ -501,3 +501,26 @@ Safari on iPhone deletes a site's stored data after about 7 days of browser use 
 ### Desktop
 
 Same sequence. The capture bar is always visible, so step 1 is the bar with the cursor in it. No install ask.
+
+---
+
+## 8. Design process plan
+
+From these flows to visuals. Each step produces a file; no UI code is written before `Design_Direction.md` exists.
+
+| # | Step | Output | Skill | When |
+|---|---|---|---|---|
+| 1 | **Wireframes**: every screen in §2 as a plain-text layout (boxes and labels, no colour or style). Fixes content and placement before looks | `docs/Wireframes.md` | None; written directly | Start of Plan |
+| 2 | **Check flows and wireframes**: usability critique, then accessibility (touch targets, focus order, screen-reader announcements). Contrast is a target to meet (WCAG AA, 4.5:1 for text), not a value picked here | Findings appended to `Wireframes.md` | `design:design-critique`, then `design:accessibility-review` | After 1 |
+| 3 | **Mockups**: Warm Paper, Focus Beam, and Small Companion on the same three screens (**Today, Focus, Reward**), 9 artboards on one canvas | A Claude Design canvas | `design` | **Only when Natalie asks for the mockups by name** (the one exception to the no-Artifacts rule) |
+| 4 | **Natalie picks** a direction or a blend | `Product_Scope.md` §7, decision 6 | None | After 3 |
+| 5 | **Design spec**: 4–6 named colours, 2–3 typefaces with roles, layout concept, one signature element, loading/empty/error states (copy in §4), quality floor (visible focus, AA contrast, reduced motion, 375px), self-check against the generic default | `docs/Design_Direction.md` | `hallmark` + `frontend-design`; shadcn/ui components checked for patterns first | After 4 |
+| 6 | **Accessibility pass on the chosen direction** | Findings in `Design_Direction.md` | `design:accessibility-review` | Before Build |
+
+**Why these three screens:** each direction's signature has somewhere to show. Focus Beam's spotlight appears on Focus, Warm Paper's card tear on Reward, and the purring cat on Reward. Shutdown (calm, text-heavy) is not tested; its look follows from the chosen direction in step 5.
+
+**Mockup constraints (from decisions already made):**
+- **All three directions show the tabby** in its §6 placements. The research described Warm Paper and Focus Beam without a companion; the cat is locked in `Product_Scope.md` §7.
+- **Small Companion is adapted.** As researched it is an abstract shape whose posture and glow track "how the day is going". That breaks two decisions (the companion is a cat; §6 says it reflects current activity only), so it is mocked as its palette and type with the cat, without the day-mood glow.
+
+**Scheduling:** steps 1–6 are Plan's design track. The feasibility spike and `Tech_Scope.md` are the tech track. The tracks are independent; either can go first.
