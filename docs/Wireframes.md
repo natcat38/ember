@@ -263,6 +263,8 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 +------------------------------------+
 | Outline heaps chapter              |
 | Start this step                    |
+| Move up                            |
+| Move down                          |
 | Rename                             |
 | Delete step                        |
 +------------------------------------+
@@ -271,7 +273,8 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 ```
 
 - **Task menu:** *Rename task* and *Let it go*. Let it go lives only here, away from Start and Pin (§4).
-- **Step menu:** *Start this step*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area). The frame follows the signed-off rule (`UX_Flows.md` §3.3, chunks are flat), so it has no split row. If Natalie picks "split in place" on the open sub-steps question, a *Break this step down* row is added here.
+- **Step menu:** *Start this step*, *Move up*, *Move down*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area).
+- **Reordering steps** (Natalie's call, from canvas review): on touch, hold a step for about half a second, then drag it; with a mouse, click and drag it directly. No handle on the row. *Move up* / *Move down* in the step menu do the same for keyboard and screen-reader users, who cannot drag. The rows turn off the phone's press-and-hold text menu so the hold starts a drag instead. The big *Start* at the bottom always starts the first unfinished step in this order; each row's own start button starts that step directly. The frame follows the signed-off rule (`UX_Flows.md` §3.3, chunks are flat), so it has no split row. If Natalie picks "split in place" on the open sub-steps question, a *Break this step down* row is added here.
 
 ## 7. Inbox
 
