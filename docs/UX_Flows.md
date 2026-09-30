@@ -1,6 +1,6 @@
 # Ember — UX Flows
 
-Status: **draft, signed off section by section** (Define stage). Builds on `Product_Scope.md` and the five reports in `research/`. Describes the *finished* product's behaviour; the phase table in `Product_Scope.md` §6 stays the authority on what ships when. Phase seams are marked inline.
+Status: **all eight sections signed off 2026-09-30** (Define stage). Define closes when Natalie signs off this document and `Product_Scope.md` together. Builds on `Product_Scope.md` and the five reports in `research/`. Describes the *finished* product's behaviour; the phase table in `Product_Scope.md` §6 stays the authority on what ships when. Phase seams are marked inline.
 
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
@@ -10,17 +10,11 @@ Contents:
 5. Notification interaction design ✅ signed off 2026-09-30
 6. The cat ✅ signed off 2026-09-30
 7. Onboarding ✅ signed off 2026-09-30
-8. Design process plan — *drafted 2026-09-30, awaiting sign-off*
+8. Design process plan ✅ signed off 2026-09-30
 
-## Open scope changes (fold into Product_Scope at the scope pass)
+## Scope changes from this session
 
-- **Day shape.** New concept, not in `Product_Scope.md` yet. The user sets recurring **hard blocks** (fixed, unavailable hours — the "lecture" model). Ember sizes Today from the **free-floating** time left over and slots the ranked chunks into it. Guard against brittleness: **hard blocks are scheduled; chunks are never clock-pinned** — there is no clock sequence to wreck when the user starts late, only fixed blocks and a ranked list to fill the gaps. Phase placement is a Plan-stage call; not in the phase-1 cut line. Adds a §7 decision and a screen (§2).
-- **Quick flag defined.** Product_Scope §2 lists a "quick" flag at capture without saying what it does. Decided: Quick pre-sets size XS so triage skips the size question (§3.1).
-- **Triage question reworded.** Product_Scope §2's "Does something else depend on it?" becomes *"Is this holding up anything else?"* Same meaning, plainer wording (§3.2).
-- ~~Lapse-return wording~~ — applied to `Product_Scope.md` §2 on 2026-09-30.
-- **"Gap" defined.** Product_Scope §2 says "after any gap". Decided: a lapse return is the first open after **3 or more days** with no open (§6).
-- **Day rollover.** A day starts when quiet hours end (08:00 default), not at midnight. Today rebuilds and the daily notification cap resets then; a 1am session counts toward the day before (§6).
-- **Anonymous backup from phase 2.** Product_Scope phase 2 lists "backend, auth, cross-device sync". Added: every user's tasks back up to the server under an anonymous identity from the first capture, with a one-line disclosure; a real account is needed only for a second device. Needs a retention rule for anonymous users who never return (→ `Tech_Scope.md`). Phase 1 uses an iPhone install nudge instead (§7).
+All applied to `Product_Scope.md` on 2026-09-30: day shape (§2 + decision 8), Quick flag meaning, reworded triage question, lapse-return wording, the 3-day gap, the day boundary at the end of quiet hours, cap priority, anonymous backup from phase 2 + phase-1 iPhone nudge (decision 9), and the out-of-scope line for clock-pinned scheduling.
 
 ---
 
@@ -64,7 +58,7 @@ Gone seven days. Home screen looks like a normal day: no red, no count of missed
 
 ### Natalie
 
-The builder. Unemployed, job hunting for a Senior/Full Stack/Backend/Product role in Singapore; NeetCode and system-design practice daily; learning Spring. Uses Ember every day for months, so her paths test durability and the no-guilt design under real emotional load. **Her frog: learning DSA / hard concepts** — the deep-learning task she avoids. **Her day: currently formless; she wants a university shape** — hard blocks (fixed) and free-floating time (see the day-shape scope change above).
+The builder. Unemployed, job hunting for a Senior/Full Stack/Backend/Product role in Singapore; NeetCode and system-design practice daily; learning Spring. Uses Ember every day for months, so her paths test durability and the no-guilt design under real emotional load. **Her frog: learning DSA / hard concepts** — the deep-learning task she avoids. **Her day: currently formless; she wants a university shape** — hard blocks (fixed) and free-floating time (see Day shape in `Product_Scope.md` §2).
 
 **First run**
 She built it, so first run is the first day she uses it for real. Dumps: three applications to send, a NeetCode set, a Spring tutorial, résumé tweaks, Ember work. Hybrid branch fires on the dump path → *"Let's make today small."* → surfaces one. Cat: waking → watching. Same seven-step shape as Mei's first run.

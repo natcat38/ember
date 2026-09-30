@@ -2,7 +2,7 @@
 # Roadmap — Ember
 
 **Current stage: Define**
-**Next up:** UX deep-dive session (brief: `docs/UX_Session_Brief.md`) produces `docs/UX_Flows.md`; Natalie signs off Product_Scope + UX_Flows together. Then Plan: feasibility spike before Tech_Scope.md.
+**Next up:** Natalie signs off `docs/Product_Scope.md` + `docs/UX_Flows.md` together (UX_Flows done and scope pass applied 2026-09-30); that closes Define. Then Plan, two independent tracks: design (UX_Flows §8: wireframes → checks → Claude Design mockups on request → pick → Design_Direction.md) and tech (feasibility spike → Tech_Scope.md). Spike must confirm: iOS web push has no action buttons (UX_Flows §5); Safari's 7-day storage wipe for non-installed sites (UX_Flows §7).
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.
@@ -12,7 +12,7 @@ Agents: read this file at session start, state the current stage and next unchec
 - [ ] One paragraph: who is this for, what pain does it remove? If the honest answer is "my resume", still pick a fictional real user — it forces every later decision.
 - [ ] One sentence: what does this repo prove to a recruiter (stack keywords + one differentiator)?
 - [ ] Name the cut line: the smallest version that is complete and presentable.
-- [ ] `docs/UX_Flows.md`: persona paths, screen inventory, the seven flows tap by tap with copy, edge states, notification interactions, cat states, onboarding, design-process plan (see `docs/UX_Session_Brief.md`).
+- [x] `docs/UX_Flows.md`: persona paths, screen inventory, the seven flows tap by tap with copy, edge states, notification interactions, cat states, onboarding, design-process plan (see `docs/UX_Session_Brief.md`).
 - [ ] `docs/Product_Scope.md`: background & problem · proposed solution (behaviour, not tech) · hard rules/validation with exact UI copy · decision matrix for any state machine · explicit out-of-scope list · phases with the cut line marked.
 
 Exit: user has signed off the product scope. Skills: superpowers:brainstorming, grill-with-docs, feature-scope-docs.
