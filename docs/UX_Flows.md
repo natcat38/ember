@@ -8,8 +8,8 @@ Contents:
 3. The seven flows in detail ✅ signed off 2026-09-30
 4. Edge and state screens ✅ signed off 2026-09-30
 5. Notification interaction design ✅ signed off 2026-09-30
-6. The cat — *drafted 2026-09-30, awaiting sign-off*
-7. Onboarding — *to draft*
+6. The cat ✅ signed off 2026-09-30
+7. Onboarding — *drafted 2026-09-30, awaiting sign-off*
 8. Design process plan — *to draft*
 
 ## Open scope changes (fold into Product_Scope at the scope pass)
@@ -20,6 +20,7 @@ Contents:
 - ~~Lapse-return wording~~ — applied to `Product_Scope.md` §2 on 2026-09-30.
 - **"Gap" defined.** Product_Scope §2 says "after any gap". Decided: a lapse return is the first open after **3 or more days** with no open (§6).
 - **Day rollover.** A day starts when quiet hours end (08:00 default), not at midnight. Today rebuilds and the daily notification cap resets then; a 1am session counts toward the day before (§6).
+- **Anonymous backup from phase 2.** Product_Scope phase 2 lists "backend, auth, cross-device sync". Added: every user's tasks back up to the server under an anonymous identity from the first capture, with a one-line disclosure; a real account is needed only for a second device. Needs a retention rule for anonymous users who never return (→ `Tech_Scope.md`). Phase 1 uses an iPhone install nudge instead (§7).
 
 ---
 
@@ -37,7 +38,7 @@ Persona: 24, final semester, four assignments and two interviews in three weeks.
 1. Lands on a near-empty screen, one capture field already focused. No tour, no signup, no account. Placeholder: *"What's on your mind?"* Sub-line: *"One thing or ten. Just get it out of your head."* Cat: asleep, curled in a corner.
 2. Types "finish data structures assignment", hits enter; it drops into a short stack above the field, which stays ready. She keeps going — interview prep, ethics essay, fix résumé — six things in about 40 seconds. Cat: one eye open, waking. No deadlines, sizes, or triage asked for.
 3. The turn (hybrid branch):
-   - **Dumped several** → *"Got it, six things. Let's make today small."* The pile clears off-screen. Cat: sitting up, watching.
+   - **Dumped several** → *"Got it, six things. Let's make today small."* then *"Which one's weighing on you most?"* with the items listed. One tap picks it; the rest clear off-screen. Cat: sitting up, watching.
    - **Typed one and stalled** → *"Want me to break that one down?"* → straight into chunking that task.
 4. First value, one thing not five: a single task surfaces, big and alone, with two buttons — **Break this down** and **Start**. Everything else is out of sight. First-run Today is deliberately one item; the five-cap is for a normal day, not a cold start.
 5. First chunk: taps *Break this down* → 3–6 editable steps. *(Phase-1 seam: no AI yet; instead it asks "What's the very next physical action?" and she types one line.)* Picks step one.
@@ -452,3 +453,51 @@ One channel per message, never both. The user picks Telegram or web push in Sett
 With reduced motion on, still poses replace animations. The cat is decorative and hidden from screen readers (`aria-hidden`): the ring and timer carry everything it shows, so screen-reader users lose nothing.
 
 **Not decided here:** the illustration style. `Product_Scope.md` §7 leaves it to the design stage.
+
+---
+
+## 7. Onboarding
+
+**Target:** a real chunk ready to start within 60 seconds of required input. No tour, no signup, no account screen.
+
+### The sequence
+
+Times are required input only.
+
+| Step | What happens | Time |
+|---|---|---|
+| 1. Land | Capture field already focused. *"What's on your mind?"* + *"One thing or ten. Just get it out of your head."* Cat asleep | 0s |
+| 2. Dump | Type one or more things; each stacks above the field. After the first, the Done control relabels to *"That's it for now"* | 10–40s |
+| 3. Branch | Decided on the *That's it for now* tap. **One item** → *"Want me to break that one down?"* · **Two or more** → *"Got it, six things. Let's make today small."* then *"Which one's weighing on you most?"*, one tap to pick | 1–2 taps |
+| 4. First Today | The picked task, big and alone. *Break this down* / *Start*. Cat watching | ~2s |
+| 5. First chunk | Type one next action (phase 1) or accept an AI breakdown (phase 4) | ~10s |
+| — | **Under-60s target met.** Everything below is optional | |
+| 6. Starter focus | *"Start with two minutes?"* Cat stretching | 2 min |
+| 7. Reward + reminder offer | Ring ticks, cat purrs. *"That's a start. Want Ember to nudge you gently while it's closed?"* | — |
+
+### Decisions the app makes silently
+
+- **The branch is decided by a tap, not an idle timer.** An idle timer guesses wrong and is fiddly to build; the relabelled *"That's it for now"* makes the tap obvious.
+- **Nothing is triaged during onboarding.** The other items wait untriaged in Inbox; the next morning's Pick offers to sort a few.
+- **The picked task needs no triage** to be the first Today. It is placed directly, not ranked.
+- **No account screen.** An identity is created the first time the user asks for something that needs one (reminders, or a second device). The sign-in method is a `Tech_Scope.md` decision.
+
+### The reminder offer (step 7, phase 2+)
+
+- Yes → *"Where should nudges go?"* *[Telegram] [This device]*
+  - **Telegram:** opens the bot through a one-time link; the user taps Start in Telegram; the bot replies *"Linked. Ember will nudge you here."*
+  - **This device:** the browser permission prompt, shown only after the user's tap (browsers penalise sites that ask on page load). **iPhone without Ember on the Home Screen:** push cannot work there, so the Add to Home Screen hint (§4) comes first.
+  - **Desktop:** no install ask; desktop browsers send push without it.
+- *Not now* → *"You can turn this on in Settings any time."* Not offered again automatically.
+- **No to both:** the app works fully; reminders exist in-app only.
+
+### Keeping iPhone data safe
+
+Safari on iPhone deletes a site's stored data after about 7 days of browser use without a visit, unless the site is on the Home Screen *(confirm in the feasibility spike)*. An iPhone user with no account who declines everything could come back to an empty app, which is exactly the user the lapse return exists for.
+
+- **Phase 1 (no server): honest install nudge.** On iPhone Safari, not installed, after the first reward: *"Safari can clear your list if you don't open Ember for about a week. Adding Ember to your Home Screen keeps it safe."* *[Add to Home Screen] [Not now]*. Shown once; the hint stays findable in Settings.
+- **Phase 2 onward: quiet backup.** Tasks back up to the server under an anonymous identity from the first capture, so declining everything never risks data. Disclosed on the landing screen: *"Your list is backed up, so it won't get lost."* The phase-1 nudge is dropped. A real account is needed only to open Ember on a second device.
+
+### Desktop
+
+Same sequence. The capture bar is always visible, so step 1 is the bar with the cursor in it. No install ask.
