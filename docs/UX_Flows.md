@@ -139,7 +139,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 1. Tap capture button → bottom sheet slides up, field already focused, keyboard up. Placeholder: *"What's on your mind?"* When Inbox is empty or it's first run, the sub-line shows: *"One thing or ten. Just get it out of your head."*
 2. Type text → **Send** (or the keyboard's enter). The item flashes a quiet *Added* and the field **clears but stays open** — dump five things in a row without reopening anything.
 3. Optional, revealed not forced: two chips under the field — **Deadline** (opens the native date picker) and **Quick**. Both collapsed by default; nothing required.
-4. Close with **Done** or a swipe-down.
+4. Close with **Done** (top-left of the sheet, away from *Send*), a tap on the dimmed background, or a swipe-down. *Send* is the only action by the field. (Done moved during wireframe review, 2026-09-30.)
 
 **Decisions the app makes silently**
 - A new capture enters **Inbox** state — not Today, not triaged. Triage is deferred to the Task view when the task is about to enter Today.
