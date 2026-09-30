@@ -2,6 +2,8 @@
 
 Status: **draft, awaiting Natalie's review** (Plan stage, design track, `UX_Flows.md` §8 step 1). Step 2 (critique + accessibility check) appends its findings to this file.
 
+**Visual version:** the same 15 frames as grey-box artboards on the Claude Design canvas [Ember Wireframes](https://claude.ai/artifact/QhDkyqicqW946mMs25F9xf) (private). This file stays the written record; changes made on the canvas get written back here.
+
 Plain-text layouts: what is on each screen and where. No colour, type, or style; those come from the chosen visual direction (§8 steps 3 to 5). All behaviour and copy come from `UX_Flows.md`; section references are given under each frame.
 
 **Legend:** `=` drawer menu · `(2/5)` progress ring · `*` frog · `[ ]` chunk not done · `[x]` chunk done · `[>]` start · `...` more actions · `>` opens a sub-screen · `<-` back · `cat, <state>` where the cat sits and its state · `[Button]` tappable.
