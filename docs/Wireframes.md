@@ -176,14 +176,15 @@ Phone frames are drawn at a 375px-wide screen.
 | | Chunk done. Ninety seconds,    | |
 | | if you want it.                | |
 | |                                | |
-| | [Play]                  [Skip] | |
+| | [Try today's chess puzzle]     | |
+| |             Skip               | |
 | +--------------------------------+ |
 |                                    |
 +------------------------------------+
 ```
 
 - An overlay on Focus (or on Today, when a chunk is checked off there). The ring ticks and the cat purrs before the card appears (§3.6).
-- *Play* shows one unlock inline (a trivia question, the Lichess daily puzzle, or an "on this day" fact) with a thin 90-second bar; when it runs out, the card offers the next chunk. *Skip* goes straight there.
+- The main button names the unlock being served (Natalie's call, from canvas review): *Try today's chess puzzle* (Lichess daily puzzle), *Answer a trivia question*, or *See what happened on this day* (Wikipedia). It opens the unlock inline with a thin 90-second bar; when the bar runs out, the card offers the next chunk. *Skip* goes straight there.
 
 ## 6. Task view
 
