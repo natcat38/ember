@@ -100,18 +100,19 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 | - finish DS assignment             |
 | - prep for interview               |
+| [Deadline] [Quick]                 |
 | +--------------------------------+ |
 | | What's on your mind?_          | |
 | +--------------------------------+ |
-| [Deadline] [Quick]         [Send]  |
-|                            [Done]  |
+|                     [Done] [Send]  |
 +------------------------------------+
 | (keyboard)                         |
 +------------------------------------+
 ```
 
 - Rises from the capture bar with the field focused and the keyboard up. Each sent item stacks above the field, which clears and stays open (§3.1).
-- *Deadline* opens the native date picker; *Quick* pre-sets size XS. Both optional.
+- *Deadline* and *Quick* sit above the field (Natalie's call, from canvas review). *Deadline* opens the native date picker; *Quick* pre-sets size XS. Both optional.
+- *Done* and *Send* sit together below the field, *Send* on the right under the thumb.
 - *Done* closes the sheet. On first run it reads *"That's it for now"* (§7). Swipe down also closes; unsent text is kept as a draft.
 
 ## 4. Focus
