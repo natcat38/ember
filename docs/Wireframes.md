@@ -243,7 +243,7 @@ Phone frames are drawn at a 375px-wide screen.
 - In **Chunks**, *Break this down for me* sits first, above the list (Natalie's call, from canvas review): the task's name is already the big question, so breaking it down is the first move. The field under the list adds one step by hand (the only way before the AI breakdown ships in phase 4).
 - **Adding a step by hand:** the question *"What's the very next physical action?"* is the field's label, *Type one step* is its placeholder. Enter or the round **(+)** button adds the step to the bottom of the list; the field clears and stays ready for the next one; an empty entry is ignored. Same pattern as the capture sheet's send button (canvas review).
 - *Pin to today* shows only when the task is not already in Today (§3.4).
-- *Let it go* lives only in the header `...` menu, next to *Rename* (Natalie's call, from canvas review). A button under *Start* and *Pin to today* was too easy to hit by accident while setting a task up. It moves the task out of Today and Inbox into the collapsed Let go section; it is not the back arrow, which only leaves the screen (§4).
+- *Remove from list* (Natalie's call, 2026-09-30; was *Let it go*) lives only in the header `...` menu, next to *Rename* (Natalie's call, from canvas review). A button under *Start* and *Pin to today* was too easy to hit by accident while setting a task up. It moves the task out of Today and Inbox into the collapsed Removed section; it is not the back arrow, which only leaves the screen (§4).
 
 ### Menus
 
@@ -253,10 +253,10 @@ The task menu (the header `...`), a small dropdown:
 +------------------------------------+
 | <-  Revise DSA basics        (...) |
 +------------------------------------+
-|                  +---------------+ |
-| (Task view,      | Rename task   | |
-|  dimmed)         | Let it go     | |
-|                  +---------------+ |
+|                +------------------+|
+| (Task view,    | Rename task      ||
+|  dimmed)       | Remove from list ||
+|                +------------------+|
 |                                    |
 |                                    |
 +------------------------------------+
@@ -281,7 +281,7 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 +------------------------------------+
 ```
 
-- **Task menu:** *Rename task* and *Let it go*. Let it go lives only here, away from Start and Pin (§4).
+- **Task menu:** *Rename task* and *Remove from list*. Remove from list lives only here, away from Start and Pin (§4).
 - **Step menu:** *Start this step*, *Move up*, *Move down*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area).
 - **Reordering steps** (Natalie's call, from canvas review): on touch, hold a step for about half a second, then drag it; with a mouse, click and drag it directly. No handle on the row. *Move up* / *Move down* in the step menu do the same for keyboard and screen-reader users, who cannot drag. The rows turn off the phone's press-and-hold text menu so the hold starts a drag instead. The big *Start* at the bottom always starts the first unfinished step in this order; each row's own start button starts that step directly. 
 - **Smaller steps** (Natalie's call, 2026-09-30; full rules in `UX_Flows.md` §3.3): *Break this step down* turns the step into a heading with its smaller steps indented under it. Two levels at most. Before phase 4 the split is manual: an indented field labelled *Add a smaller step*, with its own **(+)**, opens under the heading, and works like the main add field. In the frame, *Outline heaps chapter* has been split: its checkbox ticks itself when both smaller steps are done (ticking it by hand finishes the rest), and it has no `[>]` because Focus runs on one smaller step at a time.
@@ -302,7 +302,7 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 |   Spring tutorial, ch.4            |
 |   Mock interview prep              |
 |                                    |
-| > Let go                           |
+| > Removed                          |
 |                                    |
 +------------------------------------+
 | +--------------------------------+ |
@@ -312,7 +312,7 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 ```
 
 - Two sections: **Needs sorting** (untriaged, newest first) and **Waiting** (triaged, not in Today, in rank order). The morning Pick's "sort a few" offer opens Needs sorting (§3.2).
-- **Let go** is collapsed at the bottom; tapping a let-go task offers *Restore* (§4).
+- **Removed** is collapsed at the bottom; tapping a removed task offers *Restore* (§4).
 - No counts on sections.
 
 ## 8. Settings
@@ -505,7 +505,7 @@ For Natalie's review; none of these change `UX_Flows.md` behaviour.
 2. **Row controls are visible buttons** (checkbox, start, `...`), never swipe gestures. Swipes can't be discovered by looking and can't be done by keyboard or screen reader.
 3. **Done chunks stay visible** on Today, dimmed, below open ones.
 4. **No counts** in the drawer or on Inbox sections.
-5. **Inbox has two sections**, Needs sorting and Waiting, plus the collapsed Let go.
+5. **Inbox has two sections**, Needs sorting and Waiting, plus the collapsed Removed.
 6. **Wrap up the day** lives in the drawer.
 7. **Triage collapses** to a one-line summary with *Edit* once answered.
 8. **Rename a task** via the Task view's `...` menu. No document specified renaming until now. A step's own `...` menu holds *Start this step*, *Rename*, and *Delete step*; editing steps was also unspecified.
@@ -527,9 +527,9 @@ Targets to meet, not measurements. Step 2 checks the frames against them and the
 Raised in canvas review, 2026-09-30; not yet answered. Nothing here is drawn until decided.
 
 1. **Sub-steps. Decided 2026-09-30:** a step can be split once into smaller steps that stay under it; two levels at most. Drawn in the Task view (§6); rules in `UX_Flows.md` §3.3, state machine in `Product_Scope.md`.
-2. **"Let it go" label.** Natalie suggested "Remove" or "Delete". It is signed-off scope copy (`Product_Scope.md` §3), and the task is restorable, so "Delete" would be inaccurate. Options: (1) keep *Let it go*; (2) *Remove from list*; (3) *Delete*, only if behaviour changes to real deletion with confirm/undo.
+2. **"Let it go" label. Decided 2026-09-30:** *Remove from list*, everywhere the button appears (task menu, overdue message, Telegram). The collapsed Inbox section and the task state are renamed *Removed*. Behaviour is unchanged: the task is restorable, so the confirmation copy stays. `Product_Scope.md` §3 and `UX_Flows.md` updated.
 3. **"Chunk" or "step".** User-facing copy uses both (Reward and Rewards say *chunk*; Task view says *step*). Proposed: *step* everywhere the user can see it.
-4. **Undo on letting go.** Offered: an *Undo* button on the *"Moved out of the way. It's still here if you want it back."* confirmation.
+4. **Undo on removing.** Offered: an *Undo* button on the *"Moved out of the way. It's still here if you want it back."* confirmation.
 
 ## Open for `Tech_Scope.md`
 

@@ -51,8 +51,8 @@ After any absence, the home screen looks like a normal day: no red, no count of 
 |---|---|
 | Capture requires only text | Placeholder: "What's on your mind?" |
 | Today never shows more than 5 chunks | Overflow line: "4 more waiting. They'll come up when there's room." |
-| Every task can be let go without deleting | Button: "Let it go" · Confirmation: "Moved out of the way. It's still here if you want it back." |
-| Overdue message sends once only | "X was due today and isn't marked done. Still relevant?" [Reschedule] [Done] [Let it go] |
+| Every task can be removed from the list without deleting | Button: "Remove from list" (wireframe review, 2026-09-30; was "Let it go") · Confirmation: "Moved out of the way. It's still here if you want it back." |
+| Overdue message sends once only | "X was due today and isn't marked done. Still relevant?" [Reschedule] [Done] [Remove from list] |
 | No guilt language in any notification | Forbidden patterns: quantifying absence, sad mascot, rhetorical "everything okay?", manufactured loss, social comparison. Rule set in `research/competitors-and-design.md` Part D. |
 | Deadline nudges always pair fact with help | "This deadline's getting close. Want help breaking it down?" |
 | Shutdown ends with an explicit stop | "That's it for today. You're done." |
@@ -66,11 +66,11 @@ After any absence, the home screen looks like a normal day: no red, no count of 
 ### Task
 | State | Enters from | Leaves to |
 |---|---|---|
-| Inbox | Capture | Active (triaged), Let go |
-| Active | Inbox | Done, Let go, Overdue (deadline passed) |
-| Overdue | Active | Active (rescheduled), Done, Let go |
+| Inbox | Capture | Active (triaged), Removed |
+| Active | Inbox | Done, Removed, Overdue (deadline passed) |
+| Overdue | Active | Active (rescheduled), Done, Removed |
 | Done | Active, Overdue | — |
-| Let go | any | Active (restored) |
+| Removed | any | Active (restored) |
 
 ### Chunk
 Todo → In focus → Done. A chunk in focus that is abandoned returns to Todo with sessions logged.

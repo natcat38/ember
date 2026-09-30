@@ -100,7 +100,7 @@ The research is blunt: the visible surface must stay tiny. The whole app hangs o
 
 | Screen | What it's for | Reach it | Leave it |
 |---|---|---|---|
-| **Task view** | One task: light triage (deadline? depends on anything? size XS–XL), its chunks, *Break this down*, *Let it go*. Triage happens here, inline, when the task is about to enter Today — not as a step after capture. | Tap any task in Today or Inbox. | Back to where you came from. |
+| **Task view** | One task: light triage (deadline? depends on anything? size XS–XL), its chunks, *Break this down*, *Remove from list*. Triage happens here, inline, when the task is about to enter Today — not as a step after capture. | Tap any task in Today or Inbox. | Back to where you came from. |
 
 ### Tucked away (in the drawer, off the home screen)
 
@@ -314,7 +314,7 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 - A manual **wrap up** action, available any time of day.
 
 **Every tap — three steps** (scope §2.7, fixed)
-1. *"Anything urgent still open?"* → shows any due-today/overdue not done, with quick reschedule / let-go / mark-done. Or *"Nothing urgent."* → next.
+1. *"Anything urgent still open?"* → shows any due-today/overdue not done, with quick reschedule / remove / mark-done. Or *"Nothing urgent."* → next.
 2. *"Tomorrow's list is ready: N things."* → a peek at tomorrow's pre-built Today. Reassurance, not a planning task.
 3. *"That's it for today. You're done."* → the explicit stop.
 
@@ -350,9 +350,9 @@ Every state follows the same rules: no red, no counts of what was missed, and ea
 | **Web push not granted** | Browser permission denied | Settings only. Never re-asked (browsers block re-prompting after a denial). Offers Telegram instead | *"Notifications are off for this browser. You can turn them on in your browser settings, or use Telegram instead."* |
 | **iPhone, not on Home Screen** | iOS Safari, user said yes to nudges | iOS only allows web push for installed apps. One-time dismissible hint, findable again in Settings | *"To get nudges on iPhone, add Ember to your Home Screen. Tap Share, then Add to Home Screen."* |
 | **AI cap reached** | Daily breakdowns used up | Falls back to manual | *fixed:* *"Out of breakdowns for today. Try: what's the very next physical action?"* |
-| **Overdue** | Deadline passed, not done | One message, once, then silence for that task. The task **stays in Today**, ranked at the top and sharing the 5-cap, with a plain date label until the user reschedules, finishes, or lets it go | *fixed:* *"X was due today and isn't marked done. Still relevant?"* *[Reschedule] [Done] [Let it go]* · in-app label *"Was due Tue"* (plain text, no red) |
-| **Let go** | User lets a task go | Moves to a collapsed **Let go** section at the bottom of Inbox. No new screen | *fixed:* *[Let it go]* → *"Moved out of the way. It's still here if you want it back."* |
-| **Restore** | Tap a let-go task → *Restore* | Back to Active, re-enters ranking | *"Back on your list."* |
+| **Overdue** | Deadline passed, not done | One message, once, then silence for that task. The task **stays in Today**, ranked at the top and sharing the 5-cap, with a plain date label until the user reschedules, finishes, or removes it from the list | *fixed:* *"X was due today and isn't marked done. Still relevant?"* *[Reschedule] [Done] [Remove from list]* · in-app label *"Was due Tue"* (plain text, no red) |
+| **Removed** | User removes a task from the list | Moves to a collapsed **Removed** section at the bottom of Inbox. No new screen | *fixed:* *[Remove from list]* (wireframe review, 2026-09-30; was *Let it go*) → *"Moved out of the way. It's still here if you want it back."* |
+| **Restore** | Tap a removed task → *Restore* | Back to Active, re-enters ranking | *"Back on your list."* |
 | **Lapse return** | First open after 3+ days away | No red, no count of missed days. Overdue tasks show their date label; the reset offer runs once and clears the labels in one tap | *fixed:* *"Welcome back. Here's what's on today."* + *"A couple of these slipped past their date. Want to reset them?"* |
 | **Quiet hours active** | Inside the quiet window | App works normally when opened. Nudges scheduled inside the window move to its end and still count toward the daily cap. Nothing shows on Today | Settings: *"No nudges between 22:00 and 08:00."* |
 
@@ -376,7 +376,7 @@ Every message follows `Product_Scope.md` §2's engine: hard cap of 3 per day, qu
 | **Getting close, no chunks** | Same, task never chunked | Title: task name. Body *fixed:* *"This deadline's getting close. Want help breaking it down?"* | *[Break it down] [Snooze]* | That task's Chunk area |
 | **Batched** | Two or more tasks competing for one slot | *"A few deadlines are getting close: X, Y, and Z. Want to start with X?"* | *[Start X] [Snooze]* | Today |
 | **Deadline day** | Morning of the due date | *"X is due today."* | *[Start a session]* | Focus on its next chunk |
-| **Overdue** | Once, after the deadline passes | *fixed:* *"X was due today and isn't marked done. Still relevant?"* | *[Reschedule] [Done] [Let it go]* | That task |
+| **Overdue** | Once, after the deadline passes | *fixed:* *"X was due today and isn't marked done. Still relevant?"* | *[Reschedule] [Done] [Remove from list]* | That task |
 | **Wrap-up invite** | Evening, before quiet hours | *"Ready to wrap up?"* | *[Wrap up]* | Shutdown |
 
 ### Cap priority: deadlines win
@@ -393,7 +393,7 @@ Morning and wrap-up are conveniences and drop first on busy days. Nothing is los
 
 ### How buttons behave
 
-- **Telegram buttons split by purpose.** Anything that needs a screen (*Start a session*, *Break it down*, *Open today*, *Wrap up*) is a link that opens Ember at that place. Anything that only changes state (*Done*, *Let it go*, *Snooze*, *Reschedule*) is handled by the bot without opening the app.
+- **Telegram buttons split by purpose.** Anything that needs a screen (*Start a session*, *Break it down*, *Open today*, *Wrap up*) is a link that opens Ember at that place. Anything that only changes state (*Done*, *Remove from list*, *Snooze*, *Reschedule*) is handled by the bot without opening the app.
 - **After a state button, the bot edits the message** to confirm (*"Marked done."*, *"Moved out of the way. It's still here if you want it back."*, *"Snoozed until 18:00."*) and removes the buttons, so a double tap can't count twice.
 - **Stale buttons are safe.** Tapping *Done* on an old message for a task already finished in the app edits it to *"Already done."* and changes nothing.
 - **Snooze** (Telegram): *Snooze* swaps the buttons for *[1 hour] [This evening] [Tomorrow]*. The deadline never moves.
@@ -405,7 +405,7 @@ Morning and wrap-up are conveniences and drop first on busy days. Nothing is los
 States are from `Product_Scope.md` §4.
 
 - Tap the message or a link button → **Acted** (opening the task counts).
-- *Done / Let it go / Reschedule* → the task changes state; the reminder is **Acted**.
+- *Done / Remove from list / Reschedule* → the task changes state; the reminder is **Acted**.
 - *Snooze* → **Snoozed**: recomputed against the same deadline, no new nudge for at least 30 minutes.
 - No interaction within 5 hours → **Dismissed**. Ember never reads swipe-aways: Telegram doesn't report them and web push reports them unreliably, so dismissal is always inferred from silence.
 - Overdue sent → **Silenced** for that task unless rescheduled.
