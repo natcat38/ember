@@ -127,8 +127,9 @@ Phone frames are drawn at a 375px-wide screen.
 |                                    |
 |              18:42                 |
 |                                    |
-|  [Pause]     [Done]      [Exit]    |
+|           ( || Pause )             |
 |                                    |
+|     [Exit]            [Done]       |
 |                                    |
 |                   cat, stretching  |
 +------------------------------------+
@@ -137,6 +138,7 @@ Phone frames are drawn at a 375px-wide screen.
 ```
 
 - The chunk and its parent task fill the screen; everything else dims (§3.5). The timer counts down (25/5) or up (Flowtime).
+- **Pause** is the large round button in the centre under the timer (Natalie's call, from canvas review): it stops the timer and resumes from the same button. **Exit** and **Done** sit smaller beneath it. Exit leaves without finishing (chunk back to Today, time logged); Done finishes the chunk and goes to Reward.
 - The cat sits small in a corner, stretching in a slow loop (§6).
 
 ### Pomodoro break
@@ -371,8 +373,8 @@ One layout serves every step of the evening shutdown (§3.7) and the onboarding 
 | * Outline DSA: heaps ch.     |                                         |
 |   [Do this first] [Not today]|              18:42                      |
 | [ ] Apply: backend role      |                                         |
-| [ ] Spring tutorial, ch.3    | [Pause]    [Done]    [Exit]             |
-| [x] Fix resume bullet        |                                         |
+| [ ] Spring tutorial, ch.3    |             ( || Pause )                |
+| [x] Fix resume bullet        |        [Exit]        [Done]             |
 |                              |                                         |
 | 4 more waiting. They'll      |     (Focus while a session runs;        |
 | come up when there's room.   |      otherwise the selected task)       |
