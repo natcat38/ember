@@ -1,6 +1,6 @@
 # Ember — UX Flows
 
-Status: **all eight sections signed off 2026-09-30** (Define stage). Define closes when Natalie signs off this document and `Product_Scope.md` together. Builds on `Product_Scope.md` and the five reports in `research/`. Describes the *finished* product's behaviour; the phase table in `Product_Scope.md` §6 stays the authority on what ships when. Phase seams are marked inline.
+Status: **signed off 2026-09-30**, together with `Product_Scope.md` (Define closed). Builds on `Product_Scope.md` and the five reports in `research/`. Describes the *finished* product's behaviour; the phase table in `Product_Scope.md` §6 stays the authority on what ships when. Phase seams are marked inline.
 
 Contents:
 1. Persona paths ✅ signed off 2026-09-15

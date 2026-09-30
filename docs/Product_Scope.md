@@ -1,6 +1,6 @@
 # Ember — Product Scope
 
-Status: **draft for Natalie's sign-off** (Define stage). Research and the option analysis are in `PROPOSAL.md` and `research/`. Screen-by-screen behaviour, flows, and copy are in `UX_Flows.md`.
+Status: **signed off 2026-09-30** (Define closed). Research and the option analysis are in `PROPOSAL.md` and `research/`. Screen-by-screen behaviour, flows, and copy are in `UX_Flows.md`.
 
 ## 1. Background and problem
 
