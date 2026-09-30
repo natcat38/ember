@@ -135,7 +135,7 @@ REWARD = frame([
     "              (3/5)",
     "           cat, purring",
     "",
-    *ib([" Chunk done. Ninety seconds,",
+    *ib([" Step done. Ninety seconds,",
          " if you want it.",
          "",
          " [Try today's chess puzzle]",
@@ -152,7 +152,7 @@ TASK = frame([
     " [No]  [Yes]",
     " Size  [XS] [S] [M] [L] [XL]",
     "---",
-    " Chunks",
+    " Steps",
     " [Break this down for me]",
     ' Splits "Revise DSA basics" into',
     " 3 to 6 steps you can edit.",
@@ -179,7 +179,7 @@ TASK_TRIAGED = frame([
     " Due Fri  -  Holding things up  -  M",
     "                            [Edit]",
     "---",
-    " Chunks",
+    " Steps",
     " (as above)",
 ])
 
@@ -291,7 +291,7 @@ TIMER = frame([
 REWARDS = frame([
     " <-  Rewards",
     "---",
-    " After each finished chunk, Ember",
+    " After each finished step, Ember",
     " offers one quick reward. You can",
     " always skip it.",
     "",
@@ -439,7 +439,7 @@ Phone frames are drawn at a 375px-wide screen.
 {TASK_TRIAGED}
 
 - A line under *Break this down for me* names the task it splits: *Splits "Revise DSA basics" into 3 to 6 steps you can edit.* (Natalie's call, from canvas review: make it obvious which task gets broken down.) The button label itself is scope copy (`Product_Scope.md` §3) and is unchanged.
-- In **Chunks**, *Break this down for me* sits first, above the list (Natalie's call, from canvas review): the task's name is already the big question, so breaking it down is the first move. The field under the list adds one step by hand (the only way before the AI breakdown ships in phase 4).
+- In **Steps**, *Break this down for me* sits first, above the list (Natalie's call, from canvas review): the task's name is already the big question, so breaking it down is the first move. The field under the list adds one step by hand (the only way before the AI breakdown ships in phase 4).
 - **Adding a step by hand:** the question *"What's the very next physical action?"* is the field's label, *Type one step* is its placeholder. Enter or the round **(+)** button adds the step to the bottom of the list; the field clears and stays ready for the next one; an empty entry is ignored. Same pattern as the capture sheet's send button (canvas review).
 - *Pin to today* shows only when the task is not already in Today (§3.4).
 - *Remove from list* (Natalie's call, 2026-09-30; was *Let it go*) lives only in the header `...` menu, next to *Rename* (Natalie's call, from canvas review). A button under *Start* and *Pin to today* was too easy to hit by accident while setting a task up. It moves the task out of Today and Inbox into the collapsed Removed section; it is not the back arrow, which only leaves the screen (§4).
@@ -538,7 +538,7 @@ For Natalie's review; none of these change `UX_Flows.md` behaviour.
 7. **Triage collapses** to a one-line summary with *Edit* once answered.
 8. **Rename a task** via the Task view's `...` menu. No document specified renaming until now. A step's own `...` menu holds *Start this step*, *Rename*, and *Delete step*; editing steps was also unspecified.
 9. **The desktop right pane** is never empty: Focus while running, otherwise the selected task.
-10. **New copy:** *Let's go* / *Adjust*, *Pin a task*, *Take 5* / *Skip break*, *Back to it* / *Stop here*, *Needs sorting*, *Waiting*, *Not set up*, *Hours you're already busy. Ember plans around them.*, *Add a block*, *Rename*, *Close*, and for the Settings pages: *Your day starts when quiet hours end, so Today is rebuilt at 08:00.*, *25 minutes of focus, then a 5-minute break.*, *Count up and stop when you stop. The break grows with how long you worked.*, *You can switch for one session when you start it.*, *After each finished chunk, Ember offers one quick reward. You can always skip it.*
+10. **New copy:** *Let's go* / *Adjust*, *Pin a task*, *Take 5* / *Skip break*, *Back to it* / *Stop here*, *Needs sorting*, *Waiting*, *Not set up*, *Hours you're already busy. Ember plans around them.*, *Add a block*, *Rename*, *Close*, and for the Settings pages: *Your day starts when quiet hours end, so Today is rebuilt at 08:00.*, *25 minutes of focus, then a 5-minute break.*, *Count up and stop when you stop. The break grows with how long you worked.*, *You can switch for one session when you start it.*, *After each finished step, Ember offers one quick reward. You can always skip it.*
 
 ## Accessibility targets (checked in step 2)
 
@@ -547,7 +547,7 @@ Targets to meet, not measurements. Step 2 checks the frames against them and the
 - Touch targets at least 44 × 44 px (the three row controls fit at 375px width).
 - Text contrast WCAG AA: 4.5:1 for body text, 3:1 for large text.
 - Visible keyboard focus on every control; focus order follows reading order.
-- Screen-reader labels: `[>]` → "Start *chunk name*", `...` → "More actions for *chunk name*", checkbox → "Mark *chunk name* done", ring → "2 of 5 done today". The cat is hidden from screen readers (§6).
+- Screen-reader labels: `[>]` → "Start *step name*", `...` → "More actions for *step name*", checkbox → "Mark *step name* done", ring → "2 of 5 done today". The cat is hidden from screen readers (§6).
 - Reduced motion: still poses for the cat, no sheet or card animations.
 
 ## Open decisions (Natalie's)
@@ -556,7 +556,7 @@ Raised in canvas review, 2026-09-30; not yet answered. Nothing here is drawn unt
 
 1. **Sub-steps. Decided 2026-09-30:** a step can be split once into smaller steps that stay under it; two levels at most. Drawn in the Task view (§6); rules in `UX_Flows.md` §3.3, state machine in `Product_Scope.md`.
 2. **"Let it go" label. Decided 2026-09-30:** *Remove from list*, everywhere the button appears (task menu, overdue message, Telegram). The collapsed Inbox section and the task state are renamed *Removed*. Behaviour is unchanged: the task is restorable, so the confirmation copy stays. `Product_Scope.md` §3 and `UX_Flows.md` updated.
-3. **"Chunk" or "step".** User-facing copy uses both (Reward and Rewards say *chunk*; Task view says *step*). Proposed: *step* everywhere the user can see it.
+3. **"Chunk" or "step". Decided 2026-09-30:** *step* everywhere the user can see it (Task view heading *Steps*, Reward *Step done*, the Rewards setting, screen-reader labels). The docs keep *chunk* as the internal term, with a glossary line in `Product_Scope.md` and `UX_Flows.md` §3.3.
 4. **Undo on removing.** Offered: an *Undo* button on the *"Moved out of the way. It's still here if you want it back."* confirmation.
 
 ## Open for `Tech_Scope.md`

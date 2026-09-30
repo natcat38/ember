@@ -183,6 +183,8 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 
 ### 3.3 Chunk
 
+**Word on screen: *step*.** *Chunk* is the internal term in these docs and in code; the user never sees it (wireframe review, 2026-09-30).
+
 **Purpose:** get to the very next physical action, so starting is never "where do I even begin."
 
 **Entry points**
@@ -303,7 +305,7 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 - Skip the unlock → straight to the next chunk or back to Today.
 - The ring and cat are non-interactive — they react and get out of the way; nothing to dismiss.
 
-**Copy:** unlock offer *"Chunk done. Ninety seconds, if you want it."* → a button naming the unlock being served, *[Try today's chess puzzle]*, *[Answer a trivia question]*, or *[See what happened on this day]*, plus *[Skip]*. (Changed from a generic *[Play]* during wireframe review, 2026-09-30.)
+**Copy:** unlock offer *"Step done. Ninety seconds, if you want it."* → a button naming the unlock being served, *[Try today's chess puzzle]*, *[Answer a trivia question]*, or *[See what happened on this day]*, plus *[Skip]*. (Changed from a generic *[Play]* during wireframe review, 2026-09-30.)
 
 ### 3.7 Review (evening shutdown)
 
