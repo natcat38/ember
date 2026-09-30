@@ -5,8 +5,8 @@ Status: **draft, signed off section by section** (Define stage). Builds on `Prod
 Contents:
 1. Persona paths ✅ signed off 2026-09-15
 2. Screen inventory and navigation ✅ signed off 2026-09-16
-3. The seven flows in detail — *all 7 drafted 2026-09-16, awaiting sign-off*
-4. Edge and state screens — *to draft*
+3. The seven flows in detail ✅ signed off 2026-09-30
+4. Edge and state screens — *drafted 2026-09-30, awaiting sign-off*
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
 7. Onboarding — *to draft*
@@ -322,3 +322,30 @@ Then optional, never required: one-line journal (*"One line about today, whateve
 - Exit any time. Shutdown is a ritual on offer, never mandatory.
 
 **Copy:** invite *"Ready to wrap up?"*; the three fixed step lines; journal placeholder *"One line about today, whatever comes to mind."*; mood *Rough · Meh · Okay · Good · Great*; zero-done close *"Some days are for resting. Tomorrow's list is ready when you are."*
+
+---
+
+## 4. Edge and state screens
+
+Every state follows the same rules: no red, no counts of what was missed, and each one tells the user what they can do next. Copy marked *fixed* comes verbatim from `Product_Scope.md` §3.
+
+| State | When | What the screen does | Copy |
+|---|---|---|---|
+| **Empty Inbox** | Nothing captured, or everything triaged | Plain line + capture button | *"Nothing waiting here."* |
+| **Empty Today: nothing lined up** | Nothing triaged and ranked yet | Two ways forward, no blank grid | *"Nothing's lined up for today yet."* → *[Sort a few from Inbox]* *[Capture something]* |
+| **Empty Today: all done** | Today cleared | Done means done: ring full, cat purring, optional get-ahead offer | *"That's everything for today."* |
+| **Overflow** | More than 5 chunks qualify | One line under Today, links to Inbox | *fixed:* *"4 more waiting. They'll come up when there's room."* |
+| **Offline** | No connection | Small quiet indicator, not a banner. Capture, complete, focus, and shutdown keep working and queue. Only AI breakdown and Telegram linking need a connection | *"Offline. Your changes will sync when you reconnect."* · breakdown offline: *"Breakdowns need a connection. Try: what's the very next physical action?"* |
+| **Telegram not linked** | User skipped it | Nothing on Today. One row in Settings. Reminders stay in-app | *"Ember can nudge you on Telegram while the app is closed."* → *[Link Telegram]* |
+| **Web push not granted** | Browser permission denied | Settings only. Never re-asked (browsers block re-prompting after a denial). Offers Telegram instead | *"Notifications are off for this browser. You can turn them on in your browser settings, or use Telegram instead."* |
+| **iPhone, not on Home Screen** | iOS Safari, user said yes to nudges | iOS only allows web push for installed apps. One-time dismissible hint, findable again in Settings | *"To get nudges on iPhone, add Ember to your Home Screen. Tap Share, then Add to Home Screen."* |
+| **AI cap reached** | Daily breakdowns used up | Falls back to manual | *fixed:* *"Out of breakdowns for today. Try: what's the very next physical action?"* |
+| **Overdue** | Deadline passed, not done | One message, once, then silence for that task. The task **stays in Today**, ranked at the top and sharing the 5-cap, with a plain date label until the user reschedules, finishes, or lets it go | *fixed:* *"X was due today and isn't marked done. Still relevant?"* *[Reschedule] [Done] [Let it go]* · in-app label *"Was due Tue"* (plain text, no red) |
+| **Let go** | User lets a task go | Moves to a collapsed **Let go** section at the bottom of Inbox. No new screen | *fixed:* *[Let it go]* → *"Moved out of the way. It's still here if you want it back."* |
+| **Restore** | Tap a let-go task → *Restore* | Back to Active, re-enters ranking | *"Back on your list."* |
+| **Lapse return** | Any gap | No red, no count of missed days. Overdue tasks show their date label; the reset offer runs once and clears the labels in one tap | *fixed:* *"Welcome back. Here's what's on today."* + *"A couple of these slipped past their date. Want to reset them?"* |
+| **Quiet hours active** | Inside the quiet window | App works normally when opened. Nudges scheduled inside the window move to its end and still count toward the daily cap. Nothing shows on Today | Settings: *"No nudges between 22:00 and 08:00."* |
+
+**Open conflict (awaiting Natalie):** overdue-stays-in-Today means the lapse-return home screen can open with dated overdue tasks at the top. That softens the signed-off promise "looks exactly like a normal day" (`Product_Scope.md` §2, §1 return paths). Proposed rewording: *"looks like a normal day: no red, no count of missed days. Overdue tasks show their date until you reset them."*
+
+**Deferred to `Tech_Scope.md`:** conflict resolution when the same task is edited on two devices while offline, and the guarantee that a queued action retried after reconnecting never runs twice. The UX promises both; how they work is a tech decision.
