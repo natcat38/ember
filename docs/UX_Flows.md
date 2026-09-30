@@ -512,12 +512,12 @@ From these flows to visuals. Each step produces a file; no UI code is written be
 |---|---|---|---|---|
 | 1 | **Wireframes**: every screen in §2 as a plain-text layout (boxes and labels, no colour or style). Fixes content and placement before looks | `docs/Wireframes.md` | None; written directly | Start of Plan |
 | 2 | **Check flows and wireframes**: usability critique, then accessibility (touch targets, focus order, screen-reader announcements). Contrast is a target to meet (WCAG AA, 4.5:1 for text), not a value picked here | Findings appended to `Wireframes.md` | `design:design-critique`, then `design:accessibility-review` | After 1 |
-| 3 | **Mockups**: Warm Paper, Focus Beam, and Small Companion on the same three screens (**Today, Focus, Reward**), 9 artboards on one canvas | A Claude Design canvas | `design` | **Only when Natalie asks for the mockups by name** (the one exception to the no-Artifacts rule) |
+| 3 | **Mockups**: Warm Paper, Focus Beam, and Small Companion on **all seven screens** (the six §2 views plus Reward), 21 artboards on one canvas | A Claude Design canvas | `design` | **Only when Natalie asks for the mockups by name** (the one exception to the no-Artifacts rule) |
 | 4 | **Natalie picks** a direction or a blend | `Product_Scope.md` §7, decision 6 | None | After 3 |
 | 5 | **Design spec**: 4–6 named colours, 2–3 typefaces with roles, layout concept, one signature element, loading/empty/error states (copy in §4), quality floor (visible focus, AA contrast, reduced motion, 375px), self-check against the generic default | `docs/Design_Direction.md` | `hallmark` + `frontend-design`; shadcn/ui components checked for patterns first | After 4 |
 | 6 | **Accessibility pass on the chosen direction** | Findings in `Design_Direction.md` | `design:accessibility-review` | Before Build |
 
-**Why these three screens:** each direction's signature has somewhere to show. Focus Beam's spotlight appears on Focus, Warm Paper's card tear on Reward, and the purring cat on Reward. Shutdown (calm, text-heavy) is not tested; its look follows from the chosen direction in step 5.
+**Which screens:** Today, Capture, Focus, Task view, Inbox, Settings, and Reward. Reward is a transient moment rather than a §2 view, but it is included because two of the three signatures show there (Warm Paper's card tear, the purring cat); Focus Beam's spotlight shows on Focus. Expect Capture, Inbox, and Settings to differ least across directions, since they are mostly text and lists. Shutdown and onboarding are not mocked; their look follows from the chosen direction in step 5. Artboards are grouped by screen, so the three directions for each screen sit side by side.
 
 **Mockup constraints (from decisions already made):**
 - **All three directions show the tabby** in its §6 placements. The research described Warm Paper and Focus Beam without a companion; the cat is locked in `Product_Scope.md` §7.
