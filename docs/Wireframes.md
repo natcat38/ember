@@ -2,7 +2,7 @@
 
 Status: **draft, awaiting Natalie's review** (Plan stage, design track, `UX_Flows.md` §8 step 1). Step 2 (critique + accessibility check) appends its findings to this file.
 
-**Visual version:** the same 17 frames as grey-box artboards on the Claude Design canvas [Ember Wireframes](https://claude.ai/artifact/QhDkyqicqW946mMs25F9xf) (private). This file stays the written record; changes made on the canvas get written back here.
+**Visual version:** the same 20 frames as grey-box artboards on the Claude Design canvas [Ember Wireframes](https://claude.ai/artifact/QhDkyqicqW946mMs25F9xf) (private). This file stays the written record; changes made on the canvas get written back here.
 
 Plain-text layouts: what is on each screen and where. No colour, type, or style; those come from the chosen visual direction (§8 steps 3 to 5). All behaviour and copy come from `UX_Flows.md`; section references are given under each frame.
 
@@ -352,6 +352,66 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 - Hard blocks are the only scheduled thing in Ember; chunks are never clock-pinned (`Product_Scope.md` §2, Day shape).
 - Days are toggle chips; *From* and *To* use the native time input.
 
+### Quiet hours
+
+```
++------------------------------------+
+| <-  Quiet hours                    |
++------------------------------------+
+| No nudges between 22:00 and        |
+| 08:00.                             |
+|                                    |
+| From [22:00]       To [08:00]      |
+|                                    |
+| Your day starts when quiet hours   |
+| end, so Today is rebuilt at        |
+| 08:00.                             |
++------------------------------------+
+```
+
+- Default 22:00 to 08:00, editable (`Product_Scope.md` §2). The note explains the day boundary: a day starts when quiet hours end, which is when Today rebuilds and the daily nudge cap resets (`UX_Flows.md` §6). Changes save as you make them.
+
+### Focus timer
+
+```
++------------------------------------+
+| <-  Focus timer                    |
++------------------------------------+
+| (o) 25 / 5                         |
+|     25 minutes of focus, then a    |
+|     5-minute break.                |
+| ( ) Flowtime                       |
+|     Count up and stop when you     |
+|     stop. The break grows with     |
+|     how long you worked.           |
+|                                    |
+| You can switch for one session     |
+| when you start it.                 |
++------------------------------------+
+```
+
+- One choice, 25/5 (default) or Flowtime (`UX_Flows.md` §3.5). The per-session switch lives on Focus at the start of a session.
+
+### Rewards
+
+```
++------------------------------------+
+| <-  Rewards                        |
++------------------------------------+
+| After each finished chunk, Ember   |
+| offers one quick reward. You can   |
+| always skip it.                    |
+|                                    |
+| (o) Surprise me                    |
+| ( ) Chess puzzle                   |
+| ( ) Trivia question                |
+| ( ) On this day                    |
++------------------------------------+
+```
+
+- The unlock served after each chunk (`UX_Flows.md` §3.6). *Surprise me* rotates through the three and is the default. Every reward stays skippable, so there is no off switch.
+- Settings rows for these three pages now open them; the pages were drawn after Natalie asked to see them (canvas review).
+
 ## 9. Step card (shutdown and onboarding)
 
 One layout serves every step of the evening shutdown (§3.7) and the onboarding steps after capture (§7): one message, its content, one main button, progress dots when the step count is fixed.
@@ -436,7 +496,7 @@ For Natalie's review; none of these change `UX_Flows.md` behaviour.
 7. **Triage collapses** to a one-line summary with *Edit* once answered.
 8. **Rename a task** via the Task view's `...` menu. No document specified renaming until now. A step's own `...` menu holds *Start this step*, *Rename*, and *Delete step*; editing steps was also unspecified.
 9. **The desktop right pane** is never empty: Focus while running, otherwise the selected task.
-10. **New copy:** *Let's go* / *Adjust*, *Pin a task*, *Take 5* / *Skip break*, *Back to it* / *Stop here*, *Needs sorting*, *Waiting*, *Not set up*, *Hours you're already busy. Ember plans around them.*, *Add a block*, *Rename*, *Close*.
+10. **New copy:** *Let's go* / *Adjust*, *Pin a task*, *Take 5* / *Skip break*, *Back to it* / *Stop here*, *Needs sorting*, *Waiting*, *Not set up*, *Hours you're already busy. Ember plans around them.*, *Add a block*, *Rename*, *Close*, and for the Settings pages: *Your day starts when quiet hours end, so Today is rebuilt at 08:00.*, *25 minutes of focus, then a 5-minute break.*, *Count up and stop when you stop. The break grows with how long you worked.*, *You can switch for one session when you start it.*, *After each finished chunk, Ember offers one quick reward. You can always skip it.*
 
 ## Accessibility targets (checked in step 2)
 
