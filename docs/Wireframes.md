@@ -13,7 +13,7 @@ Phone frames are drawn at a 375px-wide screen.
 ## Global
 
 - **Header:** drawer menu, screen title; on Today also the ring and the cat.
-- **Capture bar:** pinned at the bottom of Today, Inbox, and Settings, showing *"What's on your mind?"*. Tapping it opens the capture sheet. During Focus it dims but stays usable (`UX_Flows.md` §3.1). Hidden on step cards (shutdown, onboarding), where onboarding step 1 *is* the capture field.
+- **Capture bar:** pinned at the bottom of Today and Inbox (not Settings, where there is nothing to capture into; Natalie's call, from canvas review), showing *"What's on your mind?"*. Tapping it opens the capture sheet. During Focus it dims but stays usable (`UX_Flows.md` §3.1). Hidden on step cards (shutdown, onboarding), where onboarding step 1 *is* the capture field.
 
 ---
 
@@ -279,10 +279,6 @@ Phone frames are drawn at a 375px-wide screen.
 |   Use Ember on another device  >   |
 |   Your list is backed up, so it    |
 |   won't get lost.                  |
-+------------------------------------+
-| +--------------------------------+ |
-| | What's on your mind?           | |
-| +--------------------------------+ |
 +------------------------------------+
 ```
 

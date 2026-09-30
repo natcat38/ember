@@ -93,7 +93,7 @@ The research is blunt: the visible surface must stay tiny. The whole app hangs o
 
 | Screen | What it's for | Reach it | Leave it |
 |---|---|---|---|
-| **Capture** | One text field. The "get it out of your head" moment. A bottom sheet over whatever you're on, so you never lose your place. | Persistent capture button, from anywhere. | Task saved → sheet drops, back where you were. |
+| **Capture** | One text field. The "get it out of your head" moment. A bottom sheet over whatever you're on, so you never lose your place. | The capture bar on Today, Inbox, and Focus (not Settings). | Task saved → sheet drops, back where you were. |
 | **Focus** | Current chunk fills the screen, timer running, everything else dimmed. A full-screen mode on phone, not a place. | *Start* on a chunk. | Chunk done → Reward. Bail → back to Today, sessions logged. |
 
 ### Drill-in
@@ -131,7 +131,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 
 **Entry points**
 - Persistent capture button on Today (desktop: the always-there top capture bar).
-- Global — reachable from any screen, including mid-Focus (dump a stray thought without leaving the session).
+- Reachable from Today, Inbox, and mid-Focus (dump a stray thought without leaving the session). Not shown in Settings, where there is nothing to capture into (wireframe review, 2026-09-30).
 - *Phase-2 seam:* send any message to the Telegram bot → it becomes a captured task in Inbox.
 - *Optional, later:* register Ember as a PWA share target so text shared from another app lands in capture. Not core.
 
