@@ -7,7 +7,7 @@ Contents:
 2. Screen inventory and navigation ✅ signed off 2026-09-16
 3. The seven flows in detail ✅ signed off 2026-09-30
 4. Edge and state screens ✅ signed off 2026-09-30
-5. Notification interaction design — *to draft*
+5. Notification interaction design — *drafted 2026-09-30, awaiting sign-off*
 6. The cat — *to draft*
 7. Onboarding — *to draft*
 8. Design process plan — *to draft*
@@ -352,3 +352,57 @@ Every state follows the same rules: no red, no counts of what was missed, and ea
 **Resolved 2026-09-30:** overdue-stays-in-Today means the lapse-return home screen can open with dated overdue tasks at the top. The lapse-return promise is reworded to match, in §1 and `Product_Scope.md` §2: *"looks like a normal day: no red, no count of missed days. Overdue tasks show their date until you reset them."*
 
 **Deferred to `Tech_Scope.md`:** conflict resolution when the same task is edited on two devices while offline, and the guarantee that a queued action retried after reconnecting never runs twice. The UX promises both; how they work is a tech decision.
+
+---
+
+## 5. Notification interaction design
+
+Every message follows `Product_Scope.md` §2's engine: hard cap of 3 per day, quiet hours (22:00–08:00 default), no re-nudge within 30 minutes of a dismiss or snooze, and every urgent fact paired with help.
+
+### The messages
+
+| Message | When | Copy | Telegram buttons | Web push tap opens |
+|---|---|---|---|---|
+| **Morning** | Start of day, after quiet hours | *"Today's ready: 5 things. First up: [frog]."* | *[Open today]* | Today's morning confirm |
+| **Light-day offer** | Only far-out tasks, day is light | *fixed:* *"Light day. Want to get ahead on X?"* | *[Start a session] [Not today]* | That task |
+| **Getting close, has chunks** | Last 30% of runway or last 3 days | *"2 sessions left on X, 3 days to go. Want to start one now?"* | *[Start a session] [Snooze]* | Focus on the next chunk |
+| **Getting close, no chunks** | Same, task never chunked | Title: task name. Body *fixed:* *"This deadline's getting close. Want help breaking it down?"* | *[Break it down] [Snooze]* | That task's Chunk area |
+| **Batched** | Two or more tasks competing for one slot | *"A few deadlines are getting close: X, Y, and Z. Want to start with X?"* | *[Start X] [Snooze]* | Today |
+| **Deadline day** | Morning of the due date | *"X is due today."* | *[Start a session]* | Focus on its next chunk |
+| **Overdue** | Once, after the deadline passes | *fixed:* *"X was due today and isn't marked done. Still relevant?"* | *[Reschedule] [Done] [Let it go]* | That task |
+| **Wrap-up invite** | Evening, before quiet hours | *"Ready to wrap up?"* | *[Wrap up]* | Shutdown |
+
+### Cap priority: deadlines win
+
+When more messages want to send than the cap allows, they claim slots in this order:
+
+1. Overdue
+2. Deadline day
+3. Getting close (competing tasks batched into one message)
+4. Morning
+5. Wrap-up invite
+
+Morning and wrap-up are conveniences and drop first on busy days. Nothing is lost when they do: Today is there on open, and shutdown is one *wrap up* tap away. The scheduler holds slots for higher-priority messages due later that day. How it does that belongs in `Tech_Scope.md`.
+
+### How buttons behave
+
+- **Telegram buttons split by purpose.** Anything that needs a screen (*Start a session*, *Break it down*, *Open today*, *Wrap up*) is a link that opens Ember at that place. Anything that only changes state (*Done*, *Let it go*, *Snooze*, *Reschedule*) is handled by the bot without opening the app.
+- **After a state button, the bot edits the message** to confirm (*"Marked done."*, *"Moved out of the way. It's still here if you want it back."*, *"Snoozed until 18:00."*) and removes the buttons, so a double tap can't count twice.
+- **Stale buttons are safe.** Tapping *Done* on an old message for a task already finished in the app edits it to *"Already done."* and changes nothing.
+- **Snooze** (Telegram): *Snooze* swaps the buttons for *[1 hour] [This evening] [Tomorrow]*. The deadline never moves.
+- **Reschedule** (Telegram): *[Tomorrow] [In 3 days] [Pick a date]*. *Pick a date* opens Ember's date picker.
+- **Web push is tap-to-open only, no action buttons.** iOS web push does not support notification buttons *(confirm in the feasibility spike)*. Rather than build two behaviours, every web push opens the right screen. When the user arrives from a notification, that screen shows one extra line, *"Not now? [Snooze]"*, so snooze still exists on web push.
+
+### How each response is recorded
+
+States are from `Product_Scope.md` §4.
+
+- Tap the message or a link button → **Acted** (opening the task counts).
+- *Done / Let it go / Reschedule* → the task changes state; the reminder is **Acted**.
+- *Snooze* → **Snoozed**: recomputed against the same deadline, no new nudge for at least 30 minutes.
+- No interaction within 5 hours → **Dismissed**. Ember never reads swipe-aways: Telegram doesn't report them and web push reports them unreliably, so dismissal is always inferred from silence.
+- Overdue sent → **Silenced** for that task unless rescheduled.
+
+### Channels
+
+One channel per message, never both. The user picks Telegram or web push in Settings; the default is Telegram if linked. With neither linked, reminders exist only in-app.
