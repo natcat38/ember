@@ -282,6 +282,27 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 ```
 
 - **Task menu:** *Rename task* and *Remove from list*. Remove from list lives only here, away from Start and Pin (§4).
+
+*Remove from list* asks first (Natalie's call, 2026-09-30, instead of an Undo on the confirmation):
+
+```
++------------------------------------+
+| (Task view, dimmed)                |
+|                                    |
+| +--------------------------------+ |
+| | Remove "Revise DSA basics"     | |
+| | from your list?                | |
+| | You can bring it back from     | |
+| | Inbox any time.                | |
+| |                                | |
+| | [Keep it]         [Remove]     | |
+| +--------------------------------+ |
+|                                    |
++------------------------------------+
+```
+
+- *Remove* is the main button; *Keep it* or a tap on the dimmed area closes the prompt with nothing changed. On *Remove* the signed-off confirmation shows as before: *"Moved out of the way. It's still here if you want it back."* The Telegram button asks the same question in the chat (`UX_Flows.md` §5).
+- Focus opens on *Keep it*, the choice that changes nothing, so a stray Enter cannot remove the task.
 - **Step menu:** *Start this step*, *Move up*, *Move down*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area).
 - **Reordering steps** (Natalie's call, from canvas review): on touch, hold a step for about half a second, then drag it; with a mouse, click and drag it directly. No handle on the row. *Move up* / *Move down* in the step menu do the same for keyboard and screen-reader users, who cannot drag. The rows turn off the phone's press-and-hold text menu so the hold starts a drag instead. The big *Start* at the bottom always starts the first unfinished step in this order; each row's own start button starts that step directly. 
 - **Smaller steps** (Natalie's call, 2026-09-30; full rules in `UX_Flows.md` §3.3): *Break this step down* turns the step into a heading with its smaller steps indented under it. Two levels at most. Before phase 4 the split is manual: an indented field labelled *Add a smaller step*, with its own **(+)**, opens under the heading, and works like the main add field. In the frame, *Outline heaps chapter* has been split: its checkbox ticks itself when both smaller steps are done (ticking it by hand finishes the rest), and it has no `[>]` because Focus runs on one smaller step at a time.
@@ -522,14 +543,14 @@ Targets to meet, not measurements. Step 2 checks the frames against them and the
 - Screen-reader labels: `[>]` → "Start *step name*", `...` → "More actions for *step name*", checkbox → "Mark *step name* done", ring → "2 of 5 done today". The cat is hidden from screen readers (§6).
 - Reduced motion: still poses for the cat, no sheet or card animations.
 
-## Open decisions (Natalie's)
+## Decisions from canvas review (Natalie's)
 
-Raised in canvas review, 2026-09-30; not yet answered. Nothing here is drawn until decided.
+Raised in canvas review and decided on 2026-09-30. Each is drawn and written into the scope docs.
 
 1. **Sub-steps. Decided 2026-09-30:** a step can be split once into smaller steps that stay under it; two levels at most. Drawn in the Task view (§6); rules in `UX_Flows.md` §3.3, state machine in `Product_Scope.md`.
 2. **"Let it go" label. Decided 2026-09-30:** *Remove from list*, everywhere the button appears (task menu, overdue message, Telegram). The collapsed Inbox section and the task state are renamed *Removed*. Behaviour is unchanged: the task is restorable, so the confirmation copy stays. `Product_Scope.md` §3 and `UX_Flows.md` updated.
 3. **"Chunk" or "step". Decided 2026-09-30:** *step* everywhere the user can see it (Task view heading *Steps*, Reward *Step done*, the Rewards setting, screen-reader labels). The docs keep *chunk* as the internal term, with a glossary line in `Product_Scope.md` and `UX_Flows.md` §3.3.
-4. **Undo on removing.** Offered: an *Undo* button on the *"Moved out of the way. It's still here if you want it back."* confirmation.
+4. **Undo on removing. Decided 2026-09-30:** no Undo; *Remove from list* asks first instead (*Remove "<task>" from your list?* with *[Keep it] [Remove]*), in the app and in Telegram. Drawn under Menus (§6).
 
 ## Open for `Tech_Scope.md`
 
