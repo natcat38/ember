@@ -7,8 +7,8 @@ Contents:
 2. Screen inventory and navigation ✅ signed off 2026-09-16
 3. The seven flows in detail ✅ signed off 2026-09-30
 4. Edge and state screens ✅ signed off 2026-09-30
-5. Notification interaction design — *drafted 2026-09-30, awaiting sign-off*
-6. The cat — *to draft*
+5. Notification interaction design ✅ signed off 2026-09-30
+6. The cat — *drafted 2026-09-30, awaiting sign-off*
 7. Onboarding — *to draft*
 8. Design process plan — *to draft*
 
@@ -18,6 +18,8 @@ Contents:
 - **Quick flag defined.** Product_Scope §2 lists a "quick" flag at capture without saying what it does. Decided: Quick pre-sets size XS so triage skips the size question (§3.1).
 - **Triage question reworded.** Product_Scope §2's "Does something else depend on it?" becomes *"Is this holding up anything else?"* Same meaning, plainer wording (§3.2).
 - ~~Lapse-return wording~~ — applied to `Product_Scope.md` §2 on 2026-09-30.
+- **"Gap" defined.** Product_Scope §2 says "after any gap". Decided: a lapse return is the first open after **3 or more days** with no open (§6).
+- **Day rollover.** A day starts when quiet hours end (08:00 default), not at midnight. Today rebuilds and the daily notification cap resets then; a 1am session counts toward the day before (§6).
 
 ---
 
@@ -346,7 +348,7 @@ Every state follows the same rules: no red, no counts of what was missed, and ea
 | **Overdue** | Deadline passed, not done | One message, once, then silence for that task. The task **stays in Today**, ranked at the top and sharing the 5-cap, with a plain date label until the user reschedules, finishes, or lets it go | *fixed:* *"X was due today and isn't marked done. Still relevant?"* *[Reschedule] [Done] [Let it go]* · in-app label *"Was due Tue"* (plain text, no red) |
 | **Let go** | User lets a task go | Moves to a collapsed **Let go** section at the bottom of Inbox. No new screen | *fixed:* *[Let it go]* → *"Moved out of the way. It's still here if you want it back."* |
 | **Restore** | Tap a let-go task → *Restore* | Back to Active, re-enters ranking | *"Back on your list."* |
-| **Lapse return** | Any gap | No red, no count of missed days. Overdue tasks show their date label; the reset offer runs once and clears the labels in one tap | *fixed:* *"Welcome back. Here's what's on today."* + *"A couple of these slipped past their date. Want to reset them?"* |
+| **Lapse return** | First open after 3+ days away | No red, no count of missed days. Overdue tasks show their date label; the reset offer runs once and clears the labels in one tap | *fixed:* *"Welcome back. Here's what's on today."* + *"A couple of these slipped past their date. Want to reset them?"* |
 | **Quiet hours active** | Inside the quiet window | App works normally when opened. Nudges scheduled inside the window move to its end and still count toward the daily cap. Nothing shows on Today | Settings: *"No nudges between 22:00 and 08:00."* |
 
 **Resolved 2026-09-30:** overdue-stays-in-Today means the lapse-return home screen can open with dated overdue tasks at the top. The lapse-return promise is reworded to match, in §1 and `Product_Scope.md` §2: *"looks like a normal day: no red, no count of missed days. Overdue tasks show their date until you reset them."*
@@ -406,3 +408,47 @@ States are from `Product_Scope.md` §4.
 ### Channels
 
 One channel per message, never both. The user picks Telegram or web push in Settings; the default is Telegram if linked. With neither linked, reminders exist only in-app.
+
+---
+
+## 6. The cat
+
+**The rule under everything:** the cat reflects what the user is doing *right now*, not how the day is going. It has no memory of what was missed and no opinion about it, so there is nothing for it to be sad about.
+
+### States and triggers
+
+| State | Triggered by | Leaves when |
+|---|---|---|
+| **Asleep** | Start of a new day, before any activity. Also after shutdown's *"You're done"* | First open of the day (brief wake-up stretch) → watching |
+| **Watching** | Today on screen, nothing else happening | Focus starts, a chunk finishes, or shutdown completes |
+| **Stretching** | A focus session is running | Pause or exit → watching; chunk done → purring |
+| **Curled up, purring** | A chunk is done (slightly bigger moment on the last chunk of the day) | Reward moment ends (unlock played or skipped) → watching |
+| **By the door** | First open after **3+ days** away (the lapse return) | First tap after the welcome-back greeting → watching |
+
+### Transitions worth spelling out
+
+- **After shutdown the cat stays asleep**, even if the user reopens Ember to capture something at 11pm. Capture works; the cat just signals the day is over and nothing more is expected.
+- **The day rolls over when quiet hours end** (08:00 by default), not at midnight. A 1am session counts toward the day before. This is app-wide: it is also when Today rebuilds and the daily notification cap resets.
+- A 1–2 day absence is not a lapse: the app opens as a normal day, cat asleep → watching as usual.
+
+### Where it appears
+
+- **Today:** small, beside the progress ring. Never covers the list.
+- **Focus:** small in a corner, stretching in a slow loop; dims with everything else. Company while you work.
+- **Reward and shutdown moments:** briefly the centre of attention (purring; falling asleep).
+- **Nowhere else:** not in Capture, Task view, Inbox, Settings, or notifications. This is what keeps it from becoming a second job.
+
+### What it never does
+
+- Look sad, worried, disappointed, sick, hungry, or lonely.
+- React to absence, missed or overdue tasks, or logged mood.
+- Have needs: no feeding, shop, currency, or cosmetics (`Product_Scope.md` §5).
+- **Speak.** It has no voice; all copy is Ember's plain voice. A cat that never talks cannot guilt-trip.
+- Block the list, need dismissing, or gate anything.
+- Count anything: no hearts, levels, or XP.
+
+### Accessibility
+
+With reduced motion on, still poses replace animations. The cat is decorative and hidden from screen readers (`aria-hidden`): the ring and timer carry everything it shows, so screen-reader users lose nothing.
+
+**Not decided here:** the illustration style. `Product_Scope.md` §7 leaves it to the design stage.
