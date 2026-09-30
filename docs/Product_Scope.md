@@ -39,7 +39,7 @@ An orange tabby cat. States: asleep (no activity yet today), watching (Today lis
 - **Channels:** Telegram bot first (phase 2). Web push added in phase 3 from the same scheduler.
 
 ### The lapse return
-After any gap, the home screen looks like a normal day. No red, no "you missed N days", no broken streak. Overdue tasks are offered for re-chunking once. Copy: "Welcome back. Here's what's on today."
+After any gap, the home screen looks like a normal day: no red, no count of missed days, no broken streak. Overdue tasks stay in Today with their date shown until the user resets them; the reset is offered once. Copy: "Welcome back. Here's what's on today."
 
 ## 3. Hard rules and exact UI copy
 

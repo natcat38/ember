@@ -6,7 +6,7 @@ Contents:
 1. Persona paths ✅ signed off 2026-09-15
 2. Screen inventory and navigation ✅ signed off 2026-09-16
 3. The seven flows in detail ✅ signed off 2026-09-30
-4. Edge and state screens — *drafted 2026-09-30, awaiting sign-off*
+4. Edge and state screens ✅ signed off 2026-09-30
 5. Notification interaction design — *to draft*
 6. The cat — *to draft*
 7. Onboarding — *to draft*
@@ -15,6 +15,9 @@ Contents:
 ## Open scope changes (fold into Product_Scope at the scope pass)
 
 - **Day shape.** New concept, not in `Product_Scope.md` yet. The user sets recurring **hard blocks** (fixed, unavailable hours — the "lecture" model). Ember sizes Today from the **free-floating** time left over and slots the ranked chunks into it. Guard against brittleness: **hard blocks are scheduled; chunks are never clock-pinned** — there is no clock sequence to wreck when the user starts late, only fixed blocks and a ranked list to fill the gaps. Phase placement is a Plan-stage call; not in the phase-1 cut line. Adds a §7 decision and a screen (§2).
+- **Quick flag defined.** Product_Scope §2 lists a "quick" flag at capture without saying what it does. Decided: Quick pre-sets size XS so triage skips the size question (§3.1).
+- **Triage question reworded.** Product_Scope §2's "Does something else depend on it?" becomes *"Is this holding up anything else?"* Same meaning, plainer wording (§3.2).
+- ~~Lapse-return wording~~ — applied to `Product_Scope.md` §2 on 2026-09-30.
 
 ---
 
@@ -54,7 +57,7 @@ Opens at 9pm having done nothing, or never opens.
 - **Evening shutdown fires either way, reframed to rest:** *"Some days are for resting. Tomorrow's list is ready when you are."* No tally of what wasn't done.
 
 **Return after a week away**
-Gone seven days. Home screen looks exactly like a normal day — no red, no "7 days missed", no broken streak (there are no streaks). Greeting: *"Welcome back. Here's what's on today."* Cat: sitting by the door, glad to see her. Anything now overdue is offered for one-time re-chunking: *"A couple of these slipped past their date. Want to reset them?"* Not forced; she can ignore it and start.
+Gone seven days. Home screen looks like a normal day: no red, no count of missed days, no broken streak (there are no streaks). Overdue tasks show their date until she resets them. Greeting: *"Welcome back. Here's what's on today."* Cat: sitting by the door, glad to see her. Anything now overdue is offered for one-time re-chunking: *"A couple of these slipped past their date. Want to reset them?"* Not forced; she can ignore it and start.
 
 ### Natalie
 
@@ -73,7 +76,7 @@ An interview is tomorrow 10am. Morning: one factual line. In Today, interview pr
 A rejection email hits at 2pm. She doesn't open Ember, or opens it and can't start. The design's job here is to do nothing clever — no "everything okay?", no pep talk, no mascot concern. Evening: if she opens, shutdown fires reframed to rest — *"Some days are for resting. Tomorrow's list is ready when you are."* Cat: watching, unchanged. It cannot see the rejection and does not pretend to.
 
 **Return after a week (went dark prepping / slump)**
-Vanished a week, deep in interview loops or a slump. Home = normal day. *"Welcome back. Here's what's on today."* Cat: by the door. Overdue applications offered for one-time re-chunk; she can ignore and just start.
+Vanished a week, deep in interview loops or a slump. Home looks like a normal day; overdue applications show their date until she resets them. *"Welcome back. Here's what's on today."* Cat: by the door. Overdue applications offered for one-time re-chunk; she can ignore and just start.
 
 ---
 
@@ -346,6 +349,6 @@ Every state follows the same rules: no red, no counts of what was missed, and ea
 | **Lapse return** | Any gap | No red, no count of missed days. Overdue tasks show their date label; the reset offer runs once and clears the labels in one tap | *fixed:* *"Welcome back. Here's what's on today."* + *"A couple of these slipped past their date. Want to reset them?"* |
 | **Quiet hours active** | Inside the quiet window | App works normally when opened. Nudges scheduled inside the window move to its end and still count toward the daily cap. Nothing shows on Today | Settings: *"No nudges between 22:00 and 08:00."* |
 
-**Open conflict (awaiting Natalie):** overdue-stays-in-Today means the lapse-return home screen can open with dated overdue tasks at the top. That softens the signed-off promise "looks exactly like a normal day" (`Product_Scope.md` §2, §1 return paths). Proposed rewording: *"looks like a normal day: no red, no count of missed days. Overdue tasks show their date until you reset them."*
+**Resolved 2026-09-30:** overdue-stays-in-Today means the lapse-return home screen can open with dated overdue tasks at the top. The lapse-return promise is reworded to match, in §1 and `Product_Scope.md` §2: *"looks like a normal day: no red, no count of missed days. Overdue tasks show their date until you reset them."*
 
 **Deferred to `Tech_Scope.md`:** conflict resolution when the same task is edited on two devices while offline, and the guarantee that a queued action retried after reconnecting never runs twice. The UX promises both; how they work is a tech decision.
