@@ -124,7 +124,7 @@ A chunk can be split once into smaller chunks; two levels at most (wireframe rev
 | 3 | Companion | Orange tabby cat, 5 states, never sad | Illustration approach decided at design stage |
 | 4 | Stack | Cloudflare Pages + Workers + D1 + cron | Proven by the 2026-10-01 spike; `docs/adr/0001-cloudflare-stack.md` |
 | 5 | AI breakdown | Free-tier LLM behind the API, daily cap | Provider chosen in tech scope |
-| 6 | Visual direction | Undecided; mock all three | Warm Paper, Focus Beam, Small Companion |
+| 6 | Visual direction (2026-10-02) | Small Companion | Picked from the three-direction mockups (Ember Mockups canvas). Spec in `docs/Design_Direction.md`. Research flagged its risk of reading as childish; the spec's restraint rules exist for that |
 | 7 | Name | Ember | Collides with Ember.js; publish as `ember-tasks` or similar |
 | 8 | Day structure (2026-09-30) | Day-shape template: hard blocks scheduled, chunks never clock-pinned | Full timeline rejected as brittle. Phase decided in Plan |
 | 9 | Data safety (2026-09-30) | iPhone install nudge in phase 1; anonymous server backup from phase 2 | Needs a retention rule for anonymous users who never return (Tech_Scope). Safari's 7-day wipe confirmed 2026-10-02; `docs/adr/0003-iphone-storage-durability.md` |
