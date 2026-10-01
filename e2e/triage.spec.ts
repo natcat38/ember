@@ -12,7 +12,7 @@ async function captureOne(page: Page, title: string) {
 
 const section = (page: Page, name: string) => page.getByRole("region", { name });
 
-test("a triaged task shows as Active, under Waiting", async ({ page }) => {
+test("a triaged task shows as Active: out of Needs sorting, and ranked into Today", async ({ page }) => {
   await captureOne(page, "Ethics essay");
   await section(page, "Needs sorting").getByRole("button", { name: "Ethics essay" }).click();
 
@@ -24,13 +24,14 @@ test("a triaged task shows as Active, under Waiting", async ({ page }) => {
 
   await page.getByRole("button", { name: "Back" }).click();
   await expect(section(page, "Needs sorting")).toHaveCount(0);
-  await expect(section(page, "Waiting").getByRole("button")).toHaveText("Ethics essayDue 14 OctM");
+  // Far deadline, but holding things up lifts it to on track, so it ranks into Today rather than Waiting.
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Today", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Do this first" })).toContainText("Ethics essay");
 
   // Survives a reload, and reopens on the one-line summary.
   await page.reload();
-  await page.getByRole("button", { name: "Open menu" }).click();
-  await page.getByRole("button", { name: "Inbox", exact: true }).click();
-  await section(page, "Waiting").getByRole("button", { name: /Ethics essay/ }).click();
+  await page.getByRole("region", { name: "Do this first" }).getByRole("button", { name: "Ethics essay" }).click();
   await expect(page.getByRole("region", { name: "Triage" })).toContainText("Due 14 Oct · Holding things up · M");
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByRole("group", { name: "Size" })).toBeVisible();

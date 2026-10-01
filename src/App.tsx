@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { capture, remove, rename, restore, triage, type CaptureInput, type State, type Task } from "../core/task";
+import { capture, pin, remove, rename, restore, triage, type CaptureInput, type State, type Task } from "../core/task";
+import { buildToday } from "../core/today";
+import { TodayView } from "./Today";
 import { dayOf } from "../core/day";
 import { KEY, load, save } from "./store";
 import { CaptureForm, formatDue } from "./Capture";
@@ -29,6 +31,14 @@ export function App() {
   const drawer = useRef<HTMLDialogElement>(null);
   const wide = useWide();
   const today = dayOf(Date.now(), tz);
+  const plan = buildToday(state, today, { tz });
+
+  // Re-render each minute so an app left open rolls over to the new day at the boundary.
+  const [, setMinute] = useState(0);
+  useEffect(() => {
+    const i = setInterval(() => setMinute((m) => m + 1), 60_000);
+    return () => clearInterval(i);
+  }, []);
 
   useEffect(() => setSaved(save(state)), [state]);
 
@@ -95,6 +105,8 @@ export function App() {
           state={state}
           update={setState}
           today={today}
+          inToday={plan.rows.some((r) => r.task.id === task.id)}
+          onPin={() => setState((s) => pin(s, task.id, today, Date.now()))}
           onBack={() => navigate({ name: view.from })}
           onTriage={(answers) => setState((s) => triage(s, task.id, answers, Date.now(), today))}
           onRename={(title) => setState((s) => rename(s, task.id, title, Date.now()))}
@@ -119,20 +131,20 @@ export function App() {
           {wide && <div className="capture-inline">{form}</div>}
           <main className="main">
             {view.name === "today" ? (
-              <section className="section">
-                <p className="empty">Nothing's lined up for today yet.</p>
-                <div className="actions">
-                  <button className="button primary" onClick={() => navigate({ name: "inbox" })}>
-                    Sort a few from Inbox
-                  </button>
-                  <button className="button" onClick={openCapture}>
-                    Capture something
-                  </button>
-                </div>
-              </section>
+              <TodayView
+                key={today} // a new day remounts it, so its morning confirm and Adjust mode start fresh
+                plan={plan}
+                state={state}
+                update={setState}
+                today={today}
+                onOpenTask={open}
+                onInbox={() => navigate({ name: "inbox" })}
+                onCapture={openCapture}
+              />
             ) : (
               <Inbox
                 tasks={state.tasks}
+                waiting={plan.ranked.filter((t) => !plan.rows.some((r) => r.task.id === t.id))}
                 onOpen={open}
                 onRestore={(t) => {
                   setState((s) => restore(s, t.id, Date.now()));
@@ -197,13 +209,9 @@ export function App() {
   );
 }
 
-function Inbox({ tasks, onOpen, onRestore }: { tasks: Task[]; onOpen: (t: Task) => void; onRestore: (t: Task) => void }) {
+function Inbox({ tasks, waiting, onOpen, onRestore }: { tasks: Task[]; waiting: Task[]; onOpen: (t: Task) => void; onRestore: (t: Task) => void }) {
   const [showRemoved, setShowRemoved] = useState(false);
   const needsSorting = tasks.filter((t) => t.state === "inbox").sort((a, b) => b.created_at - a.created_at);
-  // ponytail: soonest deadline first until slice 4 brings the real rank order.
-  const waiting = tasks
-    .filter((t) => t.state === "active" || t.state === "overdue")
-    .sort((a, b) => (a.deadline ?? "9999").localeCompare(b.deadline ?? "9999") || a.created_at - b.created_at);
   const removed = tasks.filter((t) => t.state === "removed").sort((a, b) => b.updated_at - a.updated_at);
 
   return (

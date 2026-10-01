@@ -655,3 +655,115 @@ dialog::backdrop {
     background: var(--color-nook);
   }
 }
+
+/* Today (Wireframes.md §1) */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+}
+
+.card p {
+  margin: 0;
+}
+
+.card-actions {
+  margin-top: var(--space-3);
+}
+
+.card-actions .button {
+  flex: 1 1 0;
+}
+
+.frog {
+  border: 2px solid var(--color-lavender);
+}
+
+.frog-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--color-lavender-deep);
+}
+
+.lead {
+  font: 800 19px/25px var(--font-display);
+}
+
+.row-link {
+  flex-grow: 1;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-2) 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.card > .row-link {
+  flex-grow: 0;
+  padding: 0;
+}
+
+.today-row {
+  padding: 0 var(--space-1) 0 0;
+  gap: 0;
+}
+
+.today-row.done {
+  background: var(--color-done);
+}
+
+.today-row.done .row-link > span:first-child {
+  color: var(--color-ink-soft);
+  text-decoration: line-through;
+}
+
+.today-row.done .check input {
+  accent-color: var(--color-sage-deep);
+}
+
+.overflow {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  background: transparent;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-ink-soft);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.row-menu {
+  inset: auto;
+}
+
+.row > .check {
+  flex-grow: 0;
+}
+
+.bottom-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) max(var(--space-6), env(safe-area-inset-bottom));
+  background: var(--color-oat);
+}
+
+.bottom-bar .button {
+  flex: 1 1 0;
+}

@@ -19,13 +19,21 @@ export interface Task {
   updated_at: number;
 }
 
+// The D1 `days` table (Tech_Scope.md §3): per local day, the morning confirm and what was put off.
+export interface Day {
+  day: string;
+  confirmed_at: number | null;
+  deferred: string[]; // chunk ids marked "Not today" (a task id for a task with no steps yet)
+}
+
 export interface State {
   tasks: Task[];
   chunks: Chunk[];
+  days: Day[];
   draft: string; // unsent capture text, kept when the sheet closes (UX_Flows.md §3.1)
 }
 
-export const emptyState = (): State => ({ tasks: [], chunks: [], draft: "" });
+export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], draft: "" });
 
 export interface CaptureInput {
   title: string;
@@ -97,4 +105,9 @@ export function remove(s: State, id: string, now: number): State {
 // Restored tasks re-enter ranking; one that was never sized can't rank, so it goes back to Inbox.
 export function restore(s: State, id: string, now: number): State {
   return update(s, id, now, (t) => (t.state === "removed" ? { state: t.size ? "active" : "inbox" } : null));
+}
+
+// Pin to today: the task takes a slot in Today and bumps the lowest-ranked step out (UX_Flows.md §3.4).
+export function pin(s: State, id: string, today: string, now: number): State {
+  return update(s, id, now, (t) => (t.state === "active" || t.state === "overdue" ? { pinned_on: today } : null));
 }
