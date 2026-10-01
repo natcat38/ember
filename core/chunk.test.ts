@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { addChunk, childrenOf, deleteChunk, move, moveTo, renameChunk, setLeafStates, stateOf, tick, topLevel } from "./chunk";
+import { addChunk, childrenOf, deleteChunk, firstOpenLeaf, move, moveTo, renameChunk, setLeafStates, stateOf, tick, topLevel } from "./chunk";
 import { emptyState, type State } from "./task";
 
 const T = "task-1";
@@ -97,4 +97,13 @@ test("rule 7: deleting a parent deletes its smaller steps; deleting the last sma
 test("a deleted step's row stays deleted and can't gain children", () => {
   const s = deleteChunk(sample(), "c1", now);
   expect(addChunk(s, T, "x", "c1", now, id)).toBe(s);
+});
+
+test("firstOpenLeaf skips done steps and parents", () => {
+  let s = tick(sample(), "c1", true, now);
+  expect(firstOpenLeaf(s, T)?.id).toBe("c4"); // B's first smaller step, not B
+  s = tick(s, "c2", true, now);
+  expect(firstOpenLeaf(s, T)?.id).toBe("c3");
+  s = tick(s, "c3", true, now);
+  expect(firstOpenLeaf(s, T)).toBeNull();
 });

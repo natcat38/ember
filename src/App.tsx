@@ -6,9 +6,12 @@ import { dayOf } from "../core/day";
 import { KEY, load, save } from "./store";
 import { CaptureForm, formatDue } from "./Capture";
 import { TaskView } from "./TaskView";
-import { closeOnBackdrop } from "./dialogs";
+import { closeOnBackdrop, TextDialog } from "./dialogs";
+import { FocusView } from "./Focus";
+import { sessionsDone, startFocus } from "../core/focus";
+import { addChunk, firstOpenLeaf } from "../core/chunk";
 
-type View = { name: "today" | "inbox" } | { name: "task"; id: string; from: "today" | "inbox" };
+type View = { name: "today" | "inbox" | "focus" } | { name: "task"; id: string; from: "today" | "inbox" };
 
 const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -22,7 +25,10 @@ const useWide = () =>
 export function App() {
   const [state, setState] = useState<State>(() => load());
   const [saved, setSaved] = useState(true);
-  const [view, setView] = useState<View>({ name: "today" });
+  // Reopening the app mid-session goes straight back to Focus; the timer kept running on the wall clock.
+  const [view, setView] = useState<View>(() => ({ name: state.focus ? "focus" : "today" }));
+  const [askFor, setAskFor] = useState<Task | null>(null);
+  const nextAction = useRef<HTMLDialogElement>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [status, setStatus] = useState("");
@@ -31,7 +37,7 @@ export function App() {
   const drawer = useRef<HTMLDialogElement>(null);
   const wide = useWide();
   const today = dayOf(Date.now(), tz);
-  const plan = buildToday(state, today, { tz });
+  const plan = buildToday(state, today, { tz, sessionsDone: sessionsDone(state) });
 
   // Re-render each minute so an app left open rolls over to the new day at the boundary.
   const [, setMinute] = useState(0);
@@ -81,8 +87,22 @@ export function App() {
     sheet.current!.querySelector<HTMLInputElement>(".field")!.focus();
   }
 
+  // Focus on one step. A task with no open step asks for the next action first, then starts (UX_Flows.md §3.3).
+  function start(chunkId: string) {
+    setState((s) => startFocus(s, chunkId, Date.now()));
+    navigate({ name: "focus" });
+  }
+  function startTask(t: Task) {
+    const leaf = firstOpenLeaf(state, t.id);
+    if (leaf) return start(leaf.id);
+    setAskFor(t);
+    nextAction.current!.showModal();
+  }
+
   const task = view.name === "task" ? state.tasks.find((t) => t.id === view.id) : undefined;
   if (view.name === "task" && !task) setView({ name: view.from }); // e.g. removed from another tab
+  if (view.name === "focus" && !state.focus) setView({ name: "today" }); // e.g. ended in another tab
+  const focusChunk = state.focus && state.chunks.find((c) => c.id === state.focus!.chunk_id);
 
   const form = (
     <CaptureForm
@@ -94,7 +114,7 @@ export function App() {
     />
   );
 
-  const open = (t: Task) => view.name !== "task" && navigate({ name: "task", id: t.id, from: view.name });
+  const open = (t: Task) => (view.name === "today" || view.name === "inbox") && navigate({ name: "task", id: t.id, from: view.name });
 
   return (
     <div className="app">
@@ -107,6 +127,8 @@ export function App() {
           today={today}
           inToday={plan.rows.some((r) => r.task.id === task.id)}
           onPin={() => setState((s) => pin(s, task.id, today, Date.now()))}
+          onStart={() => startTask(task)}
+          onStartStep={start}
           onBack={() => navigate({ name: view.from })}
           onTriage={(answers) => setState((s) => triage(s, task.id, answers, Date.now(), today))}
           onRename={(title) => setState((s) => rename(s, task.id, title, Date.now()))}
@@ -118,19 +140,40 @@ export function App() {
         />
       ) : (
         <>
-          <header className="header">
+          <header className={`header${view.name === "focus" ? " dimmed" : ""}`}>
             <button className="icon-button" aria-label="Open menu" onClick={() => drawer.current!.showModal()}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
-            <h1 className="title" tabIndex={-1}>
-              {view.name === "today" ? "Today" : "Inbox"}
-            </h1>
+            {view.name === "focus" ? (
+              <span className="title">Today</span>
+            ) : (
+              <h1 className="title" tabIndex={-1}>
+                {view.name === "today" ? "Today" : "Inbox"}
+              </h1>
+            )}
           </header>
+          {/* Peeking away mid-session: one tap returns to the running timer. */}
+          {state.focus && view.name !== "focus" && focusChunk && (
+            <div className="return-bar">
+              <span>Focusing on {focusChunk.title}</span>
+              <button className="text-button" onClick={() => navigate({ name: "focus" })}>
+                Back to focus
+              </button>
+            </div>
+          )}
           {wide && <div className="capture-inline">{form}</div>}
-          <main className="main">
-            {view.name === "today" ? (
+          <main className={`main${view.name === "focus" ? " focus-main" : ""}`}>
+            {view.name === "focus" && state.focus ? (
+              <FocusView
+                state={state}
+                update={setState}
+                announce={announce}
+                onFinished={() => navigate({ name: "today" })}
+                onStopped={() => navigate({ name: "today" })}
+              />
+            ) : view.name === "today" ? (
               <TodayView
                 key={today} // a new day remounts it, so its morning confirm and Adjust mode start fresh
                 plan={plan}
@@ -138,6 +181,7 @@ export function App() {
                 update={setState}
                 today={today}
                 onOpenTask={open}
+                onStart={(r) => (r.chunk ? start(r.chunk.id) : startTask(r.task))}
                 onInbox={() => navigate({ name: "inbox" })}
                 onCapture={openCapture}
               />
@@ -154,7 +198,7 @@ export function App() {
             )}
           </main>
           {!wide && (
-            <div className="capture-bar">
+            <div className={`capture-bar${view.name === "focus" ? " dimmed" : ""}`}>
               <button onClick={openCapture}>{state.draft || "What's on your mind?"}</button>
             </div>
           )}
@@ -186,6 +230,20 @@ export function App() {
           </p>
         </div>
       </dialog>
+
+      <TextDialog
+        dialog={nextAction}
+        label="What's the very next physical action?"
+        placeholder="Type one step"
+        confirm="Start"
+        onSave={(title) => {
+          if (!askFor || !title.trim()) return;
+          const id = crypto.randomUUID();
+          const now = Date.now();
+          setState((s) => startFocus(addChunk(s, askFor.id, title, null, now, () => id), id, now));
+          navigate({ name: "focus" });
+        }}
+      />
 
       <dialog ref={drawer} className="drawer" aria-label="Menu" onClick={closeOnBackdrop}>
         <nav>

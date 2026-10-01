@@ -108,3 +108,13 @@ export function renameChunk(s: State, id: string, title: string, now: number): S
 export function deleteChunk(s: State, id: string, now: number): State {
   return patch(s, [id, ...childrenOf(s, id).map((c) => c.id)], now, { deleted: true });
 }
+
+// The Task view's Start begins the first unfinished step in list order, never a parent (rule 3).
+export function firstOpenLeaf(s: State, taskId: string): Chunk | null {
+  for (const c of topLevel(s, taskId)) {
+    const kids = childrenOf(s, c.id);
+    const open = (kids.length ? kids : [c]).find((x) => x.state !== "done");
+    if (open) return open;
+  }
+  return null;
+}

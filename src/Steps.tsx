@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { addChunk, childrenOf, deleteChunk, move, moveTo, renameChunk, setLeafStates, stateOf, tick, topLevel, type Chunk } from "../core/chunk";
 import type { State } from "../core/task";
-import { closeOnBackdrop, ConfirmDialog, RenameDialog } from "./dialogs";
+import { closeOnBackdrop, ConfirmDialog, TextDialog } from "./dialogs";
 
 interface Props {
   state: State;
   update: (fn: (s: State) => State) => void;
   taskId: string;
+  onStart: (chunkId: string) => void;
 }
 
-// UX_Flows.md §3.3 and Wireframes.md §6 (Steps). Start buttons arrive with Focus in slice 5.
-export function Steps({ state, update, taskId }: Props) {
+// UX_Flows.md §3.3 and Wireframes.md §6 (Steps).
+export function Steps({ state, update, taskId, onStart }: Props) {
   const [addingTo, setAddingTo] = useState<string | null>(null); // the parent whose "Add a smaller step" field is open
   const [menuFor, setMenuFor] = useState<Chunk | null>(null);
   const [lastParentTick, setLastParentTick] = useState<{ id: string; ids: string[] } | null>(null);
@@ -50,6 +51,14 @@ export function Steps({ state, update, taskId }: Props) {
         <input type="checkbox" checked={stateOf(state, c) === "done"} aria-label={c.title} onChange={(e) => onTick(c, e.target.checked)} />
       </label>
       <span className="step-title">{c.title}</span>
+      {/* Rule 3: no start button on a parent; Focus runs on one smaller step. */}
+      {!childrenOf(state, c.id).length && c.state !== "done" && (
+        <button className="icon-button" aria-label={`Start ${c.title}`} onClick={() => onStart(c.id)}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+          <path d="M8 5l11 7-11 7z" />
+        </svg>
+        </button>
+      )}
       <button
         className="icon-button"
         aria-label={`More actions for ${c.title}`}
@@ -118,6 +127,7 @@ export function Steps({ state, update, taskId }: Props) {
         {menuFor && (
           <div className="sheet-body menu-sheet">
             <p className="prompt-title">{menuFor.title}</p>
+            {!menuKids.length && menuFor.state !== "done" && <button onClick={() => fromMenu(() => onStart(menuFor.id))}>Start this step</button>}
             {/* Rule 6: no third level, so a smaller step can't be broken down. A parent offers more smaller steps instead. */}
             {!menuFor.parent_id && (
               <button onClick={() => fromMenu(() => setAddingTo(menuFor.id))}>{menuKids.length ? "Add a smaller step" : "Break this step down"}</button>
@@ -138,7 +148,7 @@ export function Steps({ state, update, taskId }: Props) {
           </div>
         )}
       </dialog>
-      <RenameDialog dialog={renameDialog} label="Rename step" value={menuFor?.title ?? ""} onSave={(t) => menuFor && act((s) => renameChunk(s, menuFor.id, t, Date.now()))} />
+      <TextDialog dialog={renameDialog} label="Rename step" value={menuFor?.title ?? ""} onSave={(t) => menuFor && act((s) => renameChunk(s, menuFor.id, t, Date.now()))} />
       <ConfirmDialog
         dialog={deleteDialog}
         question={menuKids.length === 1 ? "Delete this step and its smaller step?" : `Delete this step and its ${menuKids.length} smaller steps?`}

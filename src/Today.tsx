@@ -9,6 +9,7 @@ interface Props {
   update: (fn: (s: State) => State) => void;
   today: string;
   onOpenTask: (t: Task) => void;
+  onStart: (r: TodayRow) => void;
   onInbox: () => void;
   onCapture: () => void;
 }
@@ -22,8 +23,8 @@ function wasDue(deadline: string, today: string) {
   return `Was due ${daysBetween(deadline, today) < 7 ? weekday.format(d) : shortDate.format(d)}`;
 }
 
-// Wireframes.md §1. Start buttons arrive with Focus (slice 5); the ring and nook with Reward (slice 6).
-export function TodayView({ plan, state, update, today, onOpenTask, onInbox, onCapture }: Props) {
+// Wireframes.md §1. The ring and nook arrive with Reward (slice 6).
+export function TodayView({ plan, state, update, today, onOpenTask, onStart, onInbox, onCapture }: Props) {
   const { rows, frog, waiting, lightDay } = plan;
   // The morning confirm shows on the day's first visit to Today and never returns that day, answered or not.
   const [confirming, setConfirming] = useState(() => !isConfirmed(state, today) && rows.length > 0);
@@ -70,6 +71,13 @@ export function TodayView({ plan, state, update, today, onOpenTask, onInbox, onC
           <span>{title(r)}</span>
           {second && <span className="meta">{second}</span>}
         </button>
+        {!r.done && (
+          <button className="icon-button" aria-label={`Start ${title(r)}`} onClick={() => onStart(r)}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 5l11 7-11 7z" />
+            </svg>
+          </button>
+        )}
         {!r.done &&
           (adjusting ? (
             <button className="text-button" onClick={() => defer(r.key)} aria-label={`Not today: ${title(r)}`}>
@@ -121,6 +129,12 @@ export function TodayView({ plan, state, update, today, onOpenTask, onInbox, onC
           {frog.chunk && <p className="meta">from: {[frog.task.title, frog.parent?.title].filter(Boolean).join(" · ")}</p>}
           {frog.task.deadline && band(frog.task, today) === "overdue" && <p className="meta">{wasDue(frog.task.deadline, today)}</p>}
           <div className="actions card-actions">
+            <button className="button primary icon-label" onClick={() => onStart(frog)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5l11 7-11 7z" />
+              </svg>
+              Do this first
+            </button>
             <button className="button" onClick={() => defer(frog.key)}>
               Not today
             </button>
