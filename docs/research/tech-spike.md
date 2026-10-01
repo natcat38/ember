@@ -4,7 +4,35 @@ Run 2026-10-02 against `tech-feasibility.md` (desk research, 2026-09-09). Each q
 
 ## 1. Cloudflare free tier runs the phase-2 spine (cron → D1 → Telegram)
 
-**Pending.** Worker `ember-spike` is deployed on the free plan with a `* * * * *` cron trigger and a D1 database (`ember-spike`, region APAC). Code: `spike/cron-telegram/`. Waiting on a Telegram bot token to send the first message.
+**Yes, proven on a running deploy.** Worker `ember-spike` (wrangler 4.145.0, free plan) has a `* * * * *` cron trigger and the D1 database `ember-spike` (region APAC). Code: `spike/cron-telegram/`. Each tick selects unsent reminders whose `due_at` has passed, posts each to the Telegram Bot API, and stamps `sent_at`.
+
+Measured 2026-10-01 (UTC), from `wrangler tail` and the D1 rows:
+
+| Reminder | Due | Sent | Due → sent | Note |
+|---|---|---|---|---|
+| 1 | 16:51:00.273 | 16:56:07.009 | 306.7 s | Waited for the bot-token secret to be set; not cron lag |
+| 2 | 16:57:54.173 | 16:58:31.667 | 37.5 s | Tick `scheduledTime` 16:58:31.000, so 0.67 s of work (D1 read + Telegram send + D1 write) |
+
+So a reminder lands at most one tick (60 s) plus under a second after it is due. Ticks fired at :31 past each minute, not :00. Telegram accepted both sends with HTTP 2xx (the code stamps `sent_at` only then).
+
+**Free-plan limits, re-checked against Cloudflare's docs on 2026-10-02:**
+
+| Limit | Value | Source (last updated) |
+|---|---|---|
+| Requests | 100,000 / day | [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) (2026-09-05) |
+| CPU per cron invocation | 10 ms | same |
+| Cron triggers per account | 5 | same |
+| Subrequests per invocation | 50 | same; **not in the desk research** |
+| D1 rows read / written | 5M / 100k per day | [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) (2026-04-21) |
+| D1 storage | 5 GB | same; over a daily limit, queries error until the reset |
+
+A per-minute cron costs 1,440 of the 100,000 daily requests.
+
+**Gotchas for `Tech_Scope.md`** (the spike code ignores them on purpose):
+
+- **50 subrequests per tick.** Every Telegram call is one. A tick with more due messages than that must stop at the cap and leave the rest for the next tick, which the "select unsent" query already does if the loop is capped.
+- **Send, then mark, is not atomic.** If the `UPDATE` fails after Telegram accepted the message, the next tick sends it again. Phase 2 needs a claim step before the send (`UPDATE ... SET claimed_at WHERE sent_at IS NULL AND claimed_at IS NULL RETURNING`), so a retry or an overlapping tick can't double-send.
+- **A failed send retries every minute forever.** Needs an attempt count and a give-up rule (for example, the user blocked the bot: Telegram returns 403).
 
 ## 2. iOS web push has no action buttons
 

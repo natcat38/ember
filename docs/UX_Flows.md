@@ -400,7 +400,7 @@ Morning and wrap-up are conveniences and drop first on busy days. Nothing is los
 - **Stale buttons are safe.** Tapping *Done* on an old message for a task already finished in the app edits it to *"Already done."* and changes nothing.
 - **Snooze** (Telegram): *Snooze* swaps the buttons for *[1 hour] [This evening] [Tomorrow]*. The deadline never moves.
 - **Reschedule** (Telegram): *[Tomorrow] [In 3 days] [Pick a date]*. *Pick a date* opens Ember's date picker.
-- **Web push is tap-to-open only, no action buttons.** iOS web push does not support notification buttons *(confirm in the feasibility spike)*. Rather than build two behaviours, every web push opens the right screen. When the user arrives from a notification, that screen shows one extra line, *"Not now? [Snooze]"*, so snooze still exists on web push.
+- **Web push is tap-to-open only, no action buttons.** iOS web push does not support notification buttons *(confirmed 2026-10-02, `docs/adr/0002-web-push-tap-to-open.md`)*. Rather than build two behaviours, every web push opens the right screen. When the user arrives from a notification, that screen shows one extra line, *"Not now? [Snooze]"*, so snooze still exists on web push.
 
 ### How each response is recorded
 
@@ -499,7 +499,7 @@ Times are required input only.
 
 ### Keeping iPhone data safe
 
-Safari on iPhone deletes a site's stored data after about 7 days of browser use without a visit, unless the site is on the Home Screen *(confirm in the feasibility spike)*. An iPhone user with no account who declines everything could come back to an empty app, which is exactly the user the lapse return exists for.
+Safari on iPhone deletes a site's stored data after about 7 days of browser use without a visit, unless the site is on the Home Screen *(confirmed 2026-10-02, `docs/adr/0003-iphone-storage-durability.md`)*. An iPhone user with no account who declines everything could come back to an empty app, which is exactly the user the lapse return exists for.
 
 - **Phase 1 (no server): honest install nudge.** On iPhone Safari, not installed, after the first reward: *"Safari can clear your list if you don't open Ember for about a week. Adding Ember to your Home Screen keeps it safe."* *[Add to Home Screen] [Not now]*. Shown once; the hint stays findable in Settings.
 - **Phase 2 onward: quiet backup.** Tasks back up to the server under an anonymous identity from the first capture, so declining everything never risks data. Disclosed on the landing screen: *"Your list is backed up, so it won't get lost."* The phase-1 nudge is dropped. A real account is needed only to open Ember on a second device.
