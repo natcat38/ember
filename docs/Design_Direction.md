@@ -102,7 +102,7 @@ The nook is a lavender-tinted rounded panel (`--color-nook`, radius 22) where th
 | Screen | Nook | Cat pose |
 |---|---|---|
 | Today | A strip under the header: the cat on the left (72 px), *2 of 5 done* and the progress ring on the right | Watching (asleep before the first open of the day, by the door on a lapse return) |
-| Focus | A small nook in the bottom-right corner, faded with the rest of the chrome | Stretching, slow loop |
+| Focus | A small nook in the bottom-right corner, faded with the rest of the chrome | Stretching: plays once when the session starts (under 5 s), then holds a still stretch pose (§11, finding A1) |
 | Reward | A 200 px circle in the centre of the screen, the ring beside it | Curled up, purring |
 
 Nowhere else. Not in Capture, Task view, Inbox, Settings, notifications, empty states, or error lines. The cat is decorative (`aria-hidden="true"`); the ring and its label carry the information.
@@ -126,7 +126,7 @@ These keep Small Companion adult. Each one is a check in the review stage.
 
 | State | Primary button | Outlined button, pill, chip | Row | Text field |
 |---|---|---|---|---|
-| Default | lavender-deep, white text | surface, line-control outline, ink text | surface | surface, line-control outline |
+| Default | lavender-deep, white text | surface, line-control outline, ink text | surface | surface, line-control outline, ink-soft placeholder |
 | Hover (pointer only) | 8% darker | nook fill | nook fill | — |
 | Focus-visible | 2 px lavender-deep ring, 2 px offset, shown instantly | same | same, on the row's link | ring replaces the outline |
 | Active | scale 0.98 | scale 0.98 | — | — |
@@ -208,3 +208,19 @@ The canvas is a reference, not a spec; where they disagree, this file wins. Know
 
 - The capture field and the triage pills are outlined in `#DDD6CC` (1.30:1) or `#CFC6E6` on the canvas. Build uses `--color-line-control` (§2), which passes 3:1.
 - Today's *2 of 5 done* is visible text in the nook; the ring keeps its screen-reader label *"2 of 5 done today"*, and the visible text is hidden from screen readers so it isn't read twice.
+- Pills, chips, and secondary values on the canvas use 15 px text. Build uses 16 px (`--text-body`) for anything tapped.
+
+## 11. Accessibility pass (design step 6, 2026-10-02)
+
+**Standard:** WCAG 2.1 AA. **Scope:** this file plus the seven Small Companion boards on the canvas, read from their source. The wireframes' structure, labels, and focus rules passed step 2 (`Wireframes.md`, A1–A7 there); this pass checks what the direction adds: colour, outlines, focus, motion, the cat, and type. **Result:** 2 major, 4 minor, all fixed in this file. Not covered: a real screen-reader and keyboard run, which belongs to the Verify stage on the built app.
+
+| # | Finding | WCAG | Severity | Fix (applied) |
+|---|---|---|---|---|
+| A1 | The Focus cat "stretching in a slow loop" (`UX_Flows.md` §6) moves for the whole 25-minute session, next to the timer, with no way to stop it | 2.2.2 Pause, Stop, Hide | Major | The stretch plays once when the session starts (under 5 s), then holds a still pose (§4). `UX_Flows.md` §6 updated to match. |
+| A2 | Text fields and unselected pills and chips are outlined in `#CFC6E6` or `#DDD6CC`, about 1.3–1.5:1 against their background, so their edges cannot be seen by low-vision users | 1.4.11 Non-text contrast | Major | `--color-line-control` (`#8A8296`, 3.32–3.68:1) for every control outline (§2, §10). Selected pills fill lavender-deep, so the two states differ by fill as well as outline. |
+| A3 | The boards have no designed focus indicator, so the browser default would show, which is faint on oat and invisible on lavender-deep buttons | 2.4.7 Focus visible | Minor (spec gap, not a shipped bug) | 2 px lavender-deep ring at 2 px offset, shown instantly (§6, §8). The offset puts oat or white between the ring and a lavender-deep button. |
+| A4 | Today's nook shows *2 of 5 done* as text and the ring is labelled *"2 of 5 done today"*, so a screen reader says it twice | 1.3.1 (redundant announcement) | Minor | Visible text hidden from screen readers; the ring's label stays (§10). |
+| A5 | Fixed-height headers (60 px) would clip a 26 px title when text is enlarged to 200% | 1.4.4 Resize text | Minor | Build uses `min-height` for headers and rows, never a fixed `height`. |
+| A6 | Placeholder colour is left to the browser, which is often below 4.5:1 | 1.4.3 Contrast | Minor | Placeholders use `--color-ink-soft` (5.88:1 on oat, 6.51:1 on white). Placeholders never replace a label (step 2, A7 waiver stands). |
+
+**Checked and passing:** every text colour pair (§2.3); state shown by more than colour (finished rows are ticked and struck through, selected pills have `aria-pressed` and a fill, the frog has a border and the *Do this first* label); every cat and icon SVG is `aria-hidden`; the focus dimming uses colour (5.48:1), not opacity; touch targets 44 × 44 or larger on all seven boards; the lavender frog border and ring reach 3.66:1.

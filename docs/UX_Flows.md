@@ -441,7 +441,7 @@ One channel per message, never both. The user picks Telegram or web push in Sett
 ### Where it appears
 
 - **Today:** small, beside the progress ring. Never covers the list.
-- **Focus:** small in a corner, stretching in a slow loop; dims with everything else. Company while you work.
+- **Focus:** small in a corner; the stretch plays once as the session starts, then holds a still pose (a loop lasting the whole session would fail WCAG 2.2.2; design step 6, 2026-10-02). Dims with everything else. Company while you work.
 - **Reward and shutdown moments:** briefly the centre of attention (purring; falling asleep).
 - **Nowhere else:** not in Capture, Task view, Inbox, Settings, or notifications. This is what keeps it from becoming a second job.
 
