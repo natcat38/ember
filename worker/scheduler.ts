@@ -6,6 +6,7 @@ import type { Day, HardBlock, State, Task } from "../core/task";
 import { addDays, buildToday, daysBetween, remaining, slotsFor } from "../core/today";
 import type { Session } from "../core/focus";
 import { newUserId } from "./identity";
+import { runRetention } from "./retention";
 import type { Entity } from "./protocol";
 import { ENTITIES } from "./schema";
 import type { TelegramEnv } from "./telegram";
@@ -17,8 +18,9 @@ export interface SchedulerEnv extends TelegramEnv {
   APP_ORIGIN?: string;
 }
 
-/** The only schedule so far; `scheduled()` dispatches on `controller.cron` so another can be added beside it. */
+/** The schedules in wrangler.jsonc `triggers.crons`; `scheduled()` dispatches on which one fired. */
 export const EVERY_MINUTE = "* * * * *";
+export const DAILY_RETENTION = "0 19 * * *"; // 03:00 Singapore (Tech_Scope.md §8)
 
 // --- Budget ------------------------------------------------------------------------------------------------------
 //
@@ -71,6 +73,10 @@ export async function handleScheduled(controller: { cron: string; scheduledTime:
     case EVERY_MINUTE: {
       const report = await runTick(env, controller.scheduledTime);
       if (report.planned || report.claimed) console.log("tick", JSON.stringify(report));
+      return;
+    }
+    case DAILY_RETENTION: {
+      console.log("retention", JSON.stringify(await runRetention(env.DB, controller.scheduledTime)));
       return;
     }
     default:

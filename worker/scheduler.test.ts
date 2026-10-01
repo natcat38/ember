@@ -448,11 +448,23 @@ describe("the cron entry point", () => {
     expect(textsTo(chat)).toEqual(["via cron"]);
   });
 
+  it("runs retention on the daily schedule, and sends nothing", async () => {
+    const { uid } = await linkedUser({ planned: true });
+    await seedSend({ uid, due_at: sg(DAY, "09:00:00") });
+    const now = sg(DAY, "03:00:00");
+    await env.DB.prepare("INSERT INTO users (id, created_at, last_seen_at) VALUES ('idle-user', 0, ?1)").bind(now - 366 * 86_400_000).run();
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    await worker.scheduled!(controller("0 19 * * *", now), testEnv as unknown as typeof env);
+    expect(calls).toEqual([]);
+    expect(await env.DB.prepare("SELECT id FROM users WHERE id = 'idle-user'").first()).toBeNull();
+    expect(log).toHaveBeenCalledWith("retention", expect.stringMatching(/"users":[1-9]/)); // the fixture user may be old too
+  });
+
   it("ignores a schedule it has no handler for", async () => {
     const { uid } = await linkedUser({ planned: true });
     await seedSend({ uid, due_at: sg(DAY, "09:00:00") });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    await worker.scheduled!(controller("0 19 * * *", sg(DAY, "09:00:31")), testEnv as unknown as typeof env);
+    await worker.scheduled!(controller("30 4 * * *", sg(DAY, "09:00:31")), testEnv as unknown as typeof env);
     expect(calls).toEqual([]);
     expect(spy).toHaveBeenCalled();
   });
