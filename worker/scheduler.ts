@@ -261,7 +261,11 @@ export function buildPlan(loaded: Loaded, settings: State["settings"], now: numb
 
   // sentToday is 0 on purpose: with the real count the planner would spend its cap on messages that already went out.
   // Planned with the sent ones still in the pool, they hold their slots, and they are taken off afterwards.
-  const raw = planDay({ state, today, sentToday: 0, lastQuietAt, overdueSentFor });
+  // First plan of a day that has already begun (say, Telegram linked at 10:00): with `now`, a message whose slot has
+  // passed moves to the next free slot instead of being lost (§4.5). Only while nothing has gone out today: a replan
+  // relies on the sent messages holding their past slots, so the rest of the day stays where it was. The 5 minutes of
+  // slack match the drop below: the tick fires about 31 s past the minute, so a slot due this minute is still free.
+  const raw = planDay({ state, today, sentToday: 0, lastQuietAt, overdueSentFor, now: used.length ? undefined : now - 5 * 60_000 });
   const taken = new Map<string, number>();
   // A snoozed close nudge (slice 13's Snooze button, which only close messages carry) still counts against the cap, but
   // it no longer stands for a planned message: the snooze pinned its tasks' message to their own time, and that planned

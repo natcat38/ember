@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Size, State, Task, TriageAnswers } from "../core/task";
 import { formatDue } from "./Capture";
 import { ConfirmDialog, TextDialog } from "./dialogs";
@@ -8,6 +8,7 @@ const SIZES: Size[] = ["XS", "S", "M", "L", "XL"];
 
 interface Props {
   task: Task;
+  pickDate?: boolean; // arrived from Telegram's "Pick a date": open the deadline question, focus its button
   state: State;
   update: (fn: (s: State) => State) => void;
   today: string;
@@ -22,9 +23,14 @@ interface Props {
 }
 
 // Wireframes.md §6. Start and Pin to today arrive in slices 4–5.
-export function TaskView({ task, state, update, today, inToday, onPin, onStart, onStartStep, onBack, onTriage, onRename, onRemove }: Props) {
+export function TaskView({ task, pickDate, state, update, today, inToday, onPin, onStart, onStartStep, onBack, onTriage, onRename, onRemove }: Props) {
   // Triage sits open until answered; an already-triaged task opens on the one-line summary.
-  const [editing, setEditing] = useState(task.state === "inbox");
+  const [editing, setEditing] = useState(task.state === "inbox" || !!pickDate);
+  // Browsers open a date picker only from a real tap, so the button is focused and the user's next tap opens it.
+  const pickButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (pickDate) pickButton.current?.focus();
+  }, [pickDate]);
   const menu = useRef<HTMLDivElement>(null);
   const renameDialog = useRef<HTMLDialogElement>(null);
   const removeDialog = useRef<HTMLDialogElement>(null);
@@ -69,6 +75,7 @@ export function TaskView({ task, state, update, today, inToday, onPin, onStart, 
                 Not yet
               </Pill>
               <Pill
+                ref={pickButton}
                 pressed={!!task.deadline}
                 onClick={() => {
                   try {
@@ -151,9 +158,9 @@ function Question({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function Pill({ pressed, onClick, children }: { pressed: boolean; onClick: () => void; children: React.ReactNode }) {
+function Pill({ pressed, onClick, children, ref }: { pressed: boolean; onClick: () => void; children: React.ReactNode; ref?: React.Ref<HTMLButtonElement> }) {
   return (
-    <button type="button" className="chip" aria-pressed={pressed} onClick={onClick}>
+    <button ref={ref} type="button" className="chip" aria-pressed={pressed} onClick={onClick}>
       {children}
     </button>
   );

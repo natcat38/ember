@@ -73,3 +73,15 @@ test("Rename task", async ({ page }) => {
   await field.press("Enter");
   await expect(page.getByRole("heading", { level: 1, name: "Spring tutorial, ch. 4" })).toBeVisible();
 });
+
+test("a Telegram 'Pick a date' link opens the task with the deadline question ready", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const t = { id: "t-pick", title: "Lab report", state: "active", size: "L", quick: false, holding_up: false, deadline: "2026-10-04", runway_start: "2026-09-20", pinned_on: null, snoozed_until: null, created_at: 1, updated_at: 1 };
+    localStorage.setItem("ember", JSON.stringify({ tasks: [t], chunks: [], draft: "" }));
+  });
+  await page.goto("/?t=t-pick&pick=1");
+  await expect(page.getByRole("heading", { level: 1, name: "Lab report" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Has a deadline?" }).getByRole("button", { name: /Due 4 Oct|Pick a date/ })).toBeFocused();
+  await expect(page).toHaveURL(/\/$/); // the link's parameters are cleared
+});

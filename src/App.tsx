@@ -18,7 +18,7 @@ import { addChunk, firstOpenLeaf } from "../core/chunk";
 type View =
   | { name: "today" | "inbox" | "focus" | "shutdown" | "settings" }
   | { name: "reward"; title: string }
-  | { name: "task"; id: string; from: "today" | "inbox" };
+  | { name: "task"; id: string; from: "today" | "inbox"; pickDate?: boolean };
 
 const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -84,6 +84,7 @@ export function App() {
     const q = new URLSearchParams(location.search);
     const code = q.get("h");
     const taskId = q.get("t");
+    const pickDate = q.get("pick") === "1"; // Telegram's Reschedule → Pick a date
     if (code || taskId) history.replaceState(null, "", location.pathname);
     const joined = code
       ? fetch("/api/handoff/redeem", {
@@ -97,7 +98,7 @@ export function App() {
       : Promise.resolve();
     void joined
       .then(() => sync.push())
-      .then(() => taskId && setView({ name: "task", id: taskId, from: "today" }));
+      .then(() => taskId && setView({ name: "task", id: taskId, from: "today", pickDate }));
     const wake = () => document.visibilityState === "visible" && void sync.push();
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("online", wake);
@@ -230,6 +231,7 @@ export function App() {
         <TaskView
           key={task.id}
           task={task}
+          pickDate={view.pickDate}
           state={state}
           update={setState}
           today={today}

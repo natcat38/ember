@@ -218,16 +218,20 @@ describe("planning", () => {
     expect(await count("SELECT COUNT(*) AS n FROM users WHERE planned_until IS NOT NULL")).toBe(0);
   });
 
-  it("drops a message whose slot is long past, keeping the ones still ahead", async () => {
-    // Linked at 10:00: the 08:00 slot is gone, the 16:00 and 19:00 ones are not.
+  it("planned after a slot has passed, moves its message to the next free slot instead of dropping it", async () => {
+    // Linked at 10:00: the 08:00 slot is gone, so the day's three move on to 16:00, 19:00 and 21:00 (§4.5).
     const { uid, chat } = await linkedUser();
     await seedMei(uid);
     await tick(sg(DAY, "10:00:31"));
     expect(calls).toEqual([]);
-    expect((await env.DB.prepare("SELECT kind FROM sends WHERE user_id = ? ORDER BY due_at").bind(uid).all()).results).toEqual([{ kind: "overdue" }, { kind: "close" }]);
-    await tick(sg(DAY, "16:00:31"));
-    await tick(sg(DAY, "19:00:31"));
-    expect(textsTo(chat)).toHaveLength(2);
+    const rows = (await env.DB.prepare("SELECT kind, due_at FROM sends WHERE user_id = ? ORDER BY due_at").bind(uid).all()).results;
+    expect(rows).toEqual([
+      { kind: "deadline_day", due_at: sg(DAY, "16:00:00") },
+      { kind: "overdue", due_at: sg(DAY, "19:00:00") },
+      { kind: "close", due_at: sg(DAY, "21:00:00") },
+    ]);
+    for (const t of ["16:00:31", "19:00:31", "21:00:31"]) await tick(sg(DAY, t));
+    expect(textsTo(chat)).toHaveLength(3);
   });
 
   it("composes a close message about a task with no steps with the task name first, and batches several", async () => {
