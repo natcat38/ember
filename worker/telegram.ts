@@ -1,3 +1,4 @@
+import { handleCallback, type ButtonTap } from "./buttons";
 import { cookieFor, newUserId, resolveUser } from "./identity";
 import { sync } from "./sync";
 
@@ -17,6 +18,8 @@ export interface TelegramEnv {
   TG_WEBHOOK_SECRET?: string;
   /** Secret: the unguessable path segment of the webhook URL, /api/tg/<this>. */
   TG_WEBHOOK_PATH?: string;
+  /** Var: the app's origin, for the link buttons a callback restores (buttons.ts). */
+  APP_ORIGIN?: string;
 }
 
 const LINK_TTL_MS = 15 * 60_000; // §6: the code lives 15 minutes
@@ -41,24 +44,39 @@ const json = (body: unknown, status = 200, headers: Record<string, string> = {})
 
 // --- Bot API ---------------------------------------------------------------------------------------------------
 
-/** Sends a message through the Bot API. Throws on any non-2xx answer or network failure, and never puts the token in the error. */
-export async function sendMessage(env: TelegramEnv, chatId: number | string, body: string, replyMarkup?: unknown): Promise<void> {
-  if (!env.TG_BOT_TOKEN) throw new Error("TG_BOT_TOKEN is not set");
+/** What a Bot API call came back with. `status` 0 means the request got no answer at all (or the token is not set). */
+export type BotResult = { ok: true; result: unknown } | { ok: false; status: number; description: string };
+
+/**
+ * Calls one Bot API method. Never throws, and never puts the token in anything it returns: the runtime's own network
+ * error text can quote the request URL, which contains the token, so it is not passed on. The one sender every Bot API
+ * call goes through: the replies here, the scheduler's sends, and the button taps' answers and edits (buttons.ts).
+ */
+export async function botCall(env: { TG_BOT_TOKEN?: string }, method: string, payload: Record<string, unknown>): Promise<BotResult> {
+  if (!env.TG_BOT_TOKEN) return { ok: false, status: 0, description: "TG_BOT_TOKEN is not set" };
   let res: Response;
   try {
-    res = await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, {
+    res = await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/${method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: body, ...(replyMarkup === undefined ? {} : { reply_markup: replyMarkup }) }),
+      body: JSON.stringify(payload),
     });
   } catch {
-    // The runtime's own error text can quote the request URL, which contains the token, so it is not passed on.
-    throw new Error("Telegram sendMessage request failed");
+    return { ok: false, status: 0, description: `Telegram ${method} request failed` };
   }
   if (!res.ok) {
     const description = await res.json().then((b) => String((b as { description?: unknown }).description ?? "").slice(0, 200), () => "");
-    throw new Error(`Telegram sendMessage failed: ${res.status}${description ? ` ${description}` : ""}`);
+    return { ok: false, status: res.status, description };
   }
+  const body = (await res.json().catch(() => null)) as { result?: unknown } | null;
+  return { ok: true, result: body?.result };
+}
+
+/** Sends a message through the Bot API. Throws on any non-2xx answer or network failure, and never puts the token in the error. */
+export async function sendMessage(env: TelegramEnv, chatId: number | string, body: string, replyMarkup?: unknown): Promise<void> {
+  const r = await botCall(env, "sendMessage", { chat_id: chatId, text: body, ...(replyMarkup === undefined ? {} : { reply_markup: replyMarkup }) });
+  if (r.ok) return;
+  throw new Error(r.status ? `Telegram sendMessage failed: ${r.status}${r.description ? ` ${r.description}` : ""}` : r.description);
 }
 
 // The user already got what they asked for by the time we reply, and Telegram would retry a non-200 answer, so a
@@ -97,6 +115,7 @@ async function safeEqual(a: string, b: string): Promise<boolean> {
 }
 
 export interface Incoming {
+  kind: "message";
   updateId: number;
   chatId: number;
   text: string;
@@ -105,8 +124,9 @@ export interface Incoming {
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 // Boundary validation. null = not a Telegram update at all (400); "ignored" = a well-formed update of a kind we do not
-// handle: edits, button taps (slice 13), channel posts, groups, and messages without text.
-export function parseUpdate(raw: string): Incoming | "ignored" | null {
+// handle: edits, channel posts, groups, and messages without text. A button tap (callback_query) is always answered,
+// so it is kept whenever it has an id, even when it names no usable message.
+export function parseUpdate(raw: string): Incoming | ({ kind: "callback" } & ButtonTap) | "ignored" | null {
   let body: unknown;
   try {
     body = JSON.parse(raw);
@@ -115,11 +135,21 @@ export function parseUpdate(raw: string): Incoming | "ignored" | null {
   }
   if (!isRecord(body) || typeof body.update_id !== "number" || !Number.isSafeInteger(body.update_id)) return null;
 
+  const q = body.callback_query;
+  if (isRecord(q)) {
+    if (typeof q.id !== "string" || !q.id || q.id.length > 100) return "ignored";
+    const m = isRecord(q.message) ? q.message : null;
+    const chat = m && isRecord(m.chat) ? m.chat : null;
+    const chatId = chat && chat.type === "private" && typeof chat.id === "number" && Number.isSafeInteger(chat.id) ? chat.id : null;
+    const messageId = m && typeof m.message_id === "number" && Number.isSafeInteger(m.message_id) ? m.message_id : null;
+    return { kind: "callback", id: q.id, data: typeof q.data === "string" ? q.data : "", chatId, messageId };
+  }
+
   const m = body.message;
   if (!isRecord(m) || !isRecord(m.chat) || typeof m.text !== "string") return "ignored";
   // Only private chats can be linked, and a private chat's id is the user's id: a positive safe integer.
   if (m.chat.type !== "private" || typeof m.chat.id !== "number" || !Number.isSafeInteger(m.chat.id)) return "ignored";
-  return { updateId: body.update_id, chatId: m.chat.id, text: m.text };
+  return { kind: "message", updateId: body.update_id, chatId: m.chat.id, text: m.text };
 }
 
 export async function handleTgWebhook(request: Request, env: TelegramEnv, pathSecret: string): Promise<Response> {
@@ -134,7 +164,9 @@ export async function handleTgWebhook(request: Request, env: TelegramEnv, pathSe
   if (raw.length > MAX_UPDATE_CHARS) return json({ error: "body_too_large" }, 413);
   const update = parseUpdate(raw);
   if (!update) return json({ error: "invalid_update" }, 400);
-  if (update !== "ignored") await handleMessage(env, update);
+  if (update === "ignored") return json({ ok: true });
+  if (update.kind === "callback") await handleCallback(env, update, (method, payload) => botCall(env, method, payload), Date.now());
+  else await handleMessage(env, update);
   return json({ ok: true });
 }
 

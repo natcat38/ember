@@ -23,7 +23,7 @@ vi.setConfig({ testTimeout: 60_000 });
 interface Sent {
   chat_id: string;
   text: string;
-  reply_markup?: { inline_keyboard: { text: string; url: string }[][] };
+  reply_markup?: { inline_keyboard: { text: string; url: string; callback_data?: string }[][] };
 }
 let calls: Sent[] = [];
 let nextMessageId = 100;
@@ -173,7 +173,13 @@ describe("the golden day (Tech_Scope.md §4.6)", () => {
     const tasks = ["task-b", "task-c", "task-a"];
     calls.forEach((call, i) => {
       const [open, start] = call.reply_markup!.inline_keyboard[0];
-      expect(call.reply_markup!.inline_keyboard).toHaveLength(1);
+      // Slice 13: the state buttons sit beside the links (Snooze on close) or under them (Overdue's three).
+      const rows = [
+        [["Open today", "Start a session"]], // deadline_day
+        [["Open today", "Start a session"], ["Reschedule", "Done", "Remove from list"]], // overdue
+        [["Open today", "Start a session", "Snooze"]], // close
+      ];
+      expect(call.reply_markup!.inline_keyboard.map((row) => row.map((b) => b.text))).toEqual(rows[i]);
       expect(open.text).toBe("Open today");
       expect(start.text).toBe("Start a session");
       const code = new URL(open.url).searchParams.get("h")!;
