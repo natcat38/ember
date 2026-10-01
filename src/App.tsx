@@ -282,7 +282,16 @@ export function App() {
                 onStopped={() => navigate({ name: "today" })}
               />
             ) : view.name === "settings" ? (
-              <SettingsView state={state} update={setState} browserTz={browserTz} backedUp={syncStatus.backedUp} />
+              <SettingsView
+                state={state}
+                update={setState}
+                browserTz={browserTz}
+                backedUp={syncStatus.backedUp}
+                onSignedIn={() => {
+                  sync.restart(); // what's on this device joins that list, and everything of theirs comes down
+                  void sync.push();
+                }}
+              />
             ) : view.name === "today" ? (
               <TodayView
                 key={today} // a new day remounts it, so its morning confirm and Adjust mode start fresh
