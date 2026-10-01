@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { capture, emptyState } from "./task";
+import { capture, emptyState, remove, rename, restore, triage } from "./task";
 
 const now = 1_760_000_000_000;
 const today = "2026-10-05";
@@ -52,4 +52,68 @@ test("capture clears the draft and keeps earlier tasks", () => {
   s = capture(s, { title: "two" }, now + 1, today, id);
   expect(s.draft).toBe("");
   expect(s.tasks.map((t) => t.title)).toEqual(["one", "two"]);
+});
+
+// Slice 2: triage and the task state machine (Product_Scope.md §4)
+
+const one = (over = {}) => {
+  const s = capture(emptyState(), { title: "Ethics essay" }, now, today, ids());
+  return { ...s, tasks: [{ ...s.tasks[0], ...over }] };
+};
+const later = now + 1000;
+const tomorrow = "2026-10-06";
+
+test("setting a size moves an Inbox task to Active", () => {
+  const [t] = triage(one(), "id-1", { size: "M" }, later, today).tasks;
+  expect(t).toMatchObject({ state: "active", size: "M", updated_at: later });
+});
+
+test("triage without a size leaves the task in Inbox", () => {
+  const [t] = triage(one(), "id-1", { holding_up: true }, later, today).tasks;
+  expect(t).toMatchObject({ state: "inbox", holding_up: true });
+});
+
+test("a Quick task becomes Active on its first triage answer", () => {
+  const [t] = triage(one({ size: "XS", quick: true }), "id-1", { holding_up: false }, later, today).tasks;
+  expect(t.state).toBe("active");
+});
+
+test("changing the deadline restarts its runway; clearing it clears the runway", () => {
+  let s = triage(one({ deadline: "2026-10-14", runway_start: "2026-10-01" }), "id-1", { deadline: "2026-10-20" }, later, tomorrow);
+  expect(s.tasks[0]).toMatchObject({ deadline: "2026-10-20", runway_start: tomorrow });
+  s = triage(s, "id-1", { holding_up: true }, later, "2026-10-07");
+  expect(s.tasks[0].runway_start).toBe(tomorrow); // other answers leave the runway alone
+  s = triage(s, "id-1", { deadline: null }, later, today);
+  expect(s.tasks[0]).toMatchObject({ deadline: null, runway_start: null });
+});
+
+test("triage on a done or removed task is refused", () => {
+  for (const state of ["done", "removed"] as const) {
+    const s = one({ state });
+    expect(triage(s, "id-1", { size: "S" }, later, today)).toBe(s);
+  }
+});
+
+test("rename trims and ignores blank names", () => {
+  expect(rename(one(), "id-1", "  Ethics essay v2 ", later).tasks[0].title).toBe("Ethics essay v2");
+  const s = one();
+  expect(rename(s, "id-1", "   ", later)).toBe(s);
+});
+
+test("remove from list works from any state and is reversible", () => {
+  for (const state of ["inbox", "active", "overdue", "done"] as const) {
+    expect(remove(one({ state }), "id-1", later).tasks[0].state).toBe("removed");
+  }
+});
+
+test("restore goes back to Active, or to Inbox if the task was never sized", () => {
+  expect(restore(one({ state: "removed", size: "S" }), "id-1", later).tasks[0].state).toBe("active");
+  expect(restore(one({ state: "removed" }), "id-1", later).tasks[0].state).toBe("inbox");
+  const s = one({ state: "active" });
+  expect(restore(s, "id-1", later)).toBe(s);
+});
+
+test("an unknown id changes nothing", () => {
+  const s = one();
+  expect(remove(s, "nope", later)).toBe(s);
 });

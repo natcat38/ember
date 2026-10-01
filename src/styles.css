@@ -426,3 +426,127 @@ dialog::backdrop {
     transform: translateX(-100%);
   }
 }
+
+/* Header first, then status lines, then the rest in DOM order */
+.header {
+  order: -2;
+}
+
+.status-line {
+  order: -1;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row-button {
+  width: 100%;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .row-button:hover {
+    background: var(--color-nook);
+  }
+}
+
+.disclosure {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-ink-soft);
+}
+
+.disclosure[aria-expanded="true"] svg {
+  transform: rotate(90deg);
+}
+
+/* Triage (Wireframes.md §6) */
+.triage {
+  gap: var(--space-5);
+}
+
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.question-label {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Task menu: a popover with plain buttons, not an ARIA menu (A5) */
+.menu {
+  position: fixed;
+  inset: 60px max(var(--space-4), calc((100vw - 560px) / 2 + var(--space-3))) auto auto;
+  margin: 0;
+  padding: var(--space-2);
+  border: 1.5px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: inherit;
+}
+
+.menu:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu button {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-button);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .menu button:hover {
+    background: var(--color-nook);
+  }
+}
+
+/* Prompts (Remove, Rename): a centred card */
+.prompt {
+  width: min(340px, calc(100% - 2 * var(--space-4)));
+  border-radius: var(--radius-card);
+}
+
+.prompt-body {
+  padding: var(--space-6);
+}
+
+.prompt-title {
+  margin: 0 0 var(--space-4);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.prompt-actions {
+  justify-content: flex-end;
+}
+
+.task-title {
+  padding: var(--space-3) 0;
+  font-size: 19px;
+  line-height: 25px;
+  overflow-wrap: anywhere;
+}
+
+.question .chip {
+  flex: 1 1 0;
+  padding: 0 var(--space-2);
+}
