@@ -1,0 +1,74 @@
+import { expect, test, type Page } from "@playwright/test";
+
+async function captureOne(page: Page, title: string) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "What's on your mind?" }).click();
+  await page.getByRole("textbox", { name: "Capture a thought" }).fill(title);
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Inbox", exact: true }).click();
+}
+
+const section = (page: Page, name: string) => page.getByRole("region", { name });
+
+test("a triaged task shows as Active, under Waiting", async ({ page }) => {
+  await captureOne(page, "Ethics essay");
+  await section(page, "Needs sorting").getByRole("button", { name: "Ethics essay" }).click();
+
+  await expect(page.getByRole("heading", { level: 1, name: "Ethics essay" })).toBeFocused();
+  await page.getByRole("group", { name: "Is this holding up anything else?" }).getByRole("button", { name: "Yes" }).click();
+  await page.getByRole("main").locator("input[type=date]").fill("2099-10-14");
+  await page.getByRole("group", { name: "Size" }).getByRole("button", { name: "M", exact: true }).click();
+  await expect(page.getByRole("group", { name: "Size" }).getByRole("button", { name: "M", exact: true })).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(section(page, "Needs sorting")).toHaveCount(0);
+  await expect(section(page, "Waiting").getByRole("button")).toHaveText("Ethics essayDue 14 OctM");
+
+  // Survives a reload, and reopens on the one-line summary.
+  await page.reload();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Inbox", exact: true }).click();
+  await section(page, "Waiting").getByRole("button", { name: /Ethics essay/ }).click();
+  await expect(page.getByRole("region", { name: "Triage" })).toContainText("Due 14 Oct · Holding things up · M");
+  await page.getByRole("button", { name: "Edit" }).click();
+  await expect(page.getByRole("group", { name: "Size" })).toBeVisible();
+});
+
+test("Remove from list asks first, then Restore brings it back", async ({ page }) => {
+  await captureOne(page, "Fix bike light");
+  await page.getByRole("button", { name: "Fix bike light" }).click();
+
+  await page.getByRole("button", { name: "More actions for Fix bike light" }).click();
+  await page.getByRole("button", { name: "Remove from list" }).click();
+  const prompt = page.getByRole("alertdialog", { name: 'Remove "Fix bike light" from your list?' });
+  await expect(prompt.getByRole("button", { name: "Keep it" })).toBeFocused();
+
+  await prompt.getByRole("button", { name: "Keep it" }).click();
+  await expect(prompt).toBeHidden();
+  await expect(page.getByRole("heading", { level: 1, name: "Fix bike light" })).toBeVisible();
+
+  await page.getByRole("button", { name: "More actions for Fix bike light" }).click();
+  await page.getByRole("button", { name: "Remove from list" }).click();
+  await prompt.getByRole("button", { name: "Remove" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
+  await expect(page.getByText("Moved out of the way. It's still here if you want it back.")).toBeVisible();
+  await expect(page.getByText("Nothing waiting here.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Removed" }).click();
+  await page.getByRole("button", { name: "Restore Fix bike light" }).click();
+  await expect(page.getByText("Back on your list.")).toBeVisible();
+  await expect(section(page, "Needs sorting").getByRole("button", { name: "Fix bike light" })).toBeVisible();
+});
+
+test("Rename task", async ({ page }) => {
+  await captureOne(page, "Spring tutorial");
+  await page.getByRole("button", { name: "Spring tutorial" }).click();
+  await page.getByRole("button", { name: "More actions for Spring tutorial" }).click();
+  await page.getByRole("button", { name: "Rename task" }).click();
+  const field = page.getByRole("dialog", { name: "Rename task" }).getByRole("textbox");
+  await field.fill("Spring tutorial, ch. 4");
+  await field.press("Enter");
+  await expect(page.getByRole("heading", { level: 1, name: "Spring tutorial, ch. 4" })).toBeVisible();
+});
