@@ -1,9 +1,23 @@
-// Phase 1: static assets only (Tech_Scope.md §2). Slice 8 adds `main`, D1, and the cron.
+// One Worker: static assets, /api/*, and (slice 12) the cron (Tech_Scope.md §2, ADR-0004).
 {
   "name": "ember-tasks",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
-  }
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // Only /api/* runs the Worker first; every other path is served as a static asset, with the SPA fallback.
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ember",
+      // TODO(deploy): replace with the id printed by `wrangler d1 create ember`. Local dev and tests use a
+      // simulated database and never read this value.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ]
 }

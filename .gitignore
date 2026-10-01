@@ -10,3 +10,4 @@ Thumbs.db
 test-results/
 playwright-report/
 .claude/worktrees/
+worker/worker-configuration.d.ts

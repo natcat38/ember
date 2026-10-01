@@ -96,8 +96,13 @@ export function App() {
     if (v.name !== "today") setWelcome(false); // the welcome back is offered once
     setView(v);
     window.scrollTo(0, 0);
-    // Move focus to the new screen's heading so keyboard and screen-reader users land on it.
-    requestAnimationFrame(() => document.querySelector<HTMLElement>("h1")?.focus());
+    // Move focus to the new screen's heading so keyboard and screen-reader users land on it, unless they have
+    // already moved on (say, started typing in a field) before the frame came round: never steal focus.
+    const before = document.activeElement;
+    requestAnimationFrame(() => {
+      const now = document.activeElement;
+      if (!now || now === before || now === document.body) document.querySelector<HTMLElement>("h1")?.focus();
+    });
   }
 
   function send(input: CaptureInput) {
