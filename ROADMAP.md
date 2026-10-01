@@ -1,8 +1,8 @@
 
 # Roadmap — Ember
 
-**Current stage: Plan**
-**Next up:** Tech_Scope.md approved 2026-10-02 (16 slices, ADRs 0001–0008). Design track: step 3 mockups on the Claude Design canvas *Ember Mockups* (https://claude.ai/artifact/Q9P3CjtMh2Gv3GiVeSws5N); step 4, Natalie picked **Small Companion** (decision 6); steps 5–6, `docs/Design_Direction.md` drafted with its accessibility pass (2 major, 4 minor, all fixed in the spec; the Focus cat now plays its stretch once instead of looping, WCAG 2.2.2). **Waiting on Natalie's approval of Design_Direction.md**, including three proposed error lines in its §6. Approval closes the last Plan item and Plan exits to Build, slice 0 of `Tech_Scope.md` §10 (needs a new production Telegram bot later, at slice 11). Before going public: the cleanup list at the end of `tech-spike.md`.
+**Current stage: Build**
+**Next up:** Plan closed 2026-10-02: `Tech_Scope.md`, ADRs 0001–0008, and `Design_Direction.md` (Small Companion) approved. Build starts with **slice 0, day-1 hygiene** (`Tech_Scope.md` §10): Vite + React + TS skeleton served by the `ember-tasks` Worker, pinned versions, `.gitignore`, README stub, CI, env config via wrangler vars; then slices 1–7 to finish phase 1. Slice 7 opens with the 5-minute iPhone handoff test. Slice 11 needs a new production Telegram bot from Natalie. /protect-repo when the repo goes public, after the cleanup list at the end of `tech-spike.md`.
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.
@@ -20,8 +20,8 @@ Exit: user has signed off the product scope. Skills: superpowers:brainstorming, 
 ## 2 · Plan — how it gets built
 
 - [x] `docs/Tech_Scope.md`: stack with versions · data model sketch · core logic/formulae with a worked example · numbered tasks in vertical slices (each ends runnable + committed) · ⚠️ gotchas · test strategy per slice.
-- [ ] One ADR in `docs/adr/` per non-obvious decision, written when the decision is made, not after.
-- [ ] `docs/Design_Direction.md` (any project with a UI): ground it in the subject's own world. Tokens: 4–6 named colors, 2–3 typefaces with roles, layout concept. One signature element; restraint everywhere else. Explicit loading/empty/error states with copy. Quality floor: focus visible, contrast, reduced motion, responsive to 375px. Self-check: "what would the generic default be, and where did I deviate?"
+- [x] One ADR in `docs/adr/` per non-obvious decision, written when the decision is made, not after.
+- [x] `docs/Design_Direction.md` (any project with a UI): ground it in the subject's own world. Tokens: 4–6 named colors, 2–3 typefaces with roles, layout concept. One signature element; restraint everywhere else. Explicit loading/empty/error states with copy. Quality floor: focus visible, contrast, reduced motion, responsive to 375px. Self-check: "what would the generic default be, and where did I deviate?"
 
 Exit: numbered vertical slices exist and the user approves. Skills: superpowers:writing-plans, to-issues, hallmark (design direction).
 
