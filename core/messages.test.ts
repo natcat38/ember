@@ -55,6 +55,16 @@ describe("localToMs", () => {
 });
 
 describe("planDay", () => {
+  test("planned mid-day (now = 10:00), a passed slot is skipped: every message moves on rather than dropping", () => {
+    const sg = (hhmm: string) => Date.parse(`${TODAY}T${hhmm}:00+08:00`);
+    expect(brief(plan({ now: sg("10:00") }))).toEqual([
+      ["deadline_day", ["B"], sg("16:00")],
+      ["overdue", ["C"], sg("19:00")],
+      ["close", ["A"], sg("21:00")],
+    ]);
+    expect(plan({ now: sg("07:00") })).toEqual(plan()); // before the day starts, nothing changes
+  });
+
   test("golden: §4.6 keeps three messages, deadlines first; morning, A's second nudge and wrap-up drop", () => {
     const out = plan();
     expect(brief(out)).toEqual([
