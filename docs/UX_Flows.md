@@ -501,7 +501,7 @@ Times are required input only.
 
 Safari on iPhone deletes a site's stored data after about 7 days of browser use without a visit, unless the site is on the Home Screen *(confirmed 2026-10-02, `docs/adr/0003-iphone-storage-durability.md`)*. An iPhone user with no account who declines everything could come back to an empty app, which is exactly the user the lapse return exists for.
 
-- **Phase 1 (no server): honest install nudge.** On iPhone Safari, not installed, after the first reward: *"Safari can clear your list if you don't open Ember for about a week. Adding Ember to your Home Screen keeps it safe."* *[Add to Home Screen] [Not now]*. Shown once; the hint stays findable in Settings.
+- **Phase 1 (no server): honest install nudge.** On iPhone Safari, not installed, after the first reward: *"Safari can clear your list if you don't open Ember for about a week. Adding Ember to your Home Screen keeps it safe."* *[Add to Home Screen] [Not now]*. Shown once; the hint stays findable in Settings. The installed app has its own storage, separate from Safari, so the nudge carries the list across (`Tech_Scope.md` §7; added 2026-10-02).
 - **Phase 2 onward: quiet backup.** Tasks back up to the server under an anonymous identity from the first capture, so declining everything never risks data. Disclosed on the landing screen: *"Your list is backed up, so it won't get lost."* The phase-1 nudge is dropped. A real account is needed only to open Ember on a second device.
 
 ### Desktop
