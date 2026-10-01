@@ -14,9 +14,8 @@
     {
       "binding": "DB",
       "database_name": "ember",
-      // TODO(deploy): replace with the id printed by `wrangler d1 create ember`. Local dev and tests use a
-      // simulated database and never read this value.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      // Production D1 "ember" (APAC), created 2026-10-02. Local dev and tests use a simulated database instead.
+      "database_id": "a8be5a3e-9d5d-433a-87db-056553487768",
       "migrations_dir": "migrations"
     }
   ]
