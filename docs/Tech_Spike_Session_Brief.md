@@ -52,6 +52,7 @@ The agent cannot create accounts or handle credentials. Ask her before the step 
 
 ## Shell notes
 
+- **PowerShell blocks `npx.ps1`** on Natalie's machine (script execution policy). Give her commands as `npx.cmd wrangler ...` / `npm.cmd ...`. Changing the execution policy is her decision; don't run it.
 - Long multi-line Python inside a Bash heredoc broke once on quoting. Write the script to the session scratchpad and run it from there.
 - Generated docs: never hand-edit `docs/Wireframes.md`; edit `scripts/wireframes.py` and run `python scripts/wireframes.py docs/Wireframes.md`.
 
