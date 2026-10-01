@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { addPasskey, cancelled, passkeysSupported, signInWithPasskey } from "./passkeys";
 
 // Settings → Telegram (Tech_Scope.md §6): a one-time link code from the server, opened in Telegram.
 async function linkTelegram(): Promise<string | null> {
@@ -25,6 +26,7 @@ interface Props {
   update: (fn: (s: State) => State) => void;
   browserTz: string;
   backedUp: boolean;
+  onSignedIn: () => void; // this device now has another identity: sync from scratch
 }
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -33,12 +35,13 @@ const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 // Wireframes.md §8, phase-1 rows only: quiet hours, time zone, hard blocks. Changes save as you make them.
 // Channels (slice 11), the focus timer and rewards (phase 3), and devices (slice 14) join later.
-export function SettingsView({ state, update, browserTz, backedUp }: Props) {
+export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }: Props) {
   const { quiet_start, quiet_end, tz } = state.settings;
   const set = (patch: Partial<State["settings"]>) => update((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
   const blocks = state.hard_blocks.filter((b) => !b.deleted);
   const zones = Intl.supportedValuesOf?.("timeZone") ?? [browserTz];
   const [tgProblem, setTgProblem] = useState<string | null>(null);
+  const [deviceNote, setDeviceNote] = useState<string | null>(null);
 
   return (
     <>
@@ -112,12 +115,48 @@ export function SettingsView({ state, update, browserTz, backedUp }: Props) {
         <AddBlock onAdd={(b) => update((s) => ({ ...s, hard_blocks: [...s.hard_blocks, b] }))} />
       </section>
 
-      {backedUp && (
-        <section className="section" aria-labelledby="h-data">
-          <h2 id="h-data">Data</h2>
-          <p className="empty">Your list is backed up, so it won't get lost.</p>
-        </section>
-      )}
+      <section className="section" aria-labelledby="h-data">
+        <h2 id="h-data">Data</h2>
+        {backedUp && <p className="empty">Your list is backed up, so it won't get lost.</p>}
+        {/* ADR-0005: a passkey on this identity is how a second device opens the same list. */}
+        {passkeysSupported() && (
+          <div className="actions">
+            <button
+              className="button"
+              onClick={async () => {
+                try {
+                  await addPasskey();
+                  // ponytail: not yet approved copy.
+                  setDeviceNote("Done. On your other device, open Ember, go to Settings, and choose Sign in with a passkey.");
+                } catch (e) {
+                  setDeviceNote(cancelled(e) ? null : "That didn't work. Try again in a moment.");
+                }
+              }}
+            >
+              Use Ember on another device
+            </button>
+            <button
+              className="button"
+              onClick={async () => {
+                try {
+                  await signInWithPasskey();
+                  setDeviceNote(null);
+                  onSignedIn();
+                } catch (e) {
+                  setDeviceNote(cancelled(e) ? null : "That didn't sign you in. Try again, or keep using Ember on this device.");
+                }
+              }}
+            >
+              Sign in with a passkey
+            </button>
+          </div>
+        )}
+        {deviceNote && (
+          <p className="hint" role="status">
+            {deviceNote}
+          </p>
+        )}
+      </section>
     </>
   );
 }
