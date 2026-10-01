@@ -2,7 +2,7 @@
 # Roadmap — Ember
 
 **Current stage: Plan**
-**Next up:** Feasibility spike done (2026-10-02, `docs/research/tech-spike.md`). `docs/Tech_Scope.md` drafted 2026-10-02 with 16 slices to the cut line (0–7 phase 1, 8–15 phase 2) and ADRs 0001–0008; the brief's open questions are answered in its §12. **Waiting on Natalie's approval of Tech_Scope.md**, which closes its checkbox. Then `docs/Design_Direction.md` (needs design step 3, styled mockups, `UX_Flows.md` §8, started only when Natalie asks for it by name), and Plan exits. Build slice 7 starts with a 5-minute iPhone test of the install handoff (`Tech_Scope.md` §7). Before going public: the cleanup list at the end of `tech-spike.md`.
+**Next up:** Feasibility spike done (2026-10-02, `docs/research/tech-spike.md`). `docs/Tech_Scope.md` drafted 2026-10-02 with 16 slices to the cut line (0–7 phase 1, 8–15 phase 2) and ADRs 0001–0008; the brief's open questions are answered in its §12. Approved by Natalie 2026-10-02. Remaining Plan item: `docs/Design_Direction.md` (needs design step 3, styled mockups, `UX_Flows.md` §8, started only when Natalie asks for it by name), and Plan exits. Build slice 7 starts with a 5-minute iPhone test of the install handoff (`Tech_Scope.md` §7). Before going public: the cleanup list at the end of `tech-spike.md`.
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.
@@ -19,7 +19,7 @@ Exit: user has signed off the product scope. Skills: superpowers:brainstorming, 
 
 ## 2 · Plan — how it gets built
 
-- [ ] `docs/Tech_Scope.md`: stack with versions · data model sketch · core logic/formulae with a worked example · numbered tasks in vertical slices (each ends runnable + committed) · ⚠️ gotchas · test strategy per slice.
+- [x] `docs/Tech_Scope.md`: stack with versions · data model sketch · core logic/formulae with a worked example · numbered tasks in vertical slices (each ends runnable + committed) · ⚠️ gotchas · test strategy per slice.
 - [ ] One ADR in `docs/adr/` per non-obvious decision, written when the decision is made, not after.
 - [ ] `docs/Design_Direction.md` (any project with a UI): ground it in the subject's own world. Tokens: 4–6 named colors, 2–3 typefaces with roles, layout concept. One signature element; restraint everywhere else. Explicit loading/empty/error states with copy. Quality floor: focus visible, contrast, reduced motion, responsive to 375px. Self-check: "what would the generic default be, and where did I deviate?"
 
