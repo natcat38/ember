@@ -2,7 +2,7 @@
 # Roadmap — Ember
 
 **Current stage: Build**
-**Next up:** Plan closed 2026-10-02: `Tech_Scope.md`, ADRs 0001–0008, and `Design_Direction.md` (Small Companion) approved. Build starts with **slice 0, day-1 hygiene** (`Tech_Scope.md` §10): Vite + React + TS skeleton served by the `ember-tasks` Worker, pinned versions, `.gitignore`, README stub, CI, env config via wrangler vars; then slices 1–7 to finish phase 1. Slice 7 opens with the 5-minute iPhone handoff test. Slice 11 needs a new production Telegram bot from Natalie. /protect-repo when the repo goes public, after the cleanup list at the end of `tech-spike.md`.
+**Next up:** Slice 0 merged 2026-10-02: skeleton live at https://ember-tasks.cron-telegram.workers.dev (subdomain kept for now; rename before slice 7's iPhone install test, since a rename breaks installed icons). Next: **slice 1, Capture → Inbox** (`Tech_Scope.md` §10), then slices 2–7 to finish phase 1. Slice 7 opens with the 5-minute iPhone handoff test. Slice 11 needs a new production Telegram bot from Natalie. /protect-repo when the repo goes public, after the cleanup list at the end of `tech-spike.md`.
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.
@@ -28,6 +28,7 @@ Exit: numbered vertical slices exist and the user approves. Skills: superpowers:
 ## 3 · Build — the only stage where feature code happens
 
 - [ ] Day-1 hygiene, before feature work: sensible `.gitignore` · README stub with the purpose paragraph · OKF knowledge bundle + validator (local + CI) · CI running the test command (even if 0 tests yet) · /protect-repo once pushed public · Docker/compose for backing services · config via env vars from the start.
+  - Slice 0 status (2026-10-02): done: `.gitignore`, README stub, CI (typecheck + Vitest + build), pinned versions, deploy. Deferred: wrangler vars to slice 8 (nothing reads config before the Worker has code); /protect-repo to going public. Not applicable: Docker (no backing services; D1 runs locally under wrangler). Open question for Natalie: the OKF knowledge bundle is not in the approved Tech_Scope slice 0.
 - [ ] Vertical slices from the Tech Scope, in order. Every slice: implement → test → commit with a message that names the slice. No slice starts while the previous one is red.
 
 Exit: all slices to the cut line done, CI green. Skills: tdd, ponytail.
