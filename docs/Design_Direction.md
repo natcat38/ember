@@ -1,6 +1,6 @@
 # Ember: Design Direction
 
-Status: **draft, 2026-10-02**. Direction: **Small Companion**, picked by Natalie from the three-direction mockups (`Product_Scope.md` §7, decision 6). Mockups: the Claude Design canvas *Ember Mockups* (https://claude.ai/artifact/Q9P3CjtMh2Gv3GiVeSws5N), Small Companion column. Screens, flows, and copy: `UX_Flows.md`, `docs/Wireframes.md`. This file is the source of truth for how Ember looks; Build implements it as CSS tokens and never improvises a colour or font outside it.
+Status: **approved by Natalie, 2026-10-02**. Direction: **Small Companion**, picked by Natalie from the three-direction mockups (`Product_Scope.md` §7, decision 6). Mockups: the Claude Design canvas *Ember Mockups* (https://claude.ai/artifact/Q9P3CjtMh2Gv3GiVeSws5N), Small Companion column. Screens, flows, and copy: `UX_Flows.md`, `docs/Wireframes.md`. This file is the source of truth for how Ember looks; Build implements it as CSS tokens and never improvises a colour or font outside it.
 
 ## 1. The idea in one line
 
@@ -139,7 +139,7 @@ These keep Small Companion adult. Each one is a check in the review stage.
 
 Phase 1 reads from the device, so there is nothing to wait for. Phase 2 can wait on the first sync:
 
-- **First load with nothing on the device:** three row-shaped placeholders in `--color-done`, no shimmer, screen-reader text *"Loading today."* (proposed copy).
+- **First load with nothing on the device:** three row-shaped placeholders in `--color-done`, no shimmer, screen-reader text *"Loading today."* (approved 2026-10-02).
 - **Any later load:** show what the device has at once; sync quietly behind it. Never a spinner over the list.
 - **Breakdown in progress (phase 4):** the button keeps its label, shows a spinner, and is disabled until the steps arrive.
 
@@ -162,9 +162,9 @@ No red, no icons of warning, no blame. Each error is one ink-soft line under the
 | Offline | *"Offline. Your changes will sync when you reconnect."* (small line under the header, not a banner) | `UX_Flows.md` §4 |
 | Breakdown while offline | *"Breakdowns need a connection. Try: what's the very next physical action?"* | `UX_Flows.md` §4 |
 | Breakdown cap reached | *"Out of breakdowns for today. Try: what's the very next physical action?"* | `Product_Scope.md` §3 |
-| Breakdown failed (service error) | *"That breakdown didn't come through. Try again, or type the very next physical action."* | **proposed** |
-| A change the server rejected after a two-device race (`Tech_Scope.md` §5) | *"This changed on another device, so you're seeing the latest version."* | **proposed** |
-| Sign-in with a passkey failed | *"That didn't sign you in. Try again, or keep using Ember on this device."* | **proposed** |
+| Breakdown failed (service error) | *"That breakdown didn't come through. Try again, or type the very next physical action."* | new, approved 2026-10-02 |
+| A change the server rejected after a two-device race (`Tech_Scope.md` §5) | *"This changed on another device, so you're seeing the latest version."* | new, approved 2026-10-02 |
+| Sign-in with a passkey failed | *"That didn't sign you in. Try again, or keep using Ember on this device."* | new, approved 2026-10-02 |
 
 Status messages (*Added*, ring changes, the lines above) go through one polite live region and never move focus (`Wireframes.md`, accessibility targets).
 
