@@ -2,7 +2,7 @@
 # Roadmap — Ember
 
 **Current stage: Plan**
-**Next up:** Design steps 1 and 2 done (2026-10-01): wireframes and canvas approved, the four canvas-review decisions applied, and the critique + accessibility findings (C1-C9, A1-A7 in `docs/Wireframes.md`) settled, 14 fixed and 2 waived. Next design step is 3, styled mockups (`UX_Flows.md` §8), started only when Natalie asks for them by name; then `docs/Design_Direction.md`. Tech track still to start: feasibility spike before `docs/Tech_Scope.md`, confirming the provisional Cloudflare stack (Product_Scope decision 4), that iOS web push has no action buttons (UX_Flows §5), and Safari's 7-day storage wipe for non-installed sites (UX_Flows §7). ADRs in `docs/adr/` as decisions are made.
+**Next up:** Feasibility spike done (2026-10-02, `docs/research/tech-spike.md`): Cloudflare cron → D1 → Telegram proven on a live free-plan deploy (37.5 s due-to-sent, 0.67 s of work), iOS web push has no action buttons, Safari's 7-day wipe confirmed with home-screen apps exempt. ADRs 0001–0003 in `docs/adr/`. Next: write `docs/Tech_Scope.md` (stack with versions, data model, scheduler with claim step and per-tick cap, vertical slices), deciding the open questions listed in `docs/Tech_Spike_Session_Brief.md`. Design step 3, styled mockups (`UX_Flows.md` §8), waits until Natalie asks for it by name. Before going public: the cleanup list at the end of `tech-spike.md`.
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.
