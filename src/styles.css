@@ -550,3 +550,108 @@ dialog::backdrop {
   flex: 1 1 0;
   padding: 0 var(--space-2);
 }
+
+/* Steps (Wireframes.md §6) */
+.divider {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.step {
+  min-height: 52px;
+  padding: 0 var(--space-1) 0 0;
+  gap: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* the hold starts a drag, not the text menu */
+}
+
+.row.step > .step-title {
+  flex-grow: 1;
+  padding: var(--space-3) 0;
+}
+
+.row.step > .check {
+  flex-grow: 0;
+}
+
+.check {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+
+.check input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--color-lavender-deep);
+}
+
+.step.done {
+  background: var(--color-done);
+}
+
+.step.done .step-title {
+  color: var(--color-ink-soft);
+  text-decoration: line-through;
+}
+
+.step.done .check input {
+  accent-color: var(--color-sage-deep);
+}
+
+.substeps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0 22px;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--color-line);
+}
+
+.dragging {
+  position: relative;
+  z-index: 1;
+}
+
+.dragging > .row {
+  background: var(--color-nook);
+}
+
+.step-field {
+  border-radius: var(--radius-row);
+}
+
+.menu-sheet {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-sheet button {
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-button);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-sheet .cancel {
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--color-line);
+  border-radius: 0;
+  text-align: center;
+  font-weight: 600;
+}
+
+@media (hover: hover) {
+  .menu-sheet button:not(.cancel):hover {
+    background: var(--color-nook);
+  }
+}

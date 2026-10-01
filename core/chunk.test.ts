@@ -1,0 +1,100 @@
+import { expect, test } from "vitest";
+import { addChunk, childrenOf, deleteChunk, move, moveTo, renameChunk, setLeafStates, stateOf, tick, topLevel } from "./chunk";
+import { emptyState, type State } from "./task";
+
+const T = "task-1";
+let n = 0;
+const id = () => `c${++n}`;
+const now = 1000;
+
+// A: plain step; B: parent with B1, B2; C: plain step
+function sample(): State {
+  n = 0;
+  let s = emptyState();
+  for (const title of ["A", "B", "C"]) s = addChunk(s, T, title, null, now, id);
+  s = addChunk(s, T, "B1", "c2", now, id);
+  s = addChunk(s, T, "B2", "c2", now, id);
+  return s;
+}
+const titles = (s: State, parent: string | null = null) =>
+  (parent ? childrenOf(s, parent) : topLevel(s, T)).map((c) => c.title);
+const get = (s: State, cid: string) => s.chunks.find((c) => c.id === cid)!;
+
+test("manual add appends to the bottom; blank is ignored", () => {
+  const s = sample();
+  expect(titles(s)).toEqual(["A", "B", "C"]);
+  expect(titles(s, "c2")).toEqual(["B1", "B2"]);
+  expect(addChunk(s, T, "   ", null, now, id)).toBe(s);
+  expect(get(s, "c1")).toMatchObject({ task_id: T, parent_id: null, state: "todo", deleted: false });
+});
+
+test("rule 6: no third level", () => {
+  const s = sample();
+  expect(addChunk(s, T, "B1a", "c4", now, id)).toBe(s);
+});
+
+test("rule 8: a parent's state is derived from its smaller steps", () => {
+  let s = sample();
+  expect(stateOf(s, get(s, "c2"))).toBe("todo");
+  s = tick(s, "c4", true, now);
+  expect(stateOf(s, get(s, "c2"))).toBe("todo");
+  s = tick(s, "c5", true, now);
+  expect(stateOf(s, get(s, "c2"))).toBe("done"); // rule 2: ticks itself when the last is done
+});
+
+test("rule 2: ticking a parent finishes the rest; unticking straight away restores them", () => {
+  let s = tick(sample(), "c4", true, now); // B1 already done
+  const remaining = childrenOf(s, "c2").filter((c) => c.state !== "done").map((c) => c.id);
+  expect(remaining).toEqual(["c5"]);
+  s = tick(s, "c2", true, now);
+  expect(childrenOf(s, "c2").map((c) => c.state)).toEqual(["done", "done"]);
+  s = setLeafStates(s, remaining, "todo", now);
+  expect(childrenOf(s, "c2").map((c) => c.state)).toEqual(["done", "todo"]);
+});
+
+test("unticking a parent later reopens all its smaller steps", () => {
+  let s = tick(sample(), "c2", true, now);
+  s = tick(s, "c2", false, now);
+  expect(childrenOf(s, "c2").map((c) => c.state)).toEqual(["todo", "todo"]);
+});
+
+test("rule 5: moving a parent moves its group; smaller steps move only within their parent", () => {
+  let s = move(sample(), "c2", -1, now);
+  expect(titles(s)).toEqual(["B", "A", "C"]);
+  expect(titles(s, "c2")).toEqual(["B1", "B2"]);
+  s = move(s, "c5", -1, now);
+  expect(titles(s, "c2")).toEqual(["B2", "B1"]);
+  expect(move(s, "c5", -1, now)).toBe(s); // already first among its siblings
+  expect(move(s, "c3", 1, now)).toBe(s); // already last
+});
+
+test("moveTo rewrites only the moved row", () => {
+  const s = sample();
+  const moved = moveTo(s, "c3", 0, now);
+  expect(titles(moved)).toEqual(["C", "A", "B"]);
+  const changed = moved.chunks.filter((c, i) => c !== s.chunks[i]).map((c) => c.id);
+  expect(changed).toEqual(["c3"]);
+  expect(titles(moveTo(s, "c1", 1, now))).toEqual(["B", "A", "C"]);
+  expect(titles(moveTo(s, "c1", 2, now))).toEqual(["B", "C", "A"]);
+});
+
+test("rename trims and ignores blank", () => {
+  const s = sample();
+  expect(get(renameChunk(s, "c1", " A2 ", now), "c1").title).toBe("A2");
+  expect(renameChunk(s, "c1", " ", now)).toBe(s);
+});
+
+test("rule 7: deleting a parent deletes its smaller steps; deleting the last smaller step makes the parent plain", () => {
+  let s = deleteChunk(sample(), "c2", now);
+  expect(titles(s)).toEqual(["A", "C"]);
+  expect(s.chunks.filter((c) => c.deleted).map((c) => c.id)).toEqual(["c2", "c4", "c5"]); // tombstones for sync
+
+  s = deleteChunk(deleteChunk(sample(), "c4", now), "c5", now);
+  expect(childrenOf(s, "c2")).toEqual([]);
+  expect(stateOf(s, get(s, "c2"))).toBe("todo");
+});
+
+test("a deleted step's row stays deleted and can't gain children", () => {
+  const s = deleteChunk(sample(), "c1", now);
+  expect(addChunk(s, T, "x", "c1", now, id)).toBe(s);
+});

@@ -3,7 +3,8 @@ import { capture, remove, rename, restore, triage, type CaptureInput, type State
 import { dayOf } from "../core/day";
 import { KEY, load, save } from "./store";
 import { CaptureForm, formatDue } from "./Capture";
-import { closeOnBackdrop, TaskView } from "./TaskView";
+import { TaskView } from "./TaskView";
+import { closeOnBackdrop } from "./dialogs";
 
 type View = { name: "today" | "inbox" } | { name: "task"; id: string; from: "today" | "inbox" };
 
@@ -91,6 +92,8 @@ export function App() {
         <TaskView
           key={task.id}
           task={task}
+          state={state}
+          update={setState}
           today={today}
           onBack={() => navigate({ name: view.from })}
           onTriage={(answers) => setState((s) => triage(s, task.id, answers, Date.now(), today))}
