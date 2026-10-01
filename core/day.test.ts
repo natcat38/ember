@@ -18,3 +18,8 @@ test("quiet end and time zone are respected", () => {
   expect(dayOf(t, "Europe/London", 7 * 60)).toBe("2026-10-05");
   expect(dayOf(t, SG)).toBe("2026-10-05");
 });
+
+test("half-hour offsets work (no DST, so the shift is exact)", () => {
+  expect(dayOf(Date.parse("2026-10-05T08:00:00+05:30"), "Asia/Kolkata")).toBe("2026-10-05");
+  expect(dayOf(Date.parse("2026-10-05T07:59:00+05:30"), "Asia/Kolkata")).toBe("2026-10-04");
+});
