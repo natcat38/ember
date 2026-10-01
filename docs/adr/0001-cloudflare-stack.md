@@ -1,6 +1,6 @@
 # ADR-0001: Cloudflare Pages + Workers + D1 + Cron Triggers
 
-**Status:** Accepted
+**Status:** Accepted, refined by ADR-0004 (one Worker serves app, API, and cron; no separate Pages project)
 **Date:** 2026-10-02
 **Deciders:** Natalie
 
@@ -35,7 +35,7 @@ Full comparison in `docs/research/tech-feasibility.md` §6.
 
 - One vendor for hosting, API, database, and scheduler. No pause or keep-alive hack.
 - Reminders land within about one minute of due. Good enough for "nudge at 3pm"; not for second-precise alarms.
-- The code is JavaScript or TypeScript on the Workers runtime (which one is a Build choice). Go and Python do not appear in this repo.
+- The code is TypeScript on the Workers runtime, as `Product_Scope.md` §1 already states. Go and Python do not appear in this repo.
 - Free-plan ceilings shape the scheduler: 10 ms CPU and 50 subrequests per cron invocation, 5 cron triggers per account, D1 at 100k row writes a day. Each Telegram send is one subrequest, so the per-tick send loop must be capped.
 - Lock-in: D1 is SQLite and Workers are close to standard `fetch` handlers, so a move costs a port, not a rewrite.
 
