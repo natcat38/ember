@@ -6,20 +6,21 @@ import { MAX_OPS, type Change, type Entity, type Op, type SyncResponse } from ".
 
 type Row = Record<string, unknown>;
 
-// What syncs, per entity. Mirrors worker/schema.ts; anything not listed (draft, focus, settings, last_seen_at) stays
-// on this device.
+// What syncs, per entity. Mirrors worker/schema.ts; anything not listed (draft, focus, last_seen_at) stays on this
+// device. Settings are one object on the device and one row ('me') on the server.
 const FIELDS: Record<Entity, string[]> = {
   tasks: ["title", "state", "size", "quick", "holding_up", "deadline", "runway_start", "pinned_on", "snoozed_until", "created_at", "updated_at"],
   chunks: ["task_id", "parent_id", "title", "position", "state", "deleted", "updated_at"],
   sessions: ["chunk_id", "started_at", "ended_at", "completed"],
   days: ["confirmed_at", "shutdown_at", "deferred"],
   hard_blocks: ["weekdays", "start_min", "end_min", "label", "deleted", "updated_at"],
+  settings: ["tz", "quiet_start", "quiet_end"],
 };
 // Upload order matters for the server's rules: a task before its steps, a parent step before its smaller steps.
-const ORDER: Entity[] = ["tasks", "chunks", "sessions", "days", "hard_blocks"];
+const ORDER: Entity[] = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings"];
 const keyOf = (e: Entity) => (e === "days" ? "day" : "id");
 
-const rows = (s: State, e: Entity) => s[e] as unknown as Row[];
+const rows = (s: State, e: Entity): Row[] => (e === "settings" ? [{ id: "me", ...s.settings }] : (s[e] as unknown as Row[]));
 const byKey = (s: State, e: Entity) => new Map(rows(s, e).map((r) => [String(r[keyOf(e)]), r]));
 const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 const pick = (e: Entity, r: Row) => Object.fromEntries(FIELDS[e].map((f) => [f, r[f] ?? null]));
@@ -45,7 +46,10 @@ export function diff(prev: State, next: State, newId: () => string = uuid): Op[]
 // The first sync uploads everything this device has (phase-1 data included), in an order the server's rules accept.
 export function allOps(s: State, newId: () => string = uuid): Op[] {
   const parentsFirst = { ...s, chunks: [...s.chunks].sort((a, b) => Number(!!a.parent_id) - Number(!!b.parent_id)) };
-  return diff({ ...s, tasks: [], chunks: [], sessions: [], days: [], hard_blocks: [] }, parentsFirst, newId);
+  const nothing = { ...s, tasks: [], chunks: [], sessions: [], days: [], hard_blocks: [] };
+  const ops = diff(nothing, parentsFirst, newId);
+  // Settings always exist on the device, so a diff never sees them as new; the first upload sends them whole.
+  return [...ops, { op_id: newId(), entity: "settings", id: "me", fields: pick("settings", { ...s.settings }) }];
 }
 
 // Merge server rows in. A field with a local edit still waiting in the outbox keeps the local value: that edit
@@ -53,7 +57,7 @@ export function allOps(s: State, newId: () => string = uuid): Op[] {
 export function applyChanges(s: State, changes: Change[], pending: Op[]): State {
   if (!changes.length) return s;
   const waiting = new Set(pending.flatMap((o) => Object.keys(o.fields).map((f) => `${o.entity}:${o.id}:${f}`)));
-  const next = { ...s } as Record<Entity, Row[]> & State;
+  const next = { ...s } as Record<Exclude<Entity, "settings">, Row[]> & State;
   for (const e of ORDER) {
     const incoming = changes.filter((c) => c.entity === e);
     if (!incoming.length) continue;
@@ -71,7 +75,10 @@ export function applyChanges(s: State, changes: Change[], pending: Op[]): State 
       for (const f of FIELDS[e]) if (!waiting.has(`${e}:${id}:${f}`)) merged[f] = server[f];
       if (FIELDS[e].some((f) => !same(merged[f], list[i][f]))) list[i] = merged;
     }
-    next[e] = list as never;
+    if (e === "settings") {
+      const { tz, quiet_start, quiet_end } = list[0] as unknown as State["settings"];
+      next.settings = { tz, quiet_start, quiet_end };
+    } else next[e] = list as never;
   }
   return next;
 }

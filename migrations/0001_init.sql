@@ -11,15 +11,24 @@ CREATE TABLE users (
   id TEXT PRIMARY KEY,                                  -- 128-bit random, base64url; the ember_uid cookie value
   created_at INTEGER NOT NULL,                          -- unix ms
   last_seen_at INTEGER NOT NULL,
-  tz TEXT NOT NULL DEFAULT 'Asia/Singapore',            -- IANA name, from the browser
-  quiet_start INTEGER NOT NULL DEFAULT 1320,            -- minutes after local midnight
-  quiet_end INTEGER NOT NULL DEFAULT 480,
   channel TEXT CHECK (channel IN ('telegram', 'push')), -- NULL = in-app only
   telegram_chat_id TEXT,
   rev INTEGER NOT NULL DEFAULT 0                        -- last change number handed out to this user's rows
 );
 -- Retention job (Tech_Scope.md §8) scans by last_seen_at.
 CREATE INDEX users_last_seen ON users (last_seen_at);
+
+-- The user's day shape, synced like the other tables; one row per user (id 'me'). Read by the scheduler.
+CREATE TABLE settings (
+  user_id TEXT NOT NULL,
+  id TEXT NOT NULL CHECK (id = 'me'),
+  tz TEXT,                                              -- IANA name; NULL = the browser's (Asia/Singapore server-side)
+  quiet_start INTEGER NOT NULL DEFAULT 1320,            -- minutes after local midnight
+  quiet_end INTEGER NOT NULL DEFAULT 480,
+  rev INTEGER NOT NULL,
+  PRIMARY KEY (user_id, id)
+);
+CREATE INDEX settings_user_rev ON settings (user_id, rev);
 
 CREATE TABLE hard_blocks (
   id TEXT PRIMARY KEY,

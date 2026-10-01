@@ -184,13 +184,16 @@ describe("pull and cursor", () => {
       { op_id: uuid(), entity: "sessions", id: s, fields: { chunk_id: c, started_at: 1000, ended_at: 2000, completed: true } },
       { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { confirmed_at: 5, deferred: [c] } },
       { op_id: uuid(), entity: "hard_blocks", id: h, fields: { weekdays: [0, 2], start_min: 540, end_min: 720, label: "Classes" } },
+      { op_id: uuid(), entity: "settings", id: "me", fields: { tz: "Europe/London", quiet_start: 1380, quiet_end: 420 } },
     ];
     const { body } = await sync({ cursor: 0, ops }, cookie);
 
-    expect(body.changes.map((x) => x.entity)).toEqual(["tasks", "chunks", "sessions", "days", "hard_blocks"]);
-    expect(body.changes.map((x) => x.row.rev)).toEqual([1, 2, 3, 4, 5]);
-    expect(body.cursor).toBe(5);
-    const [tr, cr, sr, dr, hr] = body.changes.map((x) => x.row);
+    // Six tables: the pull runs as two statements (D1's 5-term cap) and the rows are still oldest change first.
+    expect(body.changes.map((x) => x.entity)).toEqual(["tasks", "chunks", "sessions", "days", "hard_blocks", "settings"]);
+    expect(body.changes.map((x) => x.row.rev)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(body.cursor).toBe(6);
+    const [tr, cr, sr, dr, hr, st] = body.changes.map((x) => x.row);
+    expect(st).toEqual({ id: "me", tz: "Europe/London", quiet_start: 1380, quiet_end: 420, rev: 6 });
     expect(tr).toMatchObject({ id: t, title: "Write cover letter", quick: true, holding_up: false, size: "XS", deadline: "2026-10-09", pinned_on: null });
     expect(tr).not.toHaveProperty("user_id");
     expect(cr).toMatchObject({ id: c, task_id: t, parent_id: null, position: 1.5, deleted: false });
@@ -261,6 +264,51 @@ describe("per-field last write wins", () => {
   });
 });
 
+describe("settings", () => {
+  it("is one row per user: two devices' patches merge per field, and another user is untouched", async () => {
+    const [a, b] = [await newUser(), await newUser()];
+    await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "settings", id: "me", fields: { quiet_end: 420 } }] }, a); // patch before any create
+    await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "settings", id: "me", fields: { tz: "Asia/Kolkata", quiet_start: 1380, quiet_end: 480 } }] }, a);
+    await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "settings", id: "me", fields: { quiet_end: 360 } }] }, a);
+    await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "settings", id: "me", fields: { tz: null, quiet_start: 1320, quiet_end: 480 } }] }, b);
+    const rowOf = (c: string) => env.DB.prepare("SELECT tz, quiet_start, quiet_end FROM settings WHERE user_id = ?").bind(uidOf(c)).all();
+    expect((await rowOf(a)).results).toEqual([{ tz: "Asia/Kolkata", quiet_start: 1380, quiet_end: 360 }]);
+    expect((await rowOf(b)).results).toEqual([{ tz: null, quiet_start: 1320, quiet_end: 480 }]);
+  });
+
+  it("refuses an unknown time zone or an id other than 'me'", async () => {
+    const cookie = await newUser();
+    const bad = (fields: Record<string, unknown>, id = "me") => sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "settings", id, fields }] }, cookie);
+    expect((await bad({ tz: "Mars/Olympus" })).res.status).toBe(400);
+    expect((await bad({ quiet_end: 420 }, "you")).res.status).toBe(400);
+  });
+
+  it("looks up rows across all six tables in one request (two statements, D1's 5-term cap)", async () => {
+    const cookie = await newUser();
+    const [t, c, s, h] = [uuid(), uuid(), uuid(), uuid()];
+    await sync({ cursor: 0, ops: [
+      task(t),
+      { op_id: uuid(), entity: "chunks", id: c, fields: { task_id: t, parent_id: null, title: "Draft", position: 1, state: "todo" } },
+      { op_id: uuid(), entity: "sessions", id: s, fields: { chunk_id: c, started_at: 1, ended_at: 2 } },
+      { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { confirmed_at: 1 } },
+      { op_id: uuid(), entity: "hard_blocks", id: h, fields: { weekdays: [1], start_min: 60, end_min: 120 } },
+      { op_id: uuid(), entity: "settings", id: "me", fields: { quiet_end: 420 } },
+    ] }, cookie);
+    // Partial patches of every table: each needs its row found.
+    const { res, body } = await sync({ cursor: 0, ops: [
+      { op_id: uuid(), entity: "tasks", id: t, fields: { title: "Renamed" } },
+      { op_id: uuid(), entity: "chunks", id: c, fields: { title: "Redrafted" } },
+      { op_id: uuid(), entity: "sessions", id: s, fields: { completed: true } },
+      { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { shutdown_at: 9 } },
+      { op_id: uuid(), entity: "hard_blocks", id: h, fields: { label: "Gym" } },
+      { op_id: uuid(), entity: "settings", id: "me", fields: { quiet_start: 1260 } },
+    ] }, cookie);
+    expect(res.status).toBe(200);
+    expect(body.rejected).toEqual([]);
+    expect(await count("SELECT COUNT(*) AS n FROM settings WHERE user_id = ? AND quiet_start = 1260 AND quiet_end = 420", uidOf(cookie))).toBe(1);
+  });
+});
+
 describe("identity", () => {
   it("creates a user and sets the cookie when none is presented", async () => {
     const before = await count("SELECT COUNT(*) AS n FROM users");
@@ -270,7 +318,7 @@ describe("identity", () => {
     expect(await count("SELECT COUNT(*) AS n FROM users")).toBe(before + 1);
     const uid = uidOf(res.headers.get("Set-Cookie")!.split(";")[0]);
     const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(uid).first<Record<string, number | string>>();
-    expect(user).toMatchObject({ rev: 0, tz: "Asia/Singapore", quiet_start: 1320, quiet_end: 480 });
+    expect(user).toMatchObject({ rev: 0 });
     expect(user!.created_at).toBe(user!.last_seen_at);
   });
 

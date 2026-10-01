@@ -17,6 +17,8 @@ export interface EntityDef {
   table: string;
   /** Column holding the row id from the op: `id`, or `day` for the days table. */
   key: "id" | "day";
+  /** The key is unique per user only (days, settings), so the primary key is (user_id, key) and no guard is needed. */
+  perUser?: boolean;
   /** Fields a client may patch. */
   fields: Record<string, Field>;
   /** Fields that must be present for an op to create a row (the table's NOT NULL columns without a default). */
@@ -29,6 +31,15 @@ const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const isDate = (v: unknown): v is string => typeof v === "string" && DATE_RE.test(v) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v);
+// An IANA time zone the runtime knows; null means "the browser's", resolved on the device.
+const isZone = (v: string) => {
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: v });
+    return true;
+  } catch {
+    return false;
+  }
+};
 const isId = (v: unknown): v is string => typeof v === "string" && ID_RE.test(v);
 const isInt = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isSafeInteger(v) && v >= min && v <= max;
 
@@ -117,6 +128,7 @@ export const ENTITIES: Record<Entity, EntityDef> = {
   days: {
     table: "days",
     key: "day",
+    perUser: true,
     required: [],
     checkId: isDate,
     fields: {
@@ -140,6 +152,22 @@ export const ENTITIES: Record<Entity, EntityDef> = {
       updated_at: int(),
     },
   },
+  // The user's day shape (Tech_Scope.md §4.1, §4.4): one row per user, id 'me'. The scheduler reads it.
+  settings: {
+    table: "settings",
+    key: "id",
+    perUser: true,
+    required: [],
+    checkId: (id) => id === "me",
+    fields: {
+      tz: field((v) => typeof v === "string" && v.length <= 64 && isZone(v), true),
+      quiet_start: int(0, 1439),
+      quiet_end: int(0, 1439),
+    },
+  },
 };
 
 export const ENTITY_NAMES = Object.keys(ENTITIES) as Entity[];
+
+// D1 refuses a compound SELECT of more than 5 terms; with 6 tables, per-table queries go out in groups of 5.
+export const groupsOf5 = <T>(xs: T[]): T[][] => Array.from({ length: Math.ceil(xs.length / 5) }, (_, i) => xs.slice(i * 5, i * 5 + 5));

@@ -1,7 +1,7 @@
 import { cookieFor, resolveUser } from "./identity";
 import { MAX_BODY_CHARS, type Change, type Entity, type Op, type Rejected, type SyncResponse } from "./protocol";
 import { applyOp, checkOp, type Ctx, type Row } from "./rules";
-import { ENTITIES, ENTITY_NAMES } from "./schema";
+import { ENTITIES, ENTITY_NAMES, groupsOf5 } from "./schema";
 import { parseSyncBody } from "./validate";
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
@@ -60,6 +60,7 @@ const LOOKUP_COLUMNS: Record<Entity, string> = {
   sessions: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
   days: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
   hard_blocks: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
+  settings: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
 };
 
 // The row ids this request needs the stored state of. Tasks and chunks are always loaded, because their state rules
@@ -95,18 +96,17 @@ async function lookup(db: D1Database, uid: string, ops: Op[]) {
       .prepare("SELECT op_id AS id FROM ops WHERE user_id = ?1 AND op_id IN (SELECT value FROM json_each(?2))")
       .bind(uid, JSON.stringify(ops.map((o) => o.op_id))),
   ];
-  const wanted = [...wantedIds(ops)];
-  if (wanted.length) {
-    const terms = wanted.map(([name], i) => {
+  for (const group of groupsOf5([...wantedIds(ops)])) {
+    const terms = group.map(([name], i) => {
       const { table, key } = ENTITIES[name];
       return `SELECT '${name}' AS entity, ${key} AS id, ${LOOKUP_COLUMNS[name]} FROM ${table} WHERE user_id = ?1 AND ${key} IN (SELECT value FROM json_each(?${i + 2}))`;
     });
-    stmts.push(db.prepare(terms.join(" UNION ALL ")).bind(uid, ...wanted.map(([, ids]) => JSON.stringify([...ids]))));
+    stmts.push(db.prepare(terms.join(" UNION ALL ")).bind(uid, ...group.map(([, ids]) => JSON.stringify([...ids]))));
   }
 
-  const [ledger, found] = await db.batch<{ id: string; entity?: Entity } & Record<string, unknown>>(stmts);
+  const [ledger, ...found] = await db.batch<{ id: string; entity?: Entity } & Record<string, unknown>>(stmts);
   for (const r of ledger.results) applied.add(r.id);
-  for (const r of found?.results ?? []) {
+  for (const r of found.flatMap((f) => f.results)) {
     rows.set(rowKey(r.entity!, r.id), { state: r.state as string | null, task_id: r.task_id as string | null, parent_id: r.parent_id as string | null, deleted: r.deleted === 1 });
   }
   return { applied, rows };
@@ -155,11 +155,15 @@ async function commit(db: D1Database, uid: string, plan: Planned[], cursor: numb
     // The rev bump reserved n numbers, ending at the user's current rev. Op i (arrival order) takes the (i+1)th of them.
     plan.forEach((p, i) => stmts.push(writeStatement(db, uid, p, n - 1 - i)));
   }
-  stmts.push(pullStatement(db, uid, cursor));
+  const pulls = pullStatements(db, uid, cursor);
+  stmts.push(...pulls);
   stmts.push(db.prepare("SELECT rev FROM users WHERE id = ?1").bind(uid));
 
   const results = await db.batch(stmts);
-  const rows = results[results.length - 2].results as { entity: Entity; row: string }[];
+  const rows = results
+    .slice(results.length - 1 - pulls.length, results.length - 1)
+    .flatMap((r) => r.results as { entity: Entity; rev: number; row: string }[])
+    .sort((a, b) => a.rev - b.rev);
   const newCursor = (results[results.length - 1].results as { rev: number }[])[0].rev;
   return { cursor: newCursor, changes: rows.map(toChange) };
 }
@@ -179,26 +183,28 @@ function writeStatement(db: D1Database, uid: string, { op, update }: Planned, ba
       .bind(...values, uid, back, op.id, uid);
   }
   // Insert, or patch if a concurrent request created the row after our existence check. The WHERE keeps a stray id
-  // that belongs to another user from being overwritten (days is keyed per user, so it needs no guard).
+  // that belongs to another user from being overwritten (days and settings are keyed per user, so they need no guard).
   const cols = names.join(", ");
   const marks = names.map(() => "?").join(", ");
   const sets = [...names, "rev"].map((n) => `${n} = excluded.${n}`).join(", ");
-  const conflict = op.entity === "days" ? "ON CONFLICT (user_id, day) DO UPDATE SET" : "ON CONFLICT (id) DO UPDATE SET";
-  const guard = op.entity === "days" ? "" : ` WHERE ${def.table}.user_id = excluded.user_id`;
+  const conflict = def.perUser ? `ON CONFLICT (user_id, ${def.key}) DO UPDATE SET` : "ON CONFLICT (id) DO UPDATE SET";
+  const guard = def.perUser ? "" : ` WHERE ${def.table}.user_id = excluded.user_id`;
   return db
     .prepare(`INSERT INTO ${def.table} (${def.key}, user_id, ${cols}, rev) VALUES (?, ?, ${marks}, ${REV}) ${conflict} ${sets}${guard}`)
     .bind(op.id, uid, ...values, uid, back);
 }
 
-// The user's rows with rev > cursor, across every synced table, oldest change first. Each row comes back as one JSON
-// object so the five tables need one statement, not five.
-function pullStatement(db: D1Database, uid: string, cursor: number): D1PreparedStatement {
-  const selects = ENTITY_NAMES.map((name) => {
-    const { table, key, fields } = ENTITIES[name];
-    const pairs = [`'${key}', ${key}`, ...Object.keys(fields).map((f) => `'${f}', ${f}`), `'rev', rev`].join(", ");
-    return `SELECT '${name}' AS entity, rev, json_object(${pairs}) AS row FROM ${table} WHERE user_id = ?1 AND rev > ?2`;
+// The user's rows with rev > cursor, across every synced table; the caller sorts them oldest change first. Each row
+// comes back as one JSON object, so the tables need one statement per group of 5, not one each.
+function pullStatements(db: D1Database, uid: string, cursor: number): D1PreparedStatement[] {
+  return groupsOf5(ENTITY_NAMES).map((names) => {
+    const selects = names.map((name) => {
+      const { table, key, fields } = ENTITIES[name];
+      const pairs = [`'${key}', ${key}`, ...Object.keys(fields).map((f) => `'${f}', ${f}`), `'rev', rev`].join(", ");
+      return `SELECT '${name}' AS entity, rev, json_object(${pairs}) AS row FROM ${table} WHERE user_id = ?1 AND rev > ?2`;
+    });
+    return db.prepare(selects.join(" UNION ALL ")).bind(uid, cursor);
   });
-  return db.prepare(`SELECT entity, row FROM (${selects.join(" UNION ALL ")}) ORDER BY rev`).bind(uid, cursor);
 }
 
 // D1 stores booleans as 0/1 and `deferred` as JSON text; the client gets its own entity shape back.

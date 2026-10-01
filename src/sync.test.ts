@@ -45,15 +45,22 @@ test("days are keyed by the date; arrays compare by value", () => {
   expect(diff(s, more, () => "op")).toEqual([{ op_id: "op", entity: "days", id: today, fields: { deferred: ["id-3", "id-4"] } }]);
 });
 
-test("device-only state never syncs: draft, focus, settings, last seen", () => {
+test("device-only state never syncs: draft, last seen", () => {
   const s = sample();
-  const t = { ...s, draft: "half a tho", last_seen_at: 99, settings: { ...s.settings, quiet_end: 420 } };
-  expect(diff(s, t, () => "op")).toEqual([]);
+  expect(diff(s, { ...s, draft: "half a tho", last_seen_at: 99 }, () => "op")).toEqual([]);
+});
+
+test("settings sync as the one row 'me', both ways", () => {
+  const s = sample();
+  const t = { ...s, settings: { ...s.settings, quiet_end: 420 } };
+  expect(diff(s, t, () => "op")).toEqual([{ op_id: "op", entity: "settings", id: "me", fields: { quiet_end: 420 } }]);
+  const merged = applyChanges(s, [{ entity: "settings", row: { id: "me", tz: "Europe/London", quiet_start: 1380, quiet_end: 360, rev: 3 } }], []);
+  expect(merged.settings).toEqual({ tz: "Europe/London", quiet_start: 1380, quiet_end: 360 });
 });
 
 test("first upload: every row, parents before children, tasks before steps", () => {
   const ops = allOps(sample(), id);
-  expect(ops.map((o) => `${o.entity}:${o.id}`)).toEqual(["tasks:id-1", "chunks:id-2", "chunks:id-3", "chunks:id-4", "days:2026-10-05"]);
+  expect(ops.map((o) => `${o.entity}:${o.id}`)).toEqual(["tasks:id-1", "chunks:id-2", "chunks:id-3", "chunks:id-4", "days:2026-10-05", "settings:me"]);
   expect(ops[3].fields.parent_id).toBe("id-2");
 });
 

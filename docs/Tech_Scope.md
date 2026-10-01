@@ -98,6 +98,11 @@ handoffs(code TEXT PRIMARY KEY, user_id, purpose TEXT,          -- install | tg_
   expires_at INTEGER, used_at INTEGER)
 ```
 
+Changed in Build (slices 8 and 10, 2026-10-02); `migrations/0001_init.sql` is the source of truth:
+
+- **`settings` table** replaces `users.tz`, `quiet_start`, `quiet_end`: one synced row per user (`PRIMARY KEY (user_id, id)`, id always `'me'`), so a settings change syncs like any other row. `tz` NULL means the browser's zone. That makes six synced tables; D1 caps a compound SELECT at 5 terms, so the row lookup and the pull each run as up to two statements, and `MAX_OPS` is 38 to stay under 50 statements per request.
+- **`hard_blocks`** is one row per block, not per weekday: `weekdays` (JSON array, 0 = Monday), `label`, `updated_at`. One block covers several days with one name, as in Wireframes §8.
+
 Rules the schema does not show:
 
 - **Row ids are global, writes are user-scoped.** `tasks`, `chunks`, `sessions`, and `hard_blocks` keep `id` as the primary key (clients generate UUIDs), and every write carries `user_id`. An op naming a row id that belongs to another user changes nothing.
