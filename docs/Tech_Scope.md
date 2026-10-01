@@ -8,17 +8,19 @@ Status: **approved by Natalie, 2026-10-02**. Inputs: `Product_Scope.md` (what), 
 |---|---|---|---|
 | Language | TypeScript | 7.0.2 | Product_Scope §1. One language on client and Worker, so the ranking and scheduling code is shared. |
 | UI | React + Vite | React 19.3.0, Vite 8.3.2, `@vitejs/plugin-react` 6.1.1 | Natalie's stack. |
-| Runtime and hosting | One Cloudflare Worker with static assets, API routes, and cron | wrangler 4.145.0 (pinned; 4.146.0 was unfetchable on release day), `@cloudflare/vite-plugin` 1.62.4 | ADR-0001, refined by ADR-0004: one origin for app and API. |
+| Runtime and hosting | One Cloudflare Worker with static assets, API routes, and cron | wrangler 4.146.0, `@cloudflare/vite-plugin` 1.62.4 | ADR-0001, refined by ADR-0004: one origin for app and API. |
 | Database | Cloudflare D1 (SQLite) | — | ADR-0001. |
 | Device storage | `localStorage`, one JSON document | — | A task list is kilobytes; the 5 MB limit is far away. Upgrade path: IndexedDB if it ever is not. |
 | Messages | Telegram Bot API (webhook + `sendMessage`) | Bot API, no library | Phase 2 channel (decision 2). Two `fetch` calls do not need an SDK. |
 | Sign-in | Passkeys | `@simplewebauthn/server` 14.0.3, `@simplewebauthn/browser` 14.0.0 | ADR-0005. |
 | AI breakdown (phase 4) | Workers AI, `@cf/meta/llama-3.1-8b-instruct-awq` | — | ADR-0007. Same vendor, no API key. |
-| Tests | Vitest, `@cloudflare/vitest-pool-workers`, Playwright | 5.0.3, 0.22.0, 1.63.0 | §9. |
+| Tests | Vitest, `@cloudflare/vitest-pool-workers`, Playwright | 4.1.11, 0.22.0, 1.63.0 | §9. |
 
 Versions get pinned in `package.json` in slice 0. If TypeScript 7 (the new native compiler) breaks a tool in the chain, pin the last 5.x and note it here.
 
 Slice 0 (2026-10-02): TypeScript 7.0.2 typechecks the React skeleton without trouble. `@cloudflare/vite-plugin` is deferred to slice 8, because phase 1 deploys static assets only and needs no Worker code. When it lands, 1.62.4 requires wrangler `^4.146.0`, which resolves from npm as of 2026-10-02, so slice 8 bumps wrangler with it. Playwright arrives with the first e2e test (slice 1).
+
+Slice 8 (2026-10-02): wrangler is now 4.146.0 and `@cloudflare/vite-plugin` 1.62.4 is in. TypeScript 7.0.2 typechecks the Worker without trouble, so it stays. Two pins moved, both because `@cloudflare/vitest-pool-workers` 0.22.0 peers on `vitest ^4.1.0`, and npm refuses 5.0.3 beside it: **Vitest is pinned to 4.1.11** (the last 4.x), and the Worker tests run on compatibility date 2026-08-22 (set in `vitest.config.ts`), the newest the pool's bundled workerd accepts; `wrangler.jsonc` keeps 2026-10-01 for the deployed Worker. Revisit both when the pool releases a Vitest 5 build.
 
 ## 2. Architecture
 
@@ -80,7 +82,8 @@ sessions(id TEXT PRIMARY KEY, chunk_id, started_at INTEGER, ended_at INTEGER,
 days(user_id, day TEXT, confirmed_at INTEGER, shutdown_at INTEGER,
   deferred TEXT,                  -- JSON array of chunk ids marked "Not today"
   rev INTEGER, PRIMARY KEY (user_id, day))
-ops(op_id TEXT PRIMARY KEY, user_id TEXT, applied_at INTEGER)   -- idempotency ledger
+ops(user_id TEXT, op_id TEXT, applied_at INTEGER,               -- idempotency ledger
+  PRIMARY KEY (user_id, op_id))                                 -- per user, so one user's op ids never shadow another's (slice 8)
 sends(
   id TEXT PRIMARY KEY, user_id TEXT, day TEXT,
   kind TEXT,                      -- morning | light_day | close | deadline_day | overdue | wrap_up
@@ -97,6 +100,7 @@ handoffs(code TEXT PRIMARY KEY, user_id, purpose TEXT,          -- install | tg_
 
 Rules the schema does not show:
 
+- **Row ids are global, writes are user-scoped.** `tasks`, `chunks`, `sessions`, and `hard_blocks` keep `id` as the primary key (clients generate UUIDs), and every write carries `user_id`. An op naming a row id that belongs to another user changes nothing.
 - **Nothing is hard-deleted by the user.** *Remove from list* sets `state = removed`; deleting a step sets `deleted = 1`. Sync needs the tombstone to tell other devices. Only the retention job (§8) deletes rows.
 - **A parent chunk's state is never stored.** It is computed from its children (Product_Scope §4).
 - **Reminder states are derived, not stored as one column:** Scheduled = planned row, not sent; Sent = `sent_at`; Acted = `acted_at`; Snoozed = `snoozed_at`; Dismissed = sent more than 5 hours ago with neither; Silenced = an `overdue` row exists for the task and the deadline hasn't changed since.
@@ -191,11 +195,12 @@ The example becomes the golden test for `core/` (§9).
 
 **Push and pull in one call:** `POST /api/sync { cursor, ops: [...] }` → `{ cursor, changes: [...], rejected: [...] }`.
 
-- **An op** is `{ op_id, entity, id, fields }`: a patch of named fields on one row. `op_id` is a client UUID made when the user acts, stored in the outbox, and reused on every retry.
+- **An op** is `{ op_id, entity, id, fields }`: a patch of named fields on one row. `entity` is one of `tasks`, `chunks`, `sessions`, `days`, `hard_blocks`; for `days`, `id` is the local date. An op that names every required column (`title` and `state` for a task, and so on) creates the row if it is new. A partial patch of a row that does not exist is returned in `rejected` as `incomplete_create`. `op_id` is a client UUID made when the user acts, stored in the outbox, and reused on every retry.
 - **No op runs twice.** The server drops ops whose `op_id` is already in `ops`, then applies the rest and records their `op_id`s in one `db.batch()`, which D1 runs as a single transaction. A retry after a lost response finds its ops recorded and skips them. Two concurrent requests carrying the same op collide on the `ops` primary key, so one batch fails as a whole and its retry is filtered.
 - **Conflicts: per-field last write wins, in server arrival order.** Device A renames a task while device B marks it done, both offline: both fields land. If both rename it, the rename that reaches the server last wins. Client clocks are never compared.
 - **The server enforces the rules.** Each op is checked against the state machines in Product_Scope §4 (for example, nothing leaves `done`). An illegal op is returned in `rejected`, and the client drops its local change and takes the server row. The client runs the same checks first, so in practice this only happens after a two-device race.
-- **Pull:** every applied write sets the row's `rev` to `++users.rev`. Changes are the user's rows with `rev > cursor`. One integer per user, no clocks.
+- **Pull:** every applied write sets the row's `rev` to `++users.rev`. Changes are the user's rows with `rev > cursor`, each as `{ entity, row }` in the client's entity shape plus `rev`. They include the rows this same request just wrote. One integer per user, no clocks.
+- **Limits (slice 8):** at most 40 ops per request, because D1 counts every statement of a `db.batch()` against the 50-query cap (§11). More returns `413`, and the client sends its outbox in slices of 40. A body the validator cannot accept (unknown entity or field, wrong type, oversized) returns `400` and applies nothing.
 - **When:** on app open, on regaining focus or a connection, and about 2 seconds after the last local change. No websockets. Two devices converge within one open or focus.
 
 ## 6. Telegram (phase 2)
@@ -284,6 +289,7 @@ Each slice ends runnable, tested, and merged by PR. No slice starts while the pr
 - **Time zones:** cron runs in UTC; every day boundary is local. Use `Intl.DateTimeFormat` with the user's `tz`, and never `new Date().getDate()` on the server.
 - **`@simplewebauthn/server` lists Node ≥ 20 and Deno, not Workers.** Slice 14 starts by verifying it under `nodejs_compat`. Fallback: verify ES256 assertions by hand with WebCrypto.
 - **wrangler 4.146.0 returned npm 404s on its release day.** Pin versions, and bump on purpose.
+- **D1 allows at most 5 terms in a compound `SELECT`** (found in slice 8: a six-way `UNION ALL` failed with `too many terms`), and 100 bound parameters per statement. The sync lookup is split in two for the first, and passes id lists as one JSON parameter read with `json_each` for the second.
 
 ## 12. Decisions taken for this scope
 
