@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { tick } from "../core/chunk";
-import { band, confirmDay, daysBetween, isConfirmed, notToday, type Today, type TodayRow } from "../core/today";
+import { band, confirmDay, isConfirmed, notToday, wasDueLabel as wasDue, type Today, type TodayRow } from "../core/today";
+import { Ring } from "./Reward";
 import { pin, type State, type Task } from "../core/task";
 
 interface Props {
@@ -14,16 +15,7 @@ interface Props {
   onCapture: () => void;
 }
 
-const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
-const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-
-// Overdue is a plain date label, no red (UX_Flows.md §4).
-function wasDue(deadline: string, today: string) {
-  const d = Date.parse(deadline);
-  return `Was due ${daysBetween(deadline, today) < 7 ? weekday.format(d) : shortDate.format(d)}`;
-}
-
-// Wireframes.md §1. The ring and nook arrive with Reward (slice 6).
+// Wireframes.md §1. The cat joins the nook in phase 3.
 export function TodayView({ plan, state, update, today, onOpenTask, onStart, onInbox, onCapture }: Props) {
   const { rows, frog, waiting, lightDay } = plan;
   // The morning confirm shows on the day's first visit to Today and never returns that day, answered or not.
@@ -90,8 +82,16 @@ export function TodayView({ plan, state, update, today, onOpenTask, onStart, onI
     );
   };
 
+  const doneCount = rows.filter((r) => r.done).length;
   return (
     <>
+      {/* The nook (Design_Direction.md §4). Visible count is hidden from screen readers; the ring's label carries it (A4). */}
+      <section className="nook" aria-label="Progress">
+        <span className="lead" aria-hidden="true">
+          {doneCount} of {rows.length} done
+        </span>
+        <Ring done={doneCount} total={rows.length} />
+      </section>
       {confirming && (
         <section className="card" aria-label="Morning confirm">
           <p className="lead">

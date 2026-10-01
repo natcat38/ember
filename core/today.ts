@@ -126,3 +126,23 @@ export const confirmDay = (s: State, today: string, now: number) =>
   withDay(s, today, (d) => (d.confirmed_at ? d : { ...d, confirmed_at: now }));
 
 export const isConfirmed = (s: State, today: string) => !!s.days.find((d) => d.day === today)?.confirmed_at;
+
+export const wrapUp = (s: State, today: string, now: number) =>
+  withDay(s, today, (d) => (d.shutdown_at ? d : { ...d, shutdown_at: now }));
+
+// Steps and tasks finished today: zero means the shutdown's resting variant (UX_Flows.md §3.7).
+export function doneTodayCount(s: State, today: string, tz = "Asia/Singapore", quietEndMin?: number) {
+  const on = (at: number) => dayOf(at, tz, quietEndMin) === today;
+  return s.chunks.filter((c) => !c.deleted && c.state === "done" && on(c.updated_at)).length + s.tasks.filter((t) => t.state === "done" && on(t.updated_at)).length;
+}
+
+const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
+const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+// Overdue is a plain date label, no red (UX_Flows.md §4): "Was due Tue", or the date once it's a week old.
+export function wasDueLabel(deadline: string, today: string) {
+  const d = Date.parse(deadline);
+  return `Was due ${daysBetween(deadline, today) < 7 ? weekday.format(d) : shortDate.format(d)}`;
+}
+
+export const addDays = (day: string, n: number) => new Date(Date.parse(day) + n * 86_400_000).toISOString().slice(0, 10);

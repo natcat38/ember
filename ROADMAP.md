@@ -2,7 +2,7 @@
 # Roadmap — Ember
 
 **Current stage: Build**
-**Next up:** Slices 0–5 merged and deployed 2026-10-02 at https://ember-tasks.cron-telegram.workers.dev (capture, triage, steps, Today with the §4.6 golden test, Focus). Next: **slice 6, Reward + shutdown** (`Tech_Scope.md` §10), then **slice 7**, which opens with the 5-minute iPhone handoff test with Natalie (§7) and needs the workers.dev subdomain decided first, since a rename breaks installed icons. Slice 11 needs a new production Telegram bot from Natalie. /protect-repo when the repo goes public, after the cleanup list at the end of `tech-spike.md`.
+**Next up:** Slices 0–6 merged and deployed 2026-10-02 at https://ember-tasks.cron-telegram.workers.dev: the full phase-1 loop runs end to end (capture, triage, steps, Today with the §4.6 golden test, Focus, Reward, shutdown). Next: **slice 7, PWA + iPhone safety**, which opens with the 5-minute iPhone handoff test with Natalie (`Tech_Scope.md` §7). Decide the workers.dev subdomain first, because a rename breaks installed icons. Slice 11 needs a new production Telegram bot from Natalie. /protect-repo when the repo goes public, after the cleanup list at the end of `tech-spike.md`.
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.

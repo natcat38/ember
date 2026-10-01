@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
-import { band, buildToday, confirmDay, daysBetween, isConfirmed, notToday, remaining } from "./today";
-import { emptyState, pin, type State, type Task } from "./task";
+import { band, buildToday, confirmDay, daysBetween, doneTodayCount, isConfirmed, notToday, remaining, wrapUp } from "./today";
+import { completeTask, emptyState, pin, triage, type State, type Task } from "./task";
 import type { Chunk } from "./chunk";
 
 const TODAY = "2026-10-05"; // Mei's Monday, Tech_Scope.md §4.6
@@ -135,4 +135,27 @@ test("Not today, confirm, and pin are recorded once per day", () => {
   expect(pin(s, "D", TODAY, 7).tasks.find((t) => t.id === "D")?.pinned_on).toBe(TODAY);
   const inbox = { ...s, tasks: [task("X", { state: "inbox" })] };
   expect(pin(inbox, "X", TODAY, 7)).toBe(inbox);
+});
+
+test("wrap-up is recorded once; done-today counts steps finished today only", () => {
+  let s = wrapUp(mei(), TODAY, 9);
+  expect(wrapUp(s, TODAY, 10)).toBe(s);
+  expect(s.days[0].shutdown_at).toBe(9);
+  const at = (iso: string) => Date.parse(iso);
+  s.chunks = s.chunks.map((c) =>
+    c.id === "A1" ? { ...c, state: "done", updated_at: at("2026-10-05T12:00:00+08:00") } : c.id === "A2" ? { ...c, state: "done", updated_at: at("2026-10-04T12:00:00+08:00") } : c,
+  );
+  expect(doneTodayCount(s, TODAY)).toBe(1);
+  expect(doneTodayCount(mei(), TODAY)).toBe(0);
+  expect(doneTodayCount(completeTask(mei(), "B", at("2026-10-05T21:00:00+08:00")), TODAY)).toBe(1); // finishing a task counts too
+});
+
+test("a task completes from Active or Overdue only, and stays done", () => {
+  const s = mei();
+  const done = completeTask(s, "A", 5);
+  expect(done.tasks.find((t) => t.id === "A")?.state).toBe("done");
+  expect(completeTask(done, "A", 6)).toBe(done);
+  const inbox = { ...s, tasks: [task("X", { state: "inbox" })] };
+  expect(completeTask(inbox, "X", 5)).toBe(inbox);
+  expect(triage(done, "A", { size: "S" }, 7, TODAY)).toBe(done); // nothing leaves done
 });
