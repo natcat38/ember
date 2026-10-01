@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { capture, pin, remove, rename, restore, triage, type CaptureInput, type State, type Task } from "../core/task";
-import { addDays, buildToday, doneTodayCount, wrapUp } from "../core/today";
+import { addDays, buildToday, doneTodayCount, isLapse, resetOverdue, wrapUp } from "../core/today";
 import { RewardView } from "./Reward";
 import { ShutdownView } from "./Shutdown";
 import { TodayView } from "./Today";
@@ -28,7 +28,9 @@ const useWide = () =>
   );
 
 export function App() {
-  const [state, setState] = useState<State>(() => load());
+  // Stamp this visit as part of loading, so opening the app saves once; the lapse check reads the visit before it.
+  const [boot] = useState(() => load());
+  const [state, setState] = useState<State>(() => ({ ...boot, last_seen_at: Date.now() }));
   const [saved, setSaved] = useState(true);
   // Reopening the app mid-session goes straight back to Focus; the timer kept running on the wall clock.
   const [view, setView] = useState<View>(() => ({ name: state.focus ? "focus" : "today" }));
@@ -45,11 +47,17 @@ export function App() {
   const plan = buildToday(state, today, { tz, sessionsDone: sessionsDone(state) });
 
   // Re-render each minute so an app left open rolls over to the new day at the boundary.
-  const [, setMinute] = useState(0);
+  const [minute, setMinute] = useState(0);
   useEffect(() => {
     const i = setInterval(() => setMinute((m) => m + 1), 60_000);
     return () => clearInterval(i);
   }, []);
+
+  // The lapse return (Product_Scope.md §2) is decided once, from the last visit before this open.
+  const [welcome, setWelcome] = useState(() => isLapse(boot.last_seen_at, Date.now(), tz));
+  useEffect(() => {
+    if (minute) setState((s) => ({ ...s, last_seen_at: Date.now() })); // an app left open is still being seen
+  }, [minute]);
 
   useEffect(() => setSaved(save(state)), [state]);
 
@@ -80,6 +88,7 @@ export function App() {
   }
 
   function navigate(v: View) {
+    if (v.name !== "today") setWelcome(false); // the welcome back is offered once
     setView(v);
     window.scrollTo(0, 0);
     // Move focus to the new screen's heading so keyboard and screen-reader users land on it.
@@ -227,6 +236,9 @@ export function App() {
                 onStart={(r) => (r.chunk ? start(r.chunk.id) : startTask(r.task))}
                 onInbox={() => navigate({ name: "inbox" })}
                 onCapture={openCapture}
+                welcome={welcome}
+                onWelcomeDone={() => setWelcome(false)}
+                onReset={() => setState((s) => resetOverdue(s, today, Date.now()))}
               />
             ) : (
               <Inbox

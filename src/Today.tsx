@@ -13,17 +13,22 @@ interface Props {
   onStart: (r: TodayRow) => void;
   onInbox: () => void;
   onCapture: () => void;
+  welcome: boolean; // first open after 3+ days away
+  onWelcomeDone: () => void;
+  onReset: () => void;
 }
 
 // Wireframes.md §1. The cat joins the nook in phase 3.
-export function TodayView({ plan, state, update, today, onOpenTask, onStart, onInbox, onCapture }: Props) {
+export function TodayView({ plan, state, update, today, onOpenTask, onStart, onInbox, onCapture, welcome, onWelcomeDone, onReset }: Props) {
   const { rows, frog, waiting, lightDay } = plan;
   // The morning confirm shows on the day's first visit to Today and never returns that day, answered or not.
-  const [confirming, setConfirming] = useState(() => !isConfirmed(state, today) && rows.length > 0);
+  // On a lapse return the welcome back takes its place.
+  const [confirming, setConfirming] = useState(() => !isConfirmed(state, today) && rows.length > 0 && !welcome);
   const [adjusting, setAdjusting] = useState(false);
   useEffect(() => {
-    if (confirming) update((s) => confirmDay(s, today, Date.now()));
-  }, [confirming, today, update]);
+    if (confirming || welcome) update((s) => confirmDay(s, today, Date.now()));
+  }, [confirming, welcome, today, update]);
+  const slipped = plan.ranked.some((t) => band(t, today) === "overdue");
 
   const defer = (key: string) => update((s) => notToday(s, today, key));
   const rest = rows.filter((r) => r !== frog);
@@ -92,6 +97,30 @@ export function TodayView({ plan, state, update, today, onOpenTask, onStart, onI
         </span>
         <Ring done={doneCount} total={rows.length} />
       </section>
+      {welcome && (
+        <section className="card" aria-label="Welcome back">
+          <p className="lead">Welcome back. Here's what's on today.</p>
+          {slipped && (
+            <>
+              <p>A couple of these slipped past their date. Want to reset them?</p>
+              <div className="actions card-actions">
+                <button
+                  className="button"
+                  onClick={() => {
+                    onReset();
+                    onWelcomeDone();
+                  }}
+                >
+                  Reset them
+                </button>
+                <button className="button" onClick={onWelcomeDone}>
+                  Leave them
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
       {confirming && (
         <section className="card" aria-label="Morning confirm">
           <p className="lead">

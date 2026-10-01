@@ -146,3 +146,14 @@ export function wasDueLabel(deadline: string, today: string) {
 }
 
 export const addDays = (day: string, n: number) => new Date(Date.parse(day) + n * 86_400_000).toISOString().slice(0, 10);
+
+// Product_Scope.md §2: 3 or more days away is a lapse; one or two days opens as an ordinary day.
+export const isLapse = (lastSeenAt: number | null, now: number, tz = "Asia/Singapore", quietEndMin?: number) =>
+  lastSeenAt !== null && daysBetween(dayOf(lastSeenAt, tz, quietEndMin), dayOf(now, tz, quietEndMin)) >= 3;
+
+// "Want to reset them?": the passed dates are dropped, so the "Was due" labels go and each task ranks afresh.
+export function resetOverdue(s: State, today: string, now: number): State {
+  const passed = (t: Task) => (t.state === "active" || t.state === "overdue") && !!t.deadline && daysBetween(today, t.deadline) < 0;
+  if (!s.tasks.some(passed)) return s;
+  return { ...s, tasks: s.tasks.map((t) => (passed(t) ? { ...t, state: "active", deadline: null, runway_start: null, updated_at: now } : t)) };
+}

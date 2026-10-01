@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { band, buildToday, confirmDay, daysBetween, doneTodayCount, isConfirmed, notToday, remaining, wrapUp } from "./today";
+import { band, buildToday, confirmDay, daysBetween, doneTodayCount, isConfirmed, isLapse, notToday, remaining, resetOverdue, wrapUp } from "./today";
 import { completeTask, emptyState, pin, triage, type State, type Task } from "./task";
 import type { Chunk } from "./chunk";
 
@@ -158,4 +158,19 @@ test("a task completes from Active or Overdue only, and stays done", () => {
   const inbox = { ...s, tasks: [task("X", { state: "inbox" })] };
   expect(completeTask(inbox, "X", 5)).toBe(inbox);
   expect(triage(done, "A", { size: "S" }, 7, TODAY)).toBe(done); // nothing leaves done
+});
+
+test("lapse: 3+ days away by the local day, not 72 hours", () => {
+  const at = (iso: string) => Date.parse(iso);
+  expect(isLapse(null, at("2026-10-05T09:00:00+08:00"))).toBe(false); // first ever open
+  expect(isLapse(at("2026-10-03T09:00:00+08:00"), at("2026-10-05T09:00:00+08:00"))).toBe(false); // 2 days
+  expect(isLapse(at("2026-10-02T23:00:00+08:00"), at("2026-10-05T08:30:00+08:00"))).toBe(true); // days 10-02 → 10-05
+  expect(isLapse(at("2026-10-03T07:00:00+08:00"), at("2026-10-05T09:00:00+08:00"))).toBe(true); // 07:00 still belongs to 10-02
+});
+
+test("reset clears passed dates only, once", () => {
+  const s = resetOverdue(mei(), TODAY, 9);
+  expect(s.tasks.find((t) => t.id === "C")).toMatchObject({ deadline: null, runway_start: null, state: "active", updated_at: 9 });
+  expect(s.tasks.find((t) => t.id === "B")?.deadline).toBe("2026-10-05"); // due today is not overdue
+  expect(resetOverdue(s, TODAY, 10)).toBe(s);
 });
