@@ -35,7 +35,7 @@ const MAX_ATTEMPTS = 3;
 
 const isComplete = (op: Op) => ENTITIES[op.entity].required.every((f) => f in op.fields);
 
-async function sync(db: D1Database, uid: string, cursor: number, requested: Op[], now: number): Promise<SyncResponse> {
+export async function sync(db: D1Database, uid: string, cursor: number, requested: Op[], now: number): Promise<SyncResponse> {
   const seen = new Set<string>(); // the same op_id twice in one body counts once
   const ops = requested.filter((o) => !seen.has(o.op_id) && seen.add(o.op_id));
 

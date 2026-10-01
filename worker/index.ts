@@ -1,4 +1,8 @@
 import { handleSync } from "./sync";
+import { handleTgLink, handleTgWebhook } from "./telegram";
+
+// The Telegram webhook lives at /api/tg/<secret>; the secret is the rest of the path (Tech_Scope.md §6).
+const TG_HOOK_PREFIX = "/api/tg/";
 
 // One Worker serves the app, the API, and (later) the cron on one origin (ADR-0004). wrangler.jsonc routes only
 // /api/* here (`run_worker_first`); everything else is answered by the static-assets layer before this runs, with the
@@ -8,6 +12,8 @@ export default {
     const { pathname } = new URL(request.url);
     try {
       if (pathname === "/api/sync") return await handleSync(request, env);
+      if (pathname === "/api/tg/link") return await handleTgLink(request, env);
+      if (pathname.startsWith(TG_HOOK_PREFIX)) return await handleTgWebhook(request, env, pathname.slice(TG_HOOK_PREFIX.length));
       if (pathname.startsWith("/api/")) return Response.json({ error: "not_found" }, { status: 404 });
       return await env.ASSETS.fetch(request);
     } catch (e) {
