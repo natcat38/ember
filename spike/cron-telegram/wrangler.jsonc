@@ -1,0 +1,10 @@
+{
+  "name": "ember-spike",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "triggers": { "crons": ["* * * * *"] },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "ember-spike", "database_id": "7989de14-a707-4ae4-858b-675c5b1c1cb7" }
+  ]
+}
