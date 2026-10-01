@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { allOps, applyChanges, diff } from "./sync";
+import { allOps, applyChanges, createSync, diff } from "./sync";
 import { capture, emptyState, triage, type State } from "../core/task";
 import { addChunk } from "../core/chunk";
 
@@ -88,4 +88,48 @@ test("applying an echo of what this device already has changes nothing", () => {
   const echo = allOps(s, id).map((o) => ({ entity: o.entity, row: o.entity === "days" ? { day: o.id, ...o.fields, rev: 1 } : { id: o.id, ...o.fields, rev: 1 } }));
   const merged = applyChanges(s, echo, []);
   expect(diff(s, merged, () => "op")).toEqual([]);
+});
+
+// The engine against a fake server: storage and fetch injected.
+function fakeStorage() {
+  const m = new Map<string, string>();
+  return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+}
+const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+
+test("a refused change: the server's version comes back on a full refetch, and the app is told", async () => {
+  const s = triage(sample(), "id-1", { size: "M" }, 9, today); // locally Active
+  const server = { ...sample().tasks[0], state: "done", rev: 4 }; // another device finished it
+  const bodies: { cursor: number; ops: unknown[] }[] = [];
+  const responses = [
+    reply({ cursor: 3, changes: [], rejected: [] }), // first upload
+    reply({ cursor: 5, changes: [], rejected: [{ op_id: "x", reason: "illegal_transition" }] }), // the refused edit
+    reply({ cursor: 5, changes: [{ entity: "tasks", row: server }], rejected: [] }), // the refetch from 0
+  ];
+  let state = sample();
+  let told = 0;
+  const engine = createSync(state, {
+    update: (fn) => (state = fn(state)),
+    storage: fakeStorage(),
+    fetch: (async (_url: string, init: RequestInit) => (bodies.push(JSON.parse(init.body as string)), responses.shift()!)) as typeof fetch,
+    onRejected: () => told++,
+  });
+  await engine.push();
+  engine.record(s);
+  state = s;
+  await engine.push();
+  expect(bodies.map((b) => b.cursor)).toEqual([0, 3, 0]);
+  expect(told).toBe(1);
+  expect(state.tasks[0].state).toBe("done");
+});
+
+test("offline means the network failed; a server error is not offline", async () => {
+  const statuses: boolean[] = [];
+  const run = async (fail: () => Promise<Response>) => {
+    const engine = createSync(sample(), { update: () => {}, storage: fakeStorage(), fetch: fail as typeof fetch, onStatus: (st) => statuses.push(st.offline) });
+    await engine.push();
+  };
+  await run(() => Promise.reject(new TypeError("Failed to fetch")));
+  await run(async () => reply({ error: "boom" }, 503));
+  expect(statuses).toEqual([true, false]);
 });

@@ -36,7 +36,13 @@ export function App() {
   const [saved, setSaved] = useState(true);
   // Phase 2 backup and sync (Tech_Scope.md §5): every state change becomes ops in an outbox the server applies once.
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ backedUp: false, pending: 0, offline: false });
-  const [sync] = useState(() => createSync(state, { update: setState, onStatus: setSyncStatus }));
+  const [sync] = useState(() =>
+    createSync(state, {
+      update: setState,
+      onStatus: setSyncStatus,
+      onRejected: () => announce("This changed on another device, so you're seeing the latest version."),
+    }),
+  );
   // Reopening the app mid-session goes straight back to Focus; the timer kept running on the wall clock.
   const [view, setView] = useState<View>(() => ({ name: state.focus ? "focus" : "today" }));
   const [askFor, setAskFor] = useState<Task | null>(null);
@@ -73,7 +79,25 @@ export function App() {
 
   // Sync on open, on coming back to the app, and on reconnecting (§5 "When").
   useEffect(() => {
-    void sync.push();
+    // A Telegram link button carries a sign-in code (Tech_Scope.md §6). Redeem it before the first sync, so this
+    // browser joins the user's list instead of starting a new one, then open the task the button points at.
+    const q = new URLSearchParams(location.search);
+    const code = q.get("h");
+    const taskId = q.get("t");
+    if (code || taskId) history.replaceState(null, "", location.pathname);
+    const joined = code
+      ? fetch("/api/handoff/redeem", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ code, s: q.get("s") }),
+        })
+          .then((r) => r.ok && sync.restart())
+          .catch(() => {}) // offline or expired: carry on as this browser's own list
+      : Promise.resolve();
+    void joined
+      .then(() => sync.push())
+      .then(() => taskId && setView({ name: "task", id: taskId, from: "today" }));
     const wake = () => document.visibilityState === "visible" && void sync.push();
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("online", wake);
@@ -297,6 +321,7 @@ export function App() {
       )}
 
       {/* ponytail: copy not yet in Design_Direction §6; needs Natalie's approval. */}
+      {syncStatus.offline && <p className="status-line">Offline. Your changes will sync when you reconnect.</p>}
       {!saved && <p className="status-line">This device isn't saving right now. Keep Ember open so nothing is lost.</p>}
       {/* The open sheet makes the page inert, which mutes a live region outside it, so the sheet carries its own. */}
       <p className="status-line status" aria-live="polite">
