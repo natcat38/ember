@@ -1,6 +1,6 @@
 # Ember: Tech Scope
 
-Status: **draft, 2026-10-02**, awaiting Natalie's approval. Inputs: `Product_Scope.md` (what), `UX_Flows.md` (how it behaves), `docs/research/tech-spike.md` (what was proven), ADRs in `docs/adr/` (why). This document covers phases 1 and 2 (the cut line) in full and sketches phases 3 and 4.
+Status: **approved by Natalie, 2026-10-02**. Inputs: `Product_Scope.md` (what), `UX_Flows.md` (how it behaves), `docs/research/tech-spike.md` (what was proven), ADRs in `docs/adr/` (why). This document covers phases 1 and 2 (the cut line) in full and sketches phases 3 and 4.
 
 ## 1. Stack
 
