@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 // Seed one task straight into storage and open its Task view.
 async function openTask(page: Page) {

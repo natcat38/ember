@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 // Slice 10 done-when: the §4.6 example renders in full, hard blocks included.
 test.use({ timezoneId: "Asia/Singapore" });

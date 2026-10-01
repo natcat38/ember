@@ -6,6 +6,7 @@ interface Props {
   state: State;
   update: (fn: (s: State) => State) => void;
   browserTz: string;
+  backedUp: boolean;
 }
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -14,7 +15,7 @@ const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 // Wireframes.md §8, phase-1 rows only: quiet hours, time zone, hard blocks. Changes save as you make them.
 // Channels (slice 11), the focus timer and rewards (phase 3), and devices (slice 14) join later.
-export function SettingsView({ state, update, browserTz }: Props) {
+export function SettingsView({ state, update, browserTz, backedUp }: Props) {
   const { quiet_start, quiet_end, tz } = state.settings;
   const set = (patch: Partial<State["settings"]>) => update((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
   const blocks = state.hard_blocks.filter((b) => !b.deleted);
@@ -78,6 +79,13 @@ export function SettingsView({ state, update, browserTz }: Props) {
         )}
         <AddBlock onAdd={(b) => update((s) => ({ ...s, hard_blocks: [...s.hard_blocks, b] }))} />
       </section>
+
+      {backedUp && (
+        <section className="section" aria-labelledby="h-data">
+          <h2 id="h-data">Data</h2>
+          <p className="empty">Your list is backed up, so it won't get lost.</p>
+        </section>
+      )}
     </>
   );
 }

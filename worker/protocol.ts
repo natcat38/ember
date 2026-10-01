@@ -1,6 +1,6 @@
 // Wire format of POST /api/sync (Tech_Scope.md §5). The client outbox (integrated later) imports these types.
 
-export type Entity = "tasks" | "chunks" | "sessions" | "days" | "hard_blocks";
+export type Entity = "tasks" | "chunks" | "sessions" | "days" | "hard_blocks" | "settings";
 
 // A patch of named fields on one row. `id` is the row id; for `days` it is the local date 'YYYY-MM-DD'.
 // `op_id` is made once when the user acts and reused on every retry.
@@ -45,12 +45,13 @@ export interface SyncResponse {
 }
 
 // D1 allows 50 queries per invocation on the free plan and every statement in a db.batch() counts (Tech_Scope.md §11).
-// One request costs: 1 (identity) + up to 2 (ledger check, and one lookup of the stored rows the ops touch and refer to,
-// which the rules read) + MAX_OPS + 2 (rev bump, ledger insert) + 2 (pull, cursor) = MAX_OPS + 7, which is 47 at 40. A request with more ops
+// D1 also caps a compound SELECT at 5 terms, and there are 6 synced tables, so the row lookup and the pull each take up
+// to 2 statements. One request costs: up to 2 (identity: a stale cookie's lookup, then the new user) + up to 3 (ledger
+// check, row lookup) + MAX_OPS + 2 (rev bump, ledger insert) + 3 (pull, cursor) = MAX_OPS + 10, which is 48 at 38. A request with more ops
 // is refused whole with 413, and the client sends its outbox in slices of at most MAX_OPS and loops until it is empty.
 // The one path that can pass 50 is a rare retry after a concurrent request wins an op (sync.ts), and only on a body
 // near the cap; it fails the request with 500 and the client retries.
-export const MAX_OPS = 40;
+export const MAX_OPS = 38;
 
 // Request body cap in characters, checked before parsing.
 export const MAX_BODY_CHARS = 256 * 1024;

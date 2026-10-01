@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 // Slice 6 done-when: the phase-1 loop runs end to end at 375 px (Tech_Scope.md §9):
 // capture → triage → step → Today → focus → reward → shutdown.
