@@ -1,6 +1,6 @@
 import { cookieFor, resolveUser } from "./identity";
 import { MAX_BODY_CHARS, type Change, type Entity, type Op, type Rejected, type SyncResponse } from "./protocol";
-import { checkOp } from "./rules";
+import { applyOp, checkOp, type Ctx, type Row } from "./rules";
 import { ENTITIES, ENTITY_NAMES } from "./schema";
 import { parseSyncBody } from "./validate";
 
@@ -40,8 +40,8 @@ async function sync(db: D1Database, uid: string, cursor: number, requested: Op[]
   const ops = requested.filter((o) => !seen.has(o.op_id) && seen.add(o.op_id));
 
   for (let attempt = 1; ; attempt++) {
-    const { applied, existing } = await lookup(db, uid, ops);
-    const { plan, rejected } = planOps(ops, applied, existing);
+    const { applied, rows } = await lookup(db, uid, ops);
+    const { plan, rejected } = planOps(ops, applied, rows);
     try {
       return { ...(await commit(db, uid, plan, cursor, now)), rejected };
     } catch (e) {
@@ -51,51 +51,89 @@ async function sync(db: D1Database, uid: string, cursor: number, requested: Op[]
   }
 }
 
-// Which of these op ids are already in the ledger, and which rows that partial patches target exist. A complete op
-// needs no existence check because it upserts. D1 allows at most 5 terms in a compound SELECT, so the ledger query
-// and the existence query are separate statements, and the existence query has one term per entity named.
+const rowKey = (entity: Entity, id: string) => `${entity}:${id}`;
+
+// What the rules read from each table, in one shape so the lookup can be a single compound SELECT.
+const LOOKUP_COLUMNS: Record<Entity, string> = {
+  tasks: "state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
+  chunks: "state, task_id, parent_id, deleted",
+  sessions: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
+  days: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
+  hard_blocks: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
+};
+
+// The row ids this request needs the stored state of. Tasks and chunks are always loaded, because their state rules
+// judge every op (and a complete op may be an upsert of a row that exists). The other entities are loaded only for
+// partial patches, to know whether the row exists. Rows an op refers to are loaded too: a chunk's task and parent,
+// and a session's chunk.
+function wantedIds(ops: Op[]): Map<Entity, Set<string>> {
+  const wanted = new Map<Entity, Set<string>>();
+  const want = (entity: Entity, id: unknown) => {
+    if (typeof id === "string") (wanted.get(entity) ?? wanted.set(entity, new Set()).get(entity)!).add(id);
+  };
+  for (const op of ops) {
+    if (op.entity === "tasks" || op.entity === "chunks" || !isComplete(op)) want(op.entity, op.id);
+    if (op.entity === "chunks") {
+      want("tasks", op.fields.task_id);
+      want("chunks", op.fields.parent_id);
+    }
+    if (op.entity === "sessions") want("chunks", op.fields.chunk_id);
+  }
+  return wanted;
+}
+
+// Which of these op ids are already in the ledger, and the stored state of every row the ops touch or refer to.
+// Two statements however many ops there are. D1 allows at most 5 terms in a compound SELECT, so the ledger query and
+// the row query are separate, and the row query has one term per entity needed (five at most, one per table).
 async function lookup(db: D1Database, uid: string, ops: Op[]) {
   const applied = new Set<string>();
-  const existing = new Set<string>();
-  if (!ops.length) return { applied, existing };
+  const rows = new Map<string, Row>();
+  if (!ops.length) return { applied, rows };
 
   const stmts = [
     db
       .prepare("SELECT op_id AS id FROM ops WHERE user_id = ?1 AND op_id IN (SELECT value FROM json_each(?2))")
       .bind(uid, JSON.stringify(ops.map((o) => o.op_id))),
   ];
-  const partial = ops.filter((o) => !isComplete(o));
-  if (partial.length) {
-    const entities = ENTITY_NAMES.filter((n) => partial.some((o) => o.entity === n));
-    const terms = entities.map((name) => {
+  const wanted = [...wantedIds(ops)];
+  if (wanted.length) {
+    const terms = wanted.map(([name], i) => {
       const { table, key } = ENTITIES[name];
-      return `SELECT '${name}' AS entity, ${key} AS id FROM ${table} WHERE user_id = ?1 AND ${key} IN (SELECT value FROM json_each(?2))`;
+      return `SELECT '${name}' AS entity, ${key} AS id, ${LOOKUP_COLUMNS[name]} FROM ${table} WHERE user_id = ?1 AND ${key} IN (SELECT value FROM json_each(?${i + 2}))`;
     });
-    stmts.push(db.prepare(terms.join(" UNION ALL ")).bind(uid, JSON.stringify(partial.map((o) => o.id))));
+    stmts.push(db.prepare(terms.join(" UNION ALL ")).bind(uid, ...wanted.map(([, ids]) => JSON.stringify([...ids]))));
   }
 
-  const [ledger, rows] = await db.batch<{ id: string; entity?: string }>(stmts);
+  const [ledger, found] = await db.batch<{ id: string; entity?: Entity } & Record<string, unknown>>(stmts);
   for (const r of ledger.results) applied.add(r.id);
-  for (const r of rows?.results ?? []) existing.add(`${r.entity}:${r.id}`);
-  return { applied, existing };
+  for (const r of found?.results ?? []) {
+    rows.set(rowKey(r.entity!, r.id), { state: r.state as string | null, task_id: r.task_id as string | null, parent_id: r.parent_id as string | null, deleted: r.deleted === 1 });
+  }
+  return { applied, rows };
 }
 
 // Drop ops already in the ledger, refuse the ones that cannot be applied, and mark each remaining op as an upsert
-// or a patch. Arrival order is preserved: it decides which write wins a conflict.
-function planOps(ops: Op[], applied: Set<string>, existing: Set<string>) {
+// or a patch. Arrival order is preserved: it decides which write wins a conflict, and each accepted op becomes the
+// stored state the next op is judged against. A rejected op changes nothing, so it is not part of that state.
+function planOps(ops: Op[], applied: Set<string>, stored: Map<string, Row>) {
   const plan: Planned[] = [];
   const rejected: Rejected[] = [];
-  const exists = new Set(existing); // grows as earlier ops in this request create rows
+  const rows = new Map(stored);
+  const ctx: Ctx = {
+    task: (id) => rows.get(rowKey("tasks", id)) ?? null,
+    chunk: (id) => rows.get(rowKey("chunks", id)) ?? null,
+  };
   for (const op of ops) {
     if (applied.has(op.op_id)) continue;
-    const rowKey = `${op.entity}:${op.id}`;
+    const key = rowKey(op.entity, op.id);
+    const current = rows.get(key) ?? null;
     const complete = isComplete(op);
-    const reason = checkOp(op) ?? (complete || exists.has(rowKey) ? null : "incomplete_create");
+    const reason = !complete && !current ? "incomplete_create" : checkOp(op, current, ctx);
     if (reason) {
       rejected.push({ op_id: op.op_id, reason });
       continue;
     }
-    exists.add(rowKey);
+    rows.set(key, applyOp(current, op));
     plan.push({ op, update: !complete });
   }
   return { plan, rejected };

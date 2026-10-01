@@ -24,6 +24,15 @@ export interface Change {
 }
 
 // An op the server refused. `op_id` is not recorded in the ledger, so the same op is refused again if retried.
+// `reason` is one of these stable codes (the rules live in rules.ts; Product_Scope §4, UX_Flows §3.3):
+//   incomplete_create      a partial patch of a row that does not exist
+//   illegal_transition     a task state change the state machine forbids (for example, done to inbox)
+//   illegal_initial_state  a new task created as done
+//   foreign_task           a chunk's task_id is not one of this user's tasks (or does not exist)
+//   moved_task             a chunk was pointed at a different task than the one it belongs to
+//   bad_parent             a chunk's parent_id is not a live, top-level chunk of the same task (two levels at most)
+//   undelete               a deleted chunk was set back to deleted = false
+//   foreign_chunk          a session's chunk_id is not one of this user's chunks (or does not exist)
 export interface Rejected {
   op_id: string;
   reason: string;
@@ -36,8 +45,8 @@ export interface SyncResponse {
 }
 
 // D1 allows 50 queries per invocation on the free plan and every statement in a db.batch() counts (Tech_Scope.md §11).
-// One request costs: 1 (identity) + up to 2 (ledger check, and an existence check when partial patches are present)
-// + MAX_OPS + 2 (rev bump, ledger insert) + 2 (pull, cursor) = MAX_OPS + 7, which is 47 at 40. A request with more ops
+// One request costs: 1 (identity) + up to 2 (ledger check, and one lookup of the stored rows the ops touch and refer to,
+// which the rules read) + MAX_OPS + 2 (rev bump, ledger insert) + 2 (pull, cursor) = MAX_OPS + 7, which is 47 at 40. A request with more ops
 // is refused whole with 413, and the client sends its outbox in slices of at most MAX_OPS and loops until it is empty.
 // The one path that can pass 50 is a rare retry after a concurrent request wins an op (sync.ts), and only on a body
 // near the cap; it fails the request with 500 and the client retries.
