@@ -21,6 +21,7 @@ export interface PlanInput {
   sentToday: number;
   lastQuietAt: number | null; // unix ms of the last snooze or dismissal
   overdueSentFor: string[]; // task ids with an `overdue` send since their deadline last changed
+  now?: number; // unix ms; a slot already past is not free, so a mid-day plan moves its message to the next slot
 }
 
 const DAILY_CAP = 3; // Product_Scope.md §2
@@ -159,7 +160,7 @@ export function planDay(input: PlanInput): PlannedMessage[] {
       if (firstClose < 0) continue; // no first nudge, no second
       from = Math.max(from, firstClose + 1);
     }
-    const i = slots.findIndex((ms, idx) => idx >= from && ms !== null && !used.has(ms) && !quietBlocked(ms));
+    const i = slots.findIndex((ms, idx) => idx >= from && ms !== null && ms >= (input.now ?? -Infinity) && !used.has(ms) && !quietBlocked(ms));
     if (i < 0) continue; // nowhere to put it: dropped, never stacked
     used.add(slots[i]!);
     placed.push({ c, due_at: slots[i]! });
