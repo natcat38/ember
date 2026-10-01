@@ -1,0 +1,17 @@
+# Local secrets for `wrangler dev`. Copy this file to .dev.vars (git-ignored) and fill in real values.
+# In production the secrets are set with `wrangler secret put <NAME>`, and TG_BOT_USERNAME goes under `vars` in wrangler.jsonc.
+# Telegram setup is in Tech_Scope.md section 6.
+
+# Var. The bot's username without the @, from @BotFather. Used for the t.me/<bot>?start=<code> link.
+TG_BOT_USERNAME=ember_dev_bot
+
+# Secret. The Bot API token from @BotFather. Looks like 123456789:AA... Never commit it, never log it.
+TG_BOT_TOKEN=000000000:replace-with-the-token-from-botfather
+
+# Secret. Passed as secret_token to setWebhook; Telegram sends it back in the X-Telegram-Bot-Api-Secret-Token header.
+# 1 to 256 characters of A-Z a-z 0-9 _ -. Generate 32+ random characters.
+TG_WEBHOOK_SECRET=replace-with-32-random-chars-0000000
+
+# Secret. The unguessable path segment of the webhook URL: https://<host>/api/tg/<TG_WEBHOOK_PATH>
+# Use a different random value from TG_WEBHOOK_SECRET, and do not use the word "link".
+TG_WEBHOOK_PATH=replace-with-another-random-string
