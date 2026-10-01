@@ -2,7 +2,7 @@
 # Roadmap — Ember
 
 **Current stage: Build**
-**Next up:** Slices 0–6 merged and deployed 2026-10-02 at https://ember-tasks.cron-telegram.workers.dev: the full phase-1 loop runs end to end (capture, triage, steps, Today with the §4.6 golden test, Focus, Reward, shutdown). Next: **slice 7, PWA + iPhone safety**, which opens with the 5-minute iPhone handoff test with Natalie (`Tech_Scope.md` §7). Decide the workers.dev subdomain first, because a rename breaks installed icons. Slice 11 needs a new production Telegram bot from Natalie. /protect-repo when the repo goes public, after the cleanup list at the end of `tech-spike.md`.
+**Next up:** Phase 1 slices 0–7 (part 1) and 10 are merged; phase 2 is being built in parallel per `docs/Phase2_Parallel_Plan.md` (Sonnet agents in worktrees for server units, the lead on the client). Merged and live at https://ember-tasks.cron-telegram.workers.dev: sync with the op ledger (8), server rules (9s), message planner (12c), Telegram link and capture (11s), production D1. Client 9c/11c/12c (refused-change handling, offline line, Link Telegram, sign-in links) in review. Wave 2 running: scheduler (12s), passkeys (14s), retention (15s). Wave 3: Telegram buttons (13s). Needs Natalie: a production Telegram bot and the copy flagged in PRs; the iPhone install test and subdomain (slice 7 part 2); the slice 14 two-device check.
 
 Lifecycle: Define → Plan → Build → Verify → Review → Ship.
 Agents: read this file at session start, state the current stage and next unchecked item before any other work, and update this file (checkboxes + Current stage + Next up) before ending. Product and design decisions belong to the user — elicit them with questions, never decide for them.

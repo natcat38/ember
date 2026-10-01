@@ -98,7 +98,7 @@ interface Meta {
 export interface SyncStatus {
   backedUp: boolean; // at least one sync has succeeded
   pending: number;
-  offline: boolean; // the last attempt couldn't reach the server
+  offline: boolean; // the last attempt couldn't reach the server (a server error is not "offline")
 }
 
 interface Deps {
@@ -106,9 +106,10 @@ interface Deps {
   storage?: Pick<Storage, "getItem" | "setItem">;
   fetch?: typeof fetch;
   onStatus?: (s: SyncStatus) => void;
+  onRejected?: () => void; // the server refused a change after a two-device race; the server's version now shows
 }
 
-export function createSync(initial: State, { update, storage = localStorage, fetch: send = fetch.bind(globalThis), onStatus }: Deps) {
+export function createSync(initial: State, { update, storage = localStorage, fetch: send = fetch.bind(globalThis), onStatus, onRejected }: Deps) {
   let baseline = initial; // the last state the sync layer has turned into ops
   let busy = false;
   let again = false;
@@ -141,7 +142,7 @@ export function createSync(initial: State, { update, storage = localStorage, fet
     writeMeta(meta);
     status();
     clearTimeout(timer);
-    timer = window.setTimeout(push, 2000);
+    timer = setTimeout(push, 2000) as unknown as number;
   }
 
   // Another tab saved: its ops are its own to send; take its state as already recorded here.
@@ -159,7 +160,9 @@ export function createSync(initial: State, { update, storage = localStorage, fet
     try {
       meta = readMeta();
       if (!meta.uploaded && !meta.outbox.length) meta = { ...meta, outbox: allOps(baseline) };
+      let refetch = false;
       do {
+        refetch = false;
         const batch = meta.outbox.slice(0, batchSize);
         const res = await send("/api/sync", {
           method: "POST",
@@ -182,19 +185,26 @@ export function createSync(initial: State, { update, storage = localStorage, fet
         }
         if (!res.ok) throw new Error(`sync ${res.status}`);
         const body = (await res.json()) as SyncResponse;
-        if (body.rejected.length) console.warn("Ember sync: changes refused by the server", body.rejected); // slice 9 handles these
         const remaining = readMeta().outbox.filter((o) => !sent.has(o.op_id));
-        meta = { cursor: body.cursor, outbox: remaining, uploaded: true };
+        // A refused op changed nothing on the server, so its row isn't in `changes`. Pull everything once more: the
+        // server's version then replaces the local change wherever no other edit is still waiting (Tech_Scope.md §5).
+        refetch = body.rejected.length > 0;
+        if (refetch) {
+          console.warn("Ember sync: changes refused by the server", body.rejected);
+          onRejected?.();
+        }
+        meta = { cursor: refetch ? 0 : body.cursor, outbox: remaining, uploaded: true };
         writeMeta(meta);
         if (body.changes.length) {
           // The baseline takes the same merge, so server rows are never echoed back as new ops.
           baseline = applyChanges(baseline, body.changes, remaining);
           update((s) => applyChanges(s, body.changes, remaining));
         }
-      } while (meta.outbox.length);
+      } while (meta.outbox.length || refetch);
       offline = false;
     } catch (e) {
-      offline = true; // the outbox is intact; the next open, focus, reconnect, or change retries
+      // fetch rejects (TypeError) only when the network is unreachable; an HTTP error means the server answered.
+      offline = e instanceof TypeError; // either way the outbox is intact; the next open, focus, reconnect, or change retries
       console.warn("Ember sync: will retry", e);
     } finally {
       busy = false;
@@ -206,5 +216,12 @@ export function createSync(initial: State, { update, storage = localStorage, fet
     }
   }
 
-  return { record, rebase, push };
+  // This browser just joined another identity (a Telegram sign-in link): start over, so what's on the device uploads
+  // to that user and everything of theirs comes down.
+  function restart() {
+    meta = { cursor: 0, outbox: [], uploaded: false };
+    writeMeta(meta);
+  }
+
+  return { record, rebase, push, restart };
 }

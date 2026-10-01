@@ -1,4 +1,22 @@
 import { useState } from "react";
+
+// Settings → Telegram (Tech_Scope.md §6): a one-time link code from the server, opened in Telegram.
+async function linkTelegram(): Promise<string | null> {
+  const tab = window.open("", "_blank"); // opened inside the tap, or the browser blocks it as a pop-up
+  // ponytail: these three lines are not yet approved copy.
+  const fail = (why: string) => (tab?.close(), why);
+  try {
+    const res = await fetch("/api/tg/link", { method: "POST", credentials: "same-origin" });
+    if (res.status === 503) return fail("Telegram isn't set up yet. Try again later.");
+    if (!res.ok) return fail("That didn't work. Try again in a moment.");
+    const { url } = (await res.json()) as { url: string };
+    if (tab) tab.location.href = url;
+    else location.assign(url);
+    return null;
+  } catch {
+    return fail("Linking Telegram needs a connection.");
+  }
+}
 import { blockProblem } from "../core/today";
 import type { HardBlock, State } from "../core/task";
 
@@ -20,9 +38,23 @@ export function SettingsView({ state, update, browserTz, backedUp }: Props) {
   const set = (patch: Partial<State["settings"]>) => update((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
   const blocks = state.hard_blocks.filter((b) => !b.deleted);
   const zones = Intl.supportedValuesOf?.("timeZone") ?? [browserTz];
+  const [tgProblem, setTgProblem] = useState<string | null>(null);
 
   return (
     <>
+      <section className="section" aria-labelledby="h-nudges">
+        <h2 id="h-nudges">Nudges</h2>
+        <p className="empty">Ember can nudge you on Telegram while the app is closed.</p>
+        <button className="button" style={{ alignSelf: "flex-start" }} onClick={async () => setTgProblem(await linkTelegram())}>
+          Link Telegram
+        </button>
+        {tgProblem && (
+          <p className="hint" role="status">
+            {tgProblem}
+          </p>
+        )}
+      </section>
+
       <section className="section" aria-labelledby="h-quiet">
         <h2 id="h-quiet">Quiet hours</h2>
         <p className="empty">
