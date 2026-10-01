@@ -5,7 +5,7 @@ import type { State } from "../core/task";
 interface Props {
   state: State;
   update: (fn: (s: State) => State) => void;
-  onFinished: () => void; // the step is done: Reward (slice 6), for now back to Today
+  onFinished: (title: string) => void; // the step is done: on to Reward
   onStopped: () => void;
   announce: (text: string) => void;
 }
@@ -49,7 +49,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
   const act = (fn: (s: State, t: number) => State) => update((s) => fn(s, Date.now()));
   const finish = () => {
     act((s, t) => endFocus(s, t, true));
-    onFinished();
+    onFinished(chunk?.title ?? "");
   };
   const stop = () => {
     act((s, t) => endFocus(s, t, false));

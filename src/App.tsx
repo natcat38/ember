@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { capture, pin, remove, rename, restore, triage, type CaptureInput, type State, type Task } from "../core/task";
-import { buildToday } from "../core/today";
+import { addDays, buildToday, doneTodayCount, wrapUp } from "../core/today";
+import { RewardView } from "./Reward";
+import { ShutdownView } from "./Shutdown";
 import { TodayView } from "./Today";
 import { dayOf } from "../core/day";
 import { KEY, load, save } from "./store";
@@ -11,7 +13,10 @@ import { FocusView } from "./Focus";
 import { sessionsDone, startFocus } from "../core/focus";
 import { addChunk, firstOpenLeaf } from "../core/chunk";
 
-type View = { name: "today" | "inbox" | "focus" } | { name: "task"; id: string; from: "today" | "inbox" };
+type View =
+  | { name: "today" | "inbox" | "focus" | "shutdown" }
+  | { name: "reward"; title: string }
+  | { name: "task"; id: string; from: "today" | "inbox" };
 
 const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -47,6 +52,15 @@ export function App() {
   }, []);
 
   useEffect(() => setSaved(save(state)), [state]);
+
+  // The ring moving is announced through the live region (Wireframes.md, accessibility targets).
+  const doneCount = plan.rows.filter((r) => r.done).length;
+  const prevDone = useRef(doneCount);
+  useEffect(() => {
+    if (doneCount > prevDone.current) announce(`${doneCount} of ${plan.rows.length} done today`);
+    prevDone.current = doneCount;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the count moves
+  }, [doneCount]);
 
   // Another tab saved: take its version, so this tab never writes stale data over it.
   useEffect(() => {
@@ -118,7 +132,36 @@ export function App() {
 
   return (
     <div className="app">
-      {view.name === "task" && task ? (
+      {view.name === "reward" ? (
+        <main className="main">
+          <RewardView
+            title={view.title}
+            done={doneCount}
+            total={plan.rows.length}
+            hasNext={plan.rows.some((r) => !r.done)}
+            onNext={() => {
+              const r = plan.rows.find((x) => !x.done)!;
+              if (r.chunk) start(r.chunk.id);
+              else startTask(r.task);
+            }}
+            onToday={() => navigate({ name: "today" })}
+          />
+        </main>
+      ) : view.name === "shutdown" ? (
+        <main className="main">
+          <ShutdownView
+            state={state}
+            update={setState}
+            today={today}
+            tomorrow={buildToday(state, addDays(today, 1), { tz, sessionsDone: sessionsDone(state) })}
+            doneToday={doneTodayCount(state, today, tz)}
+            onClose={() => {
+              setState((s) => wrapUp(s, today, Date.now()));
+              navigate({ name: "today" });
+            }}
+          />
+        </main>
+      ) : view.name === "task" && task ? (
         <TaskView
           key={task.id}
           task={task}
@@ -170,7 +213,7 @@ export function App() {
                 state={state}
                 update={setState}
                 announce={announce}
-                onFinished={() => navigate({ name: "today" })}
+                onFinished={(title) => navigate({ name: "reward", title })}
                 onStopped={() => navigate({ name: "today" })}
               />
             ) : view.name === "today" ? (
@@ -261,6 +304,15 @@ export function App() {
               {v === "today" ? "Today" : "Inbox"}
             </button>
           ))}
+          <button
+            className="nav-item wrap-up"
+            onClick={() => {
+              drawer.current!.close();
+              navigate({ name: "shutdown" });
+            }}
+          >
+            Wrap up the day
+          </button>
         </nav>
       </dialog>
     </div>

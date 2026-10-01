@@ -24,6 +24,7 @@ export interface Task {
 export interface Day {
   day: string;
   confirmed_at: number | null;
+  shutdown_at?: number | null; // the evening wrap-up ran
   deferred: string[]; // chunk ids marked "Not today" (a task id for a task with no steps yet)
 }
 
@@ -113,4 +114,9 @@ export function restore(s: State, id: string, now: number): State {
 // Pin to today: the task takes a slot in Today and bumps the lowest-ranked step out (UX_Flows.md §3.4).
 export function pin(s: State, id: string, today: string, now: number): State {
   return update(s, id, now, (t) => (t.state === "active" || t.state === "overdue" ? { pinned_on: today } : null));
+}
+
+// Product_Scope.md §4: Done is reached from Active or Overdue, and nothing leaves it.
+export function completeTask(s: State, id: string, now: number): State {
+  return update(s, id, now, (t) => (t.state === "active" || t.state === "overdue" ? { state: "done" } : null));
 }
