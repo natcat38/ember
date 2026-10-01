@@ -1,0 +1,428 @@
+@import "@fontsource/nunito/latin-800.css";
+@import "@fontsource/karla/latin-400.css";
+@import "@fontsource/karla/latin-600.css";
+
+/* Design_Direction.md §2. Never add a colour or font outside these tokens. */
+:root {
+  --color-oat: #f6f3ee;
+  --color-surface: #ffffff;
+  --color-ink: #2e2a35;
+  --color-lavender: #8c7bc4;
+  --color-lavender-deep: #6b5ba8;
+  --color-peach: #e8a87c;
+  --color-ink-soft: #625b6b;
+  --color-nook: #ece7f6;
+  --color-done: #efebe4;
+  --color-sage-deep: #4f7a45;
+  --color-line: #ddd6cc;
+  --color-line-control: #8a8296;
+
+  --font-display: "Nunito", system-ui, sans-serif;
+  --font-body: "Karla", system-ui, sans-serif;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-row: 18px;
+  --radius-card: 22px;
+  --radius-button: 16px;
+  --radius-sheet: 28px;
+  --radius-pill: 999px;
+
+  --dur-fast: 150ms;
+  --dur-base: 250ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-oat);
+  color: var(--color-ink);
+  font: 400 16px/24px var(--font-body);
+  -webkit-text-size-adjust: 100%;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-lavender-deep);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Layout: one soft column (§3) */
+.app {
+  min-height: 100dvh;
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) 0 var(--space-1);
+}
+
+.title {
+  margin: 0;
+  flex-grow: 1;
+  font: 800 26px/32px var(--font-display);
+}
+
+.status-line {
+  margin: 0;
+  padding: 0 var(--space-4);
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-ink-soft);
+}
+
+.main {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-4);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.section h2 {
+  margin: 0 0 2px;
+  font: 800 16px/24px var(--font-display);
+}
+
+.row {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-row);
+  overflow-wrap: anywhere;
+}
+
+.row > :first-child {
+  flex-grow: 1;
+}
+
+.meta {
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-ink-soft);
+}
+
+.size-tag {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--color-nook);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Buttons (§6) */
+.icon-button {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-button);
+  cursor: pointer;
+}
+
+.button,
+.chip {
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1.5px solid var(--color-line-control);
+  background: var(--color-surface);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.button {
+  border-radius: var(--radius-button);
+}
+
+.button.primary {
+  border-color: var(--color-lavender-deep);
+  background: var(--color-lavender-deep);
+  color: #fff;
+}
+
+.chip {
+  border-radius: var(--radius-pill);
+  font-weight: 400;
+}
+
+.chip[aria-pressed="true"] {
+  border-color: var(--color-lavender-deep);
+  background: var(--color-lavender-deep);
+  color: #fff;
+}
+
+.button:active,
+.chip:active {
+  transform: scale(0.98);
+}
+
+.text-button {
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  border: 0;
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .button:not(.primary):hover,
+  .chip:not([aria-pressed="true"]):hover,
+  .icon-button:hover,
+  .text-button:hover {
+    background: var(--color-nook);
+  }
+  .button.primary:hover {
+    background: color-mix(in oklab, var(--color-lavender-deep), black 8%);
+  }
+}
+
+/* Capture (§3, UX_Flows.md §3.1) */
+.capture-bar {
+  position: sticky;
+  bottom: 0;
+  padding: 10px var(--space-4) max(28px, env(safe-area-inset-bottom));
+  background: var(--color-oat);
+}
+
+.capture-bar > button {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-5);
+  border: 1.5px solid var(--color-line-control);
+  border-radius: 26px;
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  text-align: left;
+  cursor: text;
+}
+
+.capture-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.capture-inline {
+  padding: var(--space-2) var(--space-4) 0;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.field {
+  flex-grow: 1;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 18px;
+  border: 1.5px solid var(--color-line-control);
+  border-radius: 26px;
+  background: var(--color-surface);
+}
+
+.field::placeholder {
+  color: var(--color-ink-soft);
+}
+
+.field:focus-visible {
+  outline: none;
+  border: 2px solid var(--color-lavender-deep);
+}
+
+.send {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-lavender-deep);
+  cursor: pointer;
+}
+
+.date-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-ink-soft);
+}
+
+.sent {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.sent li {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sent li::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--color-lavender);
+}
+
+/* Sheets and drawer: native <dialog> gives focus-in, focus trap, Escape, and focus return (A4). */
+dialog {
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: var(--color-surface);
+}
+
+dialog::backdrop {
+  background: rgb(46 42 53 / 0.45);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 560px;
+  margin: auto auto 0;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+}
+
+.sheet-body {
+  padding: var(--space-2) var(--space-4) max(var(--space-4), env(safe-area-inset-bottom));
+}
+
+.drawer {
+  height: 100dvh;
+  max-height: none;
+  width: min(300px, 85vw);
+  margin: 0 auto 0 0;
+}
+
+.drawer nav {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) var(--space-2);
+}
+
+.drawer .brand {
+  margin: 0 0 var(--space-4);
+  padding: 0 var(--space-3);
+  font: 800 19px/25px var(--font-display);
+}
+
+.drawer .nav-item {
+  min-height: 48px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-row);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.drawer .nav-item[aria-current="page"] {
+  font-weight: 600;
+  background: var(--color-nook);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sheet[open] {
+    animation: rise var(--dur-base) var(--ease-out);
+  }
+  .drawer[open] {
+    animation: slide-in var(--dur-base) var(--ease-out);
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(-100%);
+  }
+}

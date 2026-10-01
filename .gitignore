@@ -6,3 +6,6 @@ dist/
 .wrangler/
 .DS_Store
 Thumbs.db
+.claude/launch.json
+test-results/
+playwright-report/
