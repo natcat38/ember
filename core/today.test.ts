@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { band, buildToday, confirmDay, daysBetween, doneTodayCount, isConfirmed, isLapse, notToday, remaining, resetOverdue, wrapUp } from "./today";
+import { band, blockProblem, buildToday, confirmDay, daysBetween, doneTodayCount, freeMinutes, isConfirmed, isLapse, notToday, remaining, resetOverdue, slotsFor, wrapUp } from "./today";
 import { completeTask, emptyState, pin, triage, type State, type Task } from "./task";
 import type { Chunk } from "./chunk";
 
@@ -173,4 +173,40 @@ test("reset clears passed dates only, once", () => {
   expect(s.tasks.find((t) => t.id === "C")).toMatchObject({ deadline: null, runway_start: null, state: "active", updated_at: 9 });
   expect(s.tasks.find((t) => t.id === "B")?.deadline).toBe("2026-10-05"); // due today is not overdue
   expect(resetOverdue(s, TODAY, 10)).toBe(s);
+});
+
+const block = (weekdays: number[], from: string, to: string) => {
+  const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3));
+  return { id: from, weekdays, start_min: m(from), end_min: m(to), label: null, deleted: false, updated_at: 0 };
+};
+
+test("golden, in full: Mei's Monday blocks leave 540 free minutes, so the cap of 5 still binds", () => {
+  const s = { ...mei(), hard_blocks: [block([0], "09:00", "12:00"), block([0], "14:00", "16:00")] };
+  expect(freeMinutes(s, TODAY)).toBe(540);
+  expect(slotsFor(s, TODAY)).toBe(5);
+  const t = buildToday(s, TODAY, { sessionsDone: meiSessions, slots: slotsFor(s, TODAY) });
+  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "A1", "A2"]);
+  expect(freeMinutes(s, "2026-10-06")).toBe(840); // Tuesday: no blocks
+});
+
+test("capacity: a packed day gets fewer slots; overlaps count once; blocks outside the window don't count", () => {
+  const packed = { ...mei(), hard_blocks: [block([0], "08:00", "21:00")] }; // 60 minutes free
+  expect(slotsFor(packed, TODAY)).toBe(2);
+  expect(ids(buildToday(packed, TODAY, { sessionsDone: meiSessions, slots: 2 }).rows)).toEqual(["B1", "C1"]);
+  const overlap = { ...mei(), hard_blocks: [block([0], "09:00", "12:00"), block([0], "11:00", "13:00")] };
+  expect(freeMinutes(overlap, TODAY)).toBe(840 - 240);
+  const night = { ...mei(), hard_blocks: [block([0], "23:00", "23:30"), block([0], "06:00", "07:00")] };
+  expect(freeMinutes(night, TODAY)).toBe(840);
+});
+
+test("capacity follows quiet hours, including a window that runs past midnight", () => {
+  const late = { ...mei(), settings: { tz: null, quiet_start: 120, quiet_end: 600 } }; // awake 10:00 → 02:00
+  expect(freeMinutes(late, TODAY)).toBe(960);
+  expect(freeMinutes({ ...late, hard_blocks: [block([0], "23:00", "23:59")] }, TODAY)).toBe(960 - 59);
+});
+
+test("a block needs a day and must end after it starts", () => {
+  expect(blockProblem({ weekdays: [], start_min: 60, end_min: 120 })).toBe("Pick at least one day.");
+  expect(blockProblem({ weekdays: [1], start_min: 120, end_min: 120 })).toBe("End it after it starts.");
+  expect(blockProblem({ weekdays: [1], start_min: 60, end_min: 120 })).toBeNull();
 });

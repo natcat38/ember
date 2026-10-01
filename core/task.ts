@@ -28,6 +28,24 @@ export interface Day {
   deferred: string[]; // chunk ids marked "Not today" (a task id for a task with no steps yet)
 }
 
+// The user's day shape (users row + hard_blocks, Tech_Scope.md §3). Minutes after local midnight.
+export interface Settings {
+  tz: string | null; // IANA name; null = the browser's
+  quiet_start: number;
+  quiet_end: number; // the day starts here (§4.1)
+}
+
+// One busy stretch on one or more weekdays (0 = Monday). Ember plans around these; steps are never clock-pinned.
+export interface HardBlock {
+  id: string;
+  weekdays: number[];
+  start_min: number;
+  end_min: number;
+  label: string | null;
+  deleted: boolean;
+  updated_at: number;
+}
+
 export interface State {
   tasks: Task[];
   chunks: Chunk[];
@@ -35,10 +53,12 @@ export interface State {
   sessions: Session[];
   focus: Focus | null; // the running focus session, if any
   last_seen_at: number | null; // users.last_seen_at: drives the lapse return
+  settings: Settings;
+  hard_blocks: HardBlock[];
   draft: string; // unsent capture text, kept when the sheet closes (UX_Flows.md §3.1)
 }
 
-export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], sessions: [], focus: null, last_seen_at: null, draft: "" });
+export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], sessions: [], focus: null, last_seen_at: null, settings: { tz: null, quiet_start: 1320, quiet_end: 480 }, hard_blocks: [], draft: "" });
 
 export interface CaptureInput {
   title: string;

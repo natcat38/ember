@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { capture, pin, remove, rename, restore, triage, type CaptureInput, type State, type Task } from "../core/task";
-import { addDays, buildToday, doneTodayCount, isLapse, resetOverdue, wrapUp } from "../core/today";
+import { addDays, buildToday, doneTodayCount, isLapse, resetOverdue, slotsFor, wrapUp } from "../core/today";
+import { SettingsView } from "./Settings";
 import { RewardView } from "./Reward";
 import { ShutdownView } from "./Shutdown";
 import { TodayView } from "./Today";
@@ -14,11 +15,11 @@ import { sessionsDone, startFocus } from "../core/focus";
 import { addChunk, firstOpenLeaf } from "../core/chunk";
 
 type View =
-  | { name: "today" | "inbox" | "focus" | "shutdown" }
+  | { name: "today" | "inbox" | "focus" | "shutdown" | "settings" }
   | { name: "reward"; title: string }
   | { name: "task"; id: string; from: "today" | "inbox" };
 
-const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 const wideQuery = window.matchMedia("(min-width: 768px)");
 const useWide = () =>
@@ -43,8 +44,12 @@ export function App() {
   const sheet = useRef<HTMLDialogElement>(null);
   const drawer = useRef<HTMLDialogElement>(null);
   const wide = useWide();
-  const today = dayOf(Date.now(), tz);
-  const plan = buildToday(state, today, { tz, sessionsDone: sessionsDone(state) });
+  // The user's time zone and quiet hours set the day boundary (§4.1); hard blocks set the day's capacity (§4.4).
+  const tz = state.settings.tz ?? browserTz;
+  const quietEndMin = state.settings.quiet_end;
+  const today = dayOf(Date.now(), tz, quietEndMin);
+  const build = (day: string) => buildToday(state, day, { tz, quietEndMin, sessionsDone: sessionsDone(state), slots: slotsFor(state, day) });
+  const plan = build(today);
 
   // Re-render each minute so an app left open rolls over to the new day at the boundary.
   const [minute, setMinute] = useState(0);
@@ -54,7 +59,7 @@ export function App() {
   }, []);
 
   // The lapse return (Product_Scope.md §2) is decided once, from the last visit before this open.
-  const [welcome, setWelcome] = useState(() => isLapse(boot.last_seen_at, Date.now(), tz));
+  const [welcome, setWelcome] = useState(() => isLapse(boot.last_seen_at, Date.now(), boot.settings.tz ?? browserTz, boot.settings.quiet_end));
   useEffect(() => {
     if (minute) setState((s) => ({ ...s, last_seen_at: Date.now() })); // an app left open is still being seen
   }, [minute]);
@@ -162,8 +167,8 @@ export function App() {
             state={state}
             update={setState}
             today={today}
-            tomorrow={buildToday(state, addDays(today, 1), { tz, sessionsDone: sessionsDone(state) })}
-            doneToday={doneTodayCount(state, today, tz)}
+            tomorrow={build(addDays(today, 1))}
+            doneToday={doneTodayCount(state, today, tz, quietEndMin)}
             onClose={() => {
               setState((s) => wrapUp(s, today, Date.now()));
               navigate({ name: "today" });
@@ -202,7 +207,7 @@ export function App() {
               <span className="title">Today</span>
             ) : (
               <h1 className="title" tabIndex={-1}>
-                {view.name === "today" ? "Today" : "Inbox"}
+                {view.name === "today" ? "Today" : view.name === "inbox" ? "Inbox" : "Settings"}
               </h1>
             )}
           </header>
@@ -215,7 +220,7 @@ export function App() {
               </button>
             </div>
           )}
-          {wide && <div className="capture-inline">{form}</div>}
+          {wide && view.name !== "settings" && <div className="capture-inline">{form}</div>}
           <main className={`main${view.name === "focus" ? " focus-main" : ""}`}>
             {view.name === "focus" && state.focus ? (
               <FocusView
@@ -225,6 +230,8 @@ export function App() {
                 onFinished={(title) => navigate({ name: "reward", title })}
                 onStopped={() => navigate({ name: "today" })}
               />
+            ) : view.name === "settings" ? (
+              <SettingsView state={state} update={setState} browserTz={browserTz} />
             ) : view.name === "today" ? (
               <TodayView
                 key={today} // a new day remounts it, so its morning confirm and Adjust mode start fresh
@@ -252,7 +259,8 @@ export function App() {
               />
             )}
           </main>
-          {!wide && (
+          {/* Nothing to capture into from Settings (Wireframes.md, Global). */}
+          {!wide && view.name !== "settings" && (
             <div className={`capture-bar${view.name === "focus" ? " dimmed" : ""}`}>
               <button onClick={openCapture}>{state.draft || "What's on your mind?"}</button>
             </div>
@@ -303,7 +311,7 @@ export function App() {
       <dialog ref={drawer} className="drawer" aria-label="Menu" onClick={closeOnBackdrop}>
         <nav>
           <p className="brand">Ember</p>
-          {(["today", "inbox"] as const).map((v) => (
+          {(["today", "inbox", "settings"] as const).map((v) => (
             <button
               key={v}
               className="nav-item"
@@ -313,7 +321,7 @@ export function App() {
                 navigate({ name: v });
               }}
             >
-              {v === "today" ? "Today" : "Inbox"}
+              {v === "today" ? "Today" : v === "inbox" ? "Inbox" : "Settings"}
             </button>
           ))}
           <button

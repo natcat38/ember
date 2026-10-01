@@ -1,0 +1,162 @@
+import { useState } from "react";
+import { blockProblem } from "../core/today";
+import type { HardBlock, State } from "../core/task";
+
+interface Props {
+  state: State;
+  update: (fn: (s: State) => State) => void;
+  browserTz: string;
+}
+
+const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+
+// Wireframes.md §8, phase-1 rows only: quiet hours, time zone, hard blocks. Changes save as you make them.
+// Channels (slice 11), the focus timer and rewards (phase 3), and devices (slice 14) join later.
+export function SettingsView({ state, update, browserTz }: Props) {
+  const { quiet_start, quiet_end, tz } = state.settings;
+  const set = (patch: Partial<State["settings"]>) => update((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
+  const blocks = state.hard_blocks.filter((b) => !b.deleted);
+  const zones = Intl.supportedValuesOf?.("timeZone") ?? [browserTz];
+
+  return (
+    <>
+      <section className="section" aria-labelledby="h-quiet">
+        <h2 id="h-quiet">Quiet hours</h2>
+        <p className="empty">
+          No nudges between {hhmm(quiet_start)} and {hhmm(quiet_end)}.
+        </p>
+        <div className="time-row">
+          <label className="question">
+            <span className="question-label">From</span>
+            <input type="time" className="field" value={hhmm(quiet_start)} onChange={(e) => e.target.value && set({ quiet_start: mins(e.target.value) })} />
+          </label>
+          <label className="question">
+            <span className="question-label">To</span>
+            <input type="time" className="field" value={hhmm(quiet_end)} onChange={(e) => e.target.value && set({ quiet_end: mins(e.target.value) })} />
+          </label>
+        </div>
+        <p className="hint">Your day starts when quiet hours end, so Today is rebuilt at {hhmm(quiet_end)}.</p>
+      </section>
+
+      <section className="section" aria-labelledby="h-tz">
+        <h2 id="h-tz">Time zone</h2>
+        <label className="question">
+          <span className="sr-only">Time zone</span>
+          <select className="field" value={tz ?? browserTz} onChange={(e) => set({ tz: e.target.value === browserTz ? null : e.target.value })}>
+            {zones.map((z) => (
+              <option key={z} value={z}>
+                {z.replaceAll("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+      </section>
+
+      <section className="section" aria-labelledby="h-blocks">
+        <h2 id="h-blocks">Hard blocks</h2>
+        <p className="empty">Hours you're already busy. Ember plans around them.</p>
+        {blocks.length > 0 && (
+          <ul className="list" aria-label="Hard blocks">
+            {blocks.map((b) => (
+              <li key={b.id} className="row">
+                <span>
+                  {b.weekdays.map((d) => DAYS[d].slice(0, 3)).join(" ")} {hhmm(b.start_min)}–{hhmm(b.end_min)}
+                  {b.label ? ` ${b.label}` : ""}
+                </span>
+                <button
+                  className="text-button"
+                  aria-label={`Delete block ${b.label ?? ""} ${hhmm(b.start_min)}–${hhmm(b.end_min)}`.replace(/\s+/g, " ")}
+                  onClick={() => update((s) => ({ ...s, hard_blocks: s.hard_blocks.map((x) => (x.id === b.id ? { ...x, deleted: true, updated_at: Date.now() } : x)) }))}
+                >
+                  Delete
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <AddBlock onAdd={(b) => update((s) => ({ ...s, hard_blocks: [...s.hard_blocks, b] }))} />
+      </section>
+    </>
+  );
+}
+
+function AddBlock({ onAdd }: { onAdd: (b: HardBlock) => void }) {
+  const [open, setOpen] = useState(false);
+  const [weekdays, setWeekdays] = useState<number[]>([]);
+  const [from, setFrom] = useState("10:00");
+  const [to, setTo] = useState("12:00");
+  const [label, setLabel] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+
+  if (!open)
+    return (
+      <button className="button" style={{ alignSelf: "flex-start" }} onClick={() => setOpen(true)}>
+        + Add a block
+      </button>
+    );
+
+  return (
+    <form
+      className="question add-block"
+      aria-label="Add a block"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const b = { weekdays, start_min: mins(from), end_min: mins(to) };
+        const p = blockProblem(b);
+        setProblem(p);
+        if (p) return;
+        onAdd({ ...b, id: crypto.randomUUID(), label: label.trim() || null, deleted: false, updated_at: Date.now() });
+        setOpen(false);
+        setWeekdays([]);
+        setLabel("");
+      }}
+    >
+      <div role="group" aria-label="Days" className="question">
+        <p className="question-label" aria-hidden="true">
+          Days
+        </p>
+        <div className="actions days">
+          {DAYS.map((d, i) => (
+            <button
+              key={d}
+              type="button"
+              className="chip"
+              aria-label={d}
+              aria-pressed={weekdays.includes(i)}
+              onClick={() => setWeekdays(weekdays.includes(i) ? weekdays.filter((x) => x !== i) : [...weekdays, i].sort())}
+            >
+              {d[0]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="time-row">
+        <label className="question">
+          <span className="question-label">From</span>
+          <input type="time" className="field" value={from} onChange={(e) => setFrom(e.target.value)} required />
+        </label>
+        <label className="question">
+          <span className="question-label">To</span>
+          <input type="time" className="field" value={to} onChange={(e) => setTo(e.target.value)} required />
+        </label>
+      </div>
+      <label className="question">
+        <span className="question-label">Name (optional)</span>
+        <input className="field" value={label} onChange={(e) => setLabel(e.target.value)} autoComplete="off" />
+      </label>
+      {problem && (
+        <p className="hint" role="status">
+          {problem}
+        </p>
+      )}
+      <div className="actions">
+        <button className="button primary">Save</button>
+        <button type="button" className="button" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
