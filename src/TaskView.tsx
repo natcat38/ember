@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { Size, State, Task, TriageAnswers } from "../core/task";
 import { formatDue } from "./Capture";
-import { ConfirmDialog, RenameDialog } from "./dialogs";
+import { ConfirmDialog, TextDialog } from "./dialogs";
 import { Steps } from "./Steps";
 
 const SIZES: Size[] = ["XS", "S", "M", "L", "XL"];
@@ -13,6 +13,8 @@ interface Props {
   today: string;
   inToday: boolean;
   onPin: () => void;
+  onStart: () => void;
+  onStartStep: (chunkId: string) => void;
   onBack: () => void;
   onTriage: (answers: TriageAnswers) => void;
   onRename: (title: string) => void;
@@ -20,7 +22,7 @@ interface Props {
 }
 
 // Wireframes.md §6. Start and Pin to today arrive in slices 4–5.
-export function TaskView({ task, state, update, today, inToday, onPin, onBack, onTriage, onRename, onRemove }: Props) {
+export function TaskView({ task, state, update, today, inToday, onPin, onStart, onStartStep, onBack, onTriage, onRename, onRemove }: Props) {
   // Triage sits open until answered; an already-triaged task opens on the one-line summary.
   const [editing, setEditing] = useState(task.state === "inbox");
   const menu = useRef<HTMLDivElement>(null);
@@ -114,19 +116,25 @@ export function TaskView({ task, state, update, today, inToday, onPin, onBack, o
           </section>
         )}
         <hr className="divider" />
-        <Steps state={state} update={update} taskId={task.id} />
+        <Steps state={state} update={update} taskId={task.id} onStart={onStartStep} />
       </main>
 
-      {/* Pin to today shows only when the task is rankable and not already in Today (Wireframes.md §6). Start arrives in slice 5. */}
-      {!inToday && (task.state === "active" || task.state === "overdue") && (
+      {/* Start begins the first unfinished step, or asks for one. It works on an untriaged Inbox task too: Today is an offer,
+          not a gate (UX_Flows.md §3.4), and Focus runs on a step whatever the task's state. Pin to today needs a rankable task. */}
+      {task.state !== "done" && task.state !== "removed" && (
         <div className="bottom-bar">
-          <button className="button" onClick={onPin}>
-            Pin to today
+          <button className="button primary" onClick={onStart}>
+            Start
           </button>
+          {!inToday && (task.state === "active" || task.state === "overdue") && (
+            <button className="button" onClick={onPin}>
+              Pin to today
+            </button>
+          )}
         </div>
       )}
 
-      <RenameDialog dialog={renameDialog} label="Rename task" value={task.title} onSave={onRename} />
+      <TextDialog dialog={renameDialog} label="Rename task" value={task.title} onSave={onRename} />
       <ConfirmDialog dialog={removeDialog} question={`Remove "${task.title}" from your list?`} keep="Keep it" confirm="Remove" onConfirm={onRemove} />
     </>
   );

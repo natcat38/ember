@@ -767,3 +767,133 @@ dialog::backdrop {
 .bottom-bar .button {
   flex: 1 1 0;
 }
+
+.icon-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Focus (Wireframes.md §4): the step and timer in one white card; the chrome fades with colour, not opacity */
+.dimmed,
+.dimmed .title {
+  color: var(--color-ink-soft);
+}
+
+.header.dimmed,
+.capture-bar.dimmed {
+  background: var(--color-done);
+}
+
+.capture-bar.dimmed > button {
+  background: var(--color-oat);
+}
+
+.focus-main {
+  justify-content: center;
+}
+
+.focus-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 28px var(--space-5);
+  background: var(--color-surface);
+  border-radius: var(--radius-sheet);
+  text-align: center;
+}
+
+.focus-card .meta {
+  margin: 0;
+  font-size: 16px;
+}
+
+.focus-title {
+  margin: 0;
+  font: 800 26px/32px var(--font-display);
+  overflow-wrap: anywhere;
+}
+
+.timer {
+  margin-top: var(--space-5);
+  font: 800 64px/68px var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+.pause {
+  width: 104px;
+  height: 104px;
+  margin-top: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: 0;
+  border-radius: 50%;
+  background: var(--color-lavender-deep);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.focus-actions {
+  align-self: stretch;
+  margin-top: var(--space-5);
+}
+
+.focus-actions .button {
+  flex: 1 1 0;
+}
+
+.focus-prompt {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+}
+
+.focus-prompt p {
+  margin: 0;
+}
+
+.breathe {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--color-nook);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .breathe {
+    animation: breathe 8s ease-in-out infinite;
+  }
+}
+
+@keyframes breathe {
+  50% {
+    transform: scale(0.6);
+  }
+}
+
+.return-bar {
+  order: -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 var(--space-4);
+  padding: 0 var(--space-1) 0 var(--space-4);
+  background: var(--color-nook);
+  border-radius: var(--radius-row);
+  overflow-wrap: anywhere;
+}
+
+.return-bar span {
+  flex-grow: 1;
+  font-size: 14px;
+  line-height: 20px;
+}
