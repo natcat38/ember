@@ -122,3 +122,21 @@ test("deleting a parent asks first; deleting the last smaller step makes it plai
   await page.getByRole("button", { name: "Delete step" }).click();
   await expect(stepTitles(page)).toHaveCount(0);
 });
+
+test("opening a task never steals focus from a field the user already moved to", async ({ page }) => {
+  await openTask(page);
+  await page.getByRole("button", { name: "Back" }).click();
+  // Open the task and focus the step field before the navigation's focus frame comes round
+  // (React renders in a microtask after the click; the frame comes later).
+  const stolen = await page.evaluate(async () => {
+    [...document.querySelectorAll<HTMLButtonElement>("button")].find((b) => b.textContent?.includes("Revise DSA basics"))!.click();
+    for (let i = 0; i < 20 && !document.querySelector(".step-field"); i++) await Promise.resolve();
+    const field = document.querySelector<HTMLInputElement>(".step-field")!;
+    field.focus();
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); // let the navigation's frame run
+    return document.activeElement !== field;
+  });
+  expect(stolen).toBe(false);
+  await page.waitForTimeout(100);
+  await expect(nextAction(page)).toBeFocused();
+});
