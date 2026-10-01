@@ -152,7 +152,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 - Dismiss the sheet with **unsent** text → the text is **kept as a draft in the sheet** (reopening shows it), not committed to Inbox. No half-typed thought lost; no Inbox clutter. Sending is the only thing that commits.
 - Mid-Focus capture: sending returns you straight to the running session; the timer never paused.
 
-**Copy:** placeholder *"What's on your mind?"*; empty-state sub-line *"One thing or ten. Just get it out of your head."*; confirmation *Added*; chips *Deadline* / *Quick*; close *Done*.
+**Copy:** placeholder *"What's on your mind?"*; empty-state sub-line *"One thing or ten. Just get it out of your head."*; confirmation *Added*; chips *Deadline* / *Quick*; close *Close* (design step 2, 2026-10-01); was *Done*, which clashed with Focus's *Done*.
 
 ### 3.2 Triage
 
@@ -201,8 +201,8 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 - A task needs **≥1 chunk to enter Focus.** No chunk = the Start tap asks for the next action rather than blocking you.
 - **Chunks belong to the task; Today still surfaces only ≤5 across everything.** A 6-step breakdown doesn't blow the day — the rest wait behind the *"N more waiting"* line and surface as room opens.
 - **Two levels at most: a step can be split once into smaller steps** (wireframe review, 2026-09-30; replaces "chunks are flat"). The smaller steps stay under their parent, because the parent's name is how the user recognises the work. The cap of two levels keeps out recursive breakdown, the Goblin trap. The rules:
-  1. **Splitting:** a step's `...` menu has *Break this step down*. Before phase 4 it's manual: the step becomes a heading and an indented field opens under it, labelled *Add a smaller step*. From phase 4 the AI returns 3–6 smaller steps with the same edit-then-accept flow, and each press counts against the daily cap like *Break this down for me*.
-  2. **Parent checkbox:** ticks itself when its last smaller step is done. Ticking it by hand marks all its remaining smaller steps done.
+  1. **Splitting:** a step's `...` menu has *Break this step down*. Before phase 4 it's manual: the step becomes a heading and an indented field opens under it, labelled *Add a smaller step*. That field shows only right after a split or after the parent's *Add a smaller step* menu item, and closes when it loses focus while empty (design step 2, 2026-10-01). From phase 4 the AI returns 3–6 smaller steps with the same edit-then-accept flow, and each press counts against the daily cap like *Break this down for me*.
+  2. **Parent checkbox:** ticks itself when its last smaller step is done. Ticking it by hand marks all its remaining smaller steps done and plays one Reward, not one per step. Unticking it straight away puts its smaller steps back as they were (design step 2, 2026-10-01).
   3. **No start button on a parent.** Focus always runs on one smaller step. The Task view's *Start* begins the first unfinished smaller step in list order.
   4. **Today surfaces smaller steps, never the parent**, so the cap of 5 still counts real actions. Each row names its parent as context.
   5. **Reordering:** smaller steps move only within their own parent. Moving a parent moves its whole group. Nothing is dragged between levels.
@@ -263,7 +263,7 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 2. Minimal controls only: **Pause** (large, centred), **Done**, **Stop for now**. Capture stays reachable without pausing. (*Stop for now* was *Exit* until wireframe review, 2026-09-30; renamed so it can't be mistaken for Done.)
 3. Timer ends or **Done**:
    - **Chunk done** → Reward (§3.6).
-   - **Timer done, chunk not done** → restful break, then a gentle *"Back to it?"* to resume the same chunk.
+   - **Timer done** → the app can't know whether the chunk is finished, so the prompt asks *"Take 5?"* with *[Take 5] [Skip break]*, plus *[I finished it]*, which goes to Reward (design step 2, 2026-10-01). Not finished → restful break, then a gentle *"Back to it?"* to resume the same chunk.
 
 **Two different rest moments — do not conflate:**
 - **Pomodoro break** (after a 25, chunk unfinished) = the **restful** one: a calm screen or breathing guide. No games here.
@@ -279,22 +279,22 @@ Once a day, Today opens with a brief confirm: *"Here's today: N things. Good to 
 - **Pause** stops the timer, stays in focus. **Stop for now** returns the chunk to Todo with sessions logged — no penalty, no guilt.
 - **Done early** completes the chunk before the timer elapses → straight to Reward.
 
-**Copy:** break prompt *"Take 5?"*; resume *"Back to it?"*; controls *Pause / Done / Stop for now*. Break screen: a calm visual + optional breathing guide, copy kept minimal.
+**Copy:** break prompt *"Take 5?"* with *[Take 5] [Skip break] [I finished it]*; resume *"Back to it?"*; controls *Pause / Done / Stop for now*. Break screen: a calm visual + optional breathing guide, copy kept minimal.
 
 ### 3.6 Reward
 
 **Purpose:** make finishing a chunk feel good, without the reward becoming a time-sink or a second job.
 
 **Entry points**
-- A chunk marked **Done** — from Focus, or checked off in Today / a Task view.
+- A chunk marked **Done** — from Focus, or checked off in Today / a Task view. A check-off outside Focus plays layer 1 only (ring and cat); the unlock card follows chunks finished in Focus, so ticking several done in a row never stacks overlays (design step 2, 2026-10-01).
 
 **Two layers**
 1. **Always-on, instant:** progress ring fills (Apple-rings style — *"3 of 5"*), cat curls up purring. Short animation (~300–400ms); a slightly bigger moment only on the **last chunk of the day**, never on every check (confetti fatigue is real). Free and guaranteed.
 2. **Optional ≤90s unlock:** a trivia question, the Lichess daily puzzle, or a Wikipedia "on this day" fact. Always skippable.
 
 **User control: auto-served, skippable, every chunk**
-- After every completed chunk, the app **serves one unlock** (rotating through trivia / puzzle / fact, or a default set once in Settings, with a *surprise me* option). No in-moment "which treat" decision.
-- Offered every chunk, always one tap to skip. Thin content self-caps the time cost; trivia is one quick question per completion, so it can't be chained.
+- After every chunk finished in Focus, the app **serves one unlock** (rotating through trivia / puzzle / fact, or a default set once in Settings, with a *surprise me* option). No in-moment "which treat" decision.
+- Offered after every Focus completion, always one tap to skip. The 90-second bar is a hint, not a limit: when it runs out the next-step offer appears under the unlock, and nothing closes mid-puzzle (design step 2, 2026-10-01). Thin content self-caps the time cost; trivia is one quick question per completion, so it can't be chained.
 
 **Decisions the app makes silently**
 - The unlock content is **naturally thin by design** — the Lichess daily puzzle is once a day, "on this day" is one static fact — so it's hard to binge. Trivia is served one question per completion.
@@ -353,7 +353,7 @@ Every state follows the same rules: no red, no counts of what was missed, and ea
 | **iPhone, not on Home Screen** | iOS Safari, user said yes to nudges | iOS only allows web push for installed apps. One-time dismissible hint, findable again in Settings | *"To get nudges on iPhone, add Ember to your Home Screen. Tap Share, then Add to Home Screen."* |
 | **AI cap reached** | Daily breakdowns used up | Falls back to manual | *fixed:* *"Out of breakdowns for today. Try: what's the very next physical action?"* |
 | **Overdue** | Deadline passed, not done | One message, once, then silence for that task. The task **stays in Today**, ranked at the top and sharing the 5-cap, with a plain date label until the user reschedules, finishes, or removes it from the list | *fixed:* *"X was due today and isn't marked done. Still relevant?"* *[Reschedule] [Done] [Remove from list]* · in-app label *"Was due Tue"* (plain text, no red) |
-| **Removed** | User removes a task from the list | Moves to a collapsed **Removed** section at the bottom of Inbox. No new screen | *fixed:* *[Remove from list]* (wireframe review, 2026-09-30; was *Let it go*) → prompt *"Remove "<task>" from your list?"* / *"You can bring it back from Inbox any time."* *[Keep it] [Remove]* (wireframe review, 2026-09-30) → on *Remove*: *"Moved out of the way. It's still here if you want it back."* |
+| **Removed** | User removes a task from the list | Moves to a collapsed **Removed** section at the bottom of Inbox. No new screen | *fixed:* *[Remove from list]* (wireframe review, 2026-09-30; was *Let it go*) → prompt *"Remove "<task>" from your list?"* *[Keep it] [Remove]* (wireframe review, 2026-09-30) → on *Remove*: *"Moved out of the way. It's still here if you want it back."* |
 | **Restore** | Tap a removed task → *Restore* | Back to Active, re-enters ranking | *"Back on your list."* |
 | **Lapse return** | First open after 3+ days away | No red, no count of missed days. Overdue tasks show their date label; the reset offer runs once and clears the labels in one tap | *fixed:* *"Welcome back. Here's what's on today."* + *"A couple of these slipped past their date. Want to reset them?"* |
 | **Quiet hours active** | Inside the quiet window | App works normally when opened. Nudges scheduled inside the window move to its end and still count toward the daily cap. Nothing shows on Today | Settings: *"No nudges between 22:00 and 08:00."* |
@@ -473,7 +473,7 @@ Times are required input only.
 | Step | What happens | Time |
 |---|---|---|
 | 1. Land | Capture field already focused. *"What's on your mind?"* + *"One thing or ten. Just get it out of your head."* Cat asleep | 0s |
-| 2. Dump | Type one or more things; each stacks above the field. After the first, the Done control relabels to *"That's it for now"* | 10–40s |
+| 2. Dump | Type one or more things; each stacks above the field. After the first, the Close control relabels to *"That's it for now"* | 10–40s |
 | 3. Branch | Decided on the *That's it for now* tap. **One item** → *"Want me to break that one down?"* · **Two or more** → *"Got it, six things. Let's make today small."* then *"Which one's weighing on you most?"*, one tap to pick | 1–2 taps |
 | 4. First Today | The picked task, big and alone. *Break this down* / *Start*. Cat watching | ~2s |
 | 5. First chunk | Type one next action (phase 1) or accept an AI breakdown (phase 4) | ~10s |

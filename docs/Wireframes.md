@@ -29,7 +29,7 @@ Phone frames are drawn at a 375px-wide screen.
 | | * DO THIS FIRST                | |
 | | Outline DSA: heaps chapter     | |
 | | from: Revise DSA basics        | |
-| | [Do this first]   [Not today]  | |
+| | [> Do this first]  [Not today] | |
 | +--------------------------------+ |
 | [ ] Apply: backend role   [>] ...  |
 | [ ] Spring tutorial, ch.3 [>] ...  |
@@ -46,10 +46,10 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 ```
 
-- The frog card sits first and is larger. Its buttons are the scope's own pair, *Do this first* (starts Focus on it) and *Not today* (§3.4).
+- The frog card sits first and is larger. Its buttons are the scope's own pair, *Do this first* (starts Focus on it) and *Not today* (§3.4). *Do this first* carries the same start icon as every other start button (step 2, C6).
 - Each other row has three controls: the checkbox marks the chunk done without Focus (goes to Reward), `[>]` starts Focus, and `...` offers *Not today* and *Open task*. Tapping the row text opens the Task view.
 - Done chunks stay on the list, dimmed, below the open ones, so the day's progress stays visible.
-- A smaller step (one split off a bigger step, `UX_Flows.md` §3.3) shows its parent step's name as a dimmed second line, so the row says where it belongs. Today counts smaller steps, never their parent. The frog card's *from:* line still names the task.
+- A smaller step (one split off a bigger step, `UX_Flows.md` §3.3) shows its parent step's name as a dimmed second line, so the row says where it belongs. Today counts smaller steps, never their parent. The frog card's *from:* line names the task, then the parent step: *from: Revise DSA basics · Outline heaps chapter* (step 2, C7).
 - An overdue task shows *"Was due Tue"* in plain text under its title (§4). Overdue tasks rank at the top, so one is usually the frog.
 - The overflow line links to Inbox (§3.4).
 
@@ -101,7 +101,7 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 | (Today, dimmed behind the sheet)   |
 +------------------------------------+
-| [Done]                             |
+| [Close]                            |
 | - finish DS assignment             |
 | - prep for interview               |
 | [Deadline] [Quick]                 |
@@ -116,7 +116,7 @@ Phone frames are drawn at a 375px-wide screen.
 - Rises from the capture bar with the field focused and the keyboard up. Each sent item stacks above the field, which clears and stays open (§3.1).
 - *Deadline* and *Quick* sit above the field (Natalie's call, from canvas review). *Deadline* opens the native date picker; *Quick* pre-sets size XS. Both optional.
 - *Send* is a round icon button right beside the field, like WhatsApp (Natalie's call, from canvas review): typing and sending sit on one line, and it is the sheet's only action. Screen readers announce it as "Send".
-- *Done* sits at the sheet's top-left and closes it; on first run it reads *"That's it for now"* (§7). Tapping the dimmed background or swiping down also closes it. Unsent text is kept as a draft, so an accidental tap on the background loses nothing.
+- *Close* (was *Done*; step 2, C5, so it never clashes with Focus's *Done*) sits at the sheet's top-left and closes it; on first run it reads *"That's it for now"* (§7). Tapping the dimmed background or swiping down also closes it. Unsent text is kept as a draft, so an accidental tap on the background loses nothing.
 
 ## 4. Focus
 
@@ -151,6 +151,7 @@ Phone frames are drawn at a 375px-wide screen.
 |                                    |
 |   Take 5?                          |
 |   [Take 5]        [Skip break]     |
+|   [I finished it]                  |
 +------------------------------------+
 |                                    |
 |       (breathing guide)            |
@@ -163,7 +164,7 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 ```
 
-- Top: the prompt when a 25 ends and the chunk isn't done. Middle: the restful break (breathing guide, remaining time). Bottom: the prompt when the break ends. *Stop here* returns to Today with the session logged (§3.5).
+- Top: the prompt when a 25 ends. The app can't tell whether the step is done, so *I finished it* goes to Reward (step 2, C1); *Take 5* starts the break. Middle: the restful break (breathing guide, remaining time). Bottom: the prompt when the break ends. *Stop here* returns to Today with the session logged (§3.5).
 - No games on this screen; the unlock belongs to Reward.
 
 ## 5. Reward
@@ -186,8 +187,8 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 ```
 
-- An overlay on Focus (or on Today, when a chunk is checked off there). The ring ticks and the cat purrs before the card appears (§3.6).
-- The main button names the unlock being served (Natalie's call, from canvas review): *Try today's chess puzzle* (Lichess daily puzzle), *Answer a trivia question*, or *See what happened on this day* (Wikipedia). It opens the unlock inline with a thin 90-second bar; when the bar runs out, the card offers the next chunk. *Skip* goes straight there.
+- An overlay on Focus after a step finished there. A tick on Today or in the Task view plays only the ring and the cat, with no card, so several ticks in a row never stack overlays (step 2, C2). The ring ticks and the cat purrs before the card appears (§3.6).
+- The main button names the unlock being served (Natalie's call, from canvas review): *Try today's chess puzzle* (Lichess daily puzzle), *Answer a trivia question*, or *See what happened on this day* (Wikipedia). It opens the unlock inline with a thin 90-second bar. The bar is a hint, not a limit: when it runs out, the next-step offer appears under the unlock and nothing closes mid-puzzle (step 2, A3). *Skip* goes straight to the next step.
 
 ## 6. Task view
 
@@ -292,8 +293,6 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 | +--------------------------------+ |
 | | Remove "Revise DSA basics"     | |
 | | from your list?                | |
-| | You can bring it back from     | |
-| | Inbox any time.                | |
 | |                                | |
 | | [Keep it]         [Remove]     | |
 | +--------------------------------+ |
@@ -305,7 +304,7 @@ A step's menu (the `...` on a step row), a sheet from the bottom:
 - Focus opens on *Keep it*, the choice that changes nothing, so a stray Enter cannot remove the task.
 - **Step menu:** *Start this step*, *Break this step down*, *Move up*, *Move down*, *Rename*, *Delete step*, and *Cancel* (or a tap on the dimmed area).
 - **Reordering steps** (Natalie's call, from canvas review): on touch, hold a step for about half a second, then drag it; with a mouse, click and drag it directly. No handle on the row. *Move up* / *Move down* in the step menu do the same for keyboard and screen-reader users, who cannot drag. The rows turn off the phone's press-and-hold text menu so the hold starts a drag instead. The big *Start* at the bottom always starts the first unfinished step in this order; each row's own start button starts that step directly. 
-- **Smaller steps** (Natalie's call, 2026-09-30; full rules in `UX_Flows.md` §3.3): *Break this step down* turns the step into a heading with its smaller steps indented under it. Two levels at most. Before phase 4 the split is manual: an indented field labelled *Add a smaller step*, with its own **(+)**, opens under the heading, and works like the main add field. In the frame, *Outline heaps chapter* has been split: its checkbox ticks itself when both smaller steps are done (ticking it by hand finishes the rest), and it has no `[>]` because Focus runs on one smaller step at a time.
+- **Smaller steps** (Natalie's call, 2026-09-30; full rules in `UX_Flows.md` §3.3): *Break this step down* turns the step into a heading with its smaller steps indented under it. Two levels at most. Before phase 4 the split is manual: an indented field labelled *Add a smaller step*, with its own **(+)**, opens under the heading, and works like the main add field. It shows only right after a split or after the parent's *Add a smaller step*, and closes when it loses focus while empty, so two identical fields never sit open for long (step 2, C3). The frame is drawn just after the split. In the frame, *Outline heaps chapter* has been split: its checkbox ticks itself when both smaller steps are done (ticking it by hand finishes the rest with one Reward; unticking it straight away restores them; step 2, C4), and it has no `[>]` because Focus runs on one smaller step at a time.
 - **Menu differences by row:** a smaller step's menu has no *Break this step down* (no third level). A parent's menu swaps *Start this step* and *Break this step down* for *Add a smaller step*; its *Move up* / *Move down* move the whole group, and a smaller step moves only within its parent. *Delete step* on a parent asks *"Delete this step and its N smaller steps?"*
 
 ## 7. Inbox
@@ -540,7 +539,12 @@ Targets to meet, not measurements. Step 2 checks the frames against them and the
 - Touch targets at least 44 × 44 px (the three row controls fit at 375px width).
 - Text contrast WCAG AA: 4.5:1 for body text, 3:1 for large text.
 - Visible keyboard focus on every control; focus order follows reading order.
-- Screen-reader labels: `[>]` → "Start *step name*", `...` → "More actions for *step name*", checkbox → "Mark *step name* done", ring → "2 of 5 done today". The cat is hidden from screen readers (§6).
+- Screen-reader labels: `[>]` → "Start *step name*", `...` → "More actions for *step name*", ring → "2 of 5 done today". The cat is hidden from screen readers (§6).
+- Checkboxes are real checkboxes named by the step text, so the state is read as checked or not checked; never a toggle button with a label that flips (step 2, A2).
+- Status messages (*Added*, the ring moving, *"Moved out of the way..."*, *"Back on your list."*) are announced through a polite live region without moving focus (step 2, A1).
+- Sheets and dialogs (capture sheet, step menu, remove prompt, drawer): focus moves in on open, stays inside while open, Escape closes, and focus returns to the control that opened it (step 2, A4).
+- Menus are plain buttons in a popover, not ARIA `menu` widgets, so no arrow-key handling is owed (step 2, A5).
+- Non-text contrast WCAG AA: field borders, checkbox outlines, and chip outlines at least 3:1 against their background (step 2, A6).
 - Reduced motion: still poses for the cat, no sheet or card animations.
 
 ## Decisions from canvas review (Natalie's)
@@ -554,31 +558,31 @@ Raised in canvas review and decided on 2026-09-30. Each is drawn and written int
 
 ## Step 2: critique and accessibility check (2026-09-30)
 
-Usability critique (`design:design-critique`) and a WCAG 2.1 AA check (`design:accessibility-review`) of the frames above and the canvas boards. Each finding needs Natalie's call: **fix** or **waive**. Status shows where each one stands. Contrast values are not picked here; the targets are stated and the design direction must meet them.
+Usability critique (`design:design-critique`) and a WCAG 2.1 AA check (`design:accessibility-review`) of the frames above and the canvas boards. Natalie's call, 2026-10-01: **all as proposed**, so 14 fixed and 2 waived (C9, A7). Contrast values are not picked here; the targets are stated and the design direction must meet them.
 
 **What already holds:** every icon-only button has a name; every input has a label (visible or screen-reader); every control is at least 44 px (radio buttons sit inside full-width tappable rows); the cat is hidden from screen readers; dialogs are named; the timer uses a timer role; drag reordering has a keyboard route (*Move up* / *Move down*); swipes always have a visible button.
 
 ### Usability
 
-- **C1. The end-of-25 prompt has no way to say "finished".** Severity: high. When a 25 ends the app cannot know whether the step is done, but the prompt only offers *Take 5* and *Skip break*. Someone who finished at the bell has no route to Reward from there. Proposed fix: a third choice on that prompt, *I finished it*, which goes to Reward (changes `UX_Flows.md` §3.5). Status: proposed.
-- **C2. Reward interrupts every tick on Today.** Severity: medium. §3.6 serves the unlock card after every completed step, including check-offs on Today, so ticking three things done in a row shows three overlays. Proposed fix: a tick on Today or in the Task view plays only the ring and the cat; the unlock card follows steps finished in Focus (changes §3.6). Status: proposed.
-- **C3. Two add fields look the same.** Severity: medium. With a split step open, the Task view shows *Add a smaller step* and *Type one step*, both with a round (+). Proposed fix: the indented field appears only right after *Break this step down* or the parent's *Add a smaller step*, and closes when it loses focus while empty. Status: proposed.
-- **C4. Ticking a parent: side effects unspecified.** Severity: medium. Rule 2 marks all remaining smaller steps done, but not whether that fires one Reward or several, or what unticking does. Proposed fix: one Reward for the parent; unticking the parent straight away puts its smaller steps back as they were. Status: proposed.
-- **C5. "Done" means two different things.** Severity: medium. The capture sheet's close button says *Done*, and Focus's *Done* finishes a step. Proposed fix: the capture sheet's close reads *Close* (first run still reads *That's it for now*). Signed-off copy, `UX_Flows.md` §3.1. Status: proposed.
-- **C6. The frog's start button doesn't look like a start.** Severity: low. *Do this first* starts Focus, but every other start uses the `[>]` icon. Proposed fix: keep the scope label and add the start icon to the button. Status: proposed.
-- **C7. Frog card for a smaller step.** Severity: low. The *from:* line names the task; a smaller step also has a parent step. Proposed fix: *from: Revise DSA basics · Outline heaps chapter*. Status: proposed.
-- **C8. Removing says the same thing twice.** Severity: low. The prompt says *"You can bring it back from Inbox any time."*, then the confirmation says *"Moved out of the way. It's still here if you want it back."* Proposed fix: drop the prompt's second line and keep the signed-off confirmation. Status: proposed.
-- **C9. Deleting a plain step is permanent and unprompted.** Severity: low. Removing a task (restorable) asks first; deleting a step (not restorable) does not. Proposed: waive, since a step is one line to retype and a prompt on every delete adds friction. Status: proposed waive.
+- **C1. The end-of-25 prompt has no way to say "finished".** Severity: high. When a 25 ends the app cannot know whether the step is done, but the prompt only offers *Take 5* and *Skip break*. Someone who finished at the bell has no route to Reward from there. Proposed fix: a third choice on that prompt, *I finished it*, which goes to Reward (changes `UX_Flows.md` §3.5). Status: fixed, 2026-10-01.
+- **C2. Reward interrupts every tick on Today.** Severity: medium. §3.6 serves the unlock card after every completed step, including check-offs on Today, so ticking three things done in a row shows three overlays. Proposed fix: a tick on Today or in the Task view plays only the ring and the cat; the unlock card follows steps finished in Focus (changes §3.6). Status: fixed, 2026-10-01.
+- **C3. Two add fields look the same.** Severity: medium. With a split step open, the Task view shows *Add a smaller step* and *Type one step*, both with a round (+). Proposed fix: the indented field appears only right after *Break this step down* or the parent's *Add a smaller step*, and closes when it loses focus while empty. Status: fixed, 2026-10-01.
+- **C4. Ticking a parent: side effects unspecified.** Severity: medium. Rule 2 marks all remaining smaller steps done, but not whether that fires one Reward or several, or what unticking does. Proposed fix: one Reward for the parent; unticking the parent straight away puts its smaller steps back as they were. Status: fixed, 2026-10-01.
+- **C5. "Done" means two different things.** Severity: medium. The capture sheet's close button says *Done*, and Focus's *Done* finishes a step. Proposed fix: the capture sheet's close reads *Close* (first run still reads *That's it for now*). Signed-off copy, `UX_Flows.md` §3.1. Status: fixed, 2026-10-01.
+- **C6. The frog's start button doesn't look like a start.** Severity: low. *Do this first* starts Focus, but every other start uses the `[>]` icon. Proposed fix: keep the scope label and add the start icon to the button. Status: fixed, 2026-10-01.
+- **C7. Frog card for a smaller step.** Severity: low. The *from:* line names the task; a smaller step also has a parent step. Proposed fix: *from: Revise DSA basics · Outline heaps chapter*. Status: fixed, 2026-10-01.
+- **C8. Removing says the same thing twice.** Severity: low. The prompt says *"You can bring it back from Inbox any time."*, then the confirmation says *"Moved out of the way. It's still here if you want it back."* Proposed fix: drop the prompt's second line and keep the signed-off confirmation. Status: fixed, 2026-10-01.
+- **C9. Deleting a plain step is permanent and unprompted.** Severity: low. Removing a task (restorable) asks first; deleting a step (not restorable) does not. Proposed: waive, since a step is one line to retype and a prompt on every delete adds friction. Status: waived by Natalie, 2026-10-01.
 
 ### Accessibility (WCAG 2.1 AA)
 
-- **A1. Status messages are not announced** (4.1.3). Severity: medium. *Added*, the ring moving to *3 of 5*, *"Moved out of the way..."* and *"Back on your list."* appear without focus moving, so screen-reader users miss them. Proposed fix: add a target, "status messages use a polite live region", and build them that way. Status: proposed.
-- **A2. Checkboxes are toggle buttons with flipping labels** (4.1.2). Severity: medium. The boards use a button labelled *Mark X done* with a pressed state, which reads as "Mark X not done, toggle button, pressed". Proposed fix: a real checkbox named by the step text, with the state carried by checked or unchecked; update the screen-reader label target to match. Status: proposed.
-- **A3. The 90-second bar is a time limit** (2.2.1). Severity: medium. If the bar running out closes the unlock mid-puzzle, that is a time limit the user cannot extend. Proposed fix: the bar is a hint only; when it runs out, the next-step offer appears under the unlock and nothing closes. Status: proposed.
-- **A4. Sheets and dialogs need focus rules** (2.4.3, 2.1.2). Severity: low. Capture sheet, step menu, remove prompt, and drawer: focus moves in on open, stays inside while open, Escape closes, and focus returns to the control that opened it. Proposed fix: add as a target. Status: proposed.
-- **A5. The task menu is marked as an ARIA menu** (4.1.2). Severity: low. `role="menu"` commits to arrow-key handling. Proposed fix: plain buttons in a popover, which need no extra keyboard code. Status: proposed.
-- **A6. Borders and outlines need contrast too** (1.4.11). Severity: low. Field borders, checkbox outlines, and chip outlines must reach 3:1 against their background; the targets list only covers text. Proposed fix: add the target. The grey-box greys are placeholders, not candidates. Status: proposed.
-- **A7. *Add a smaller step* has no visible label once typing starts** (3.3.2). Severity: low. The placeholder is the only visible label; the screen-reader label is present. Proposed: waive, since the parent heading directly above names what the field is for. Status: proposed waive.
+- **A1. Status messages are not announced** (4.1.3). Severity: medium. *Added*, the ring moving to *3 of 5*, *"Moved out of the way..."* and *"Back on your list."* appear without focus moving, so screen-reader users miss them. Proposed fix: add a target, "status messages use a polite live region", and build them that way. Status: fixed, 2026-10-01.
+- **A2. Checkboxes are toggle buttons with flipping labels** (4.1.2). Severity: medium. The boards use a button labelled *Mark X done* with a pressed state, which reads as "Mark X not done, toggle button, pressed". Proposed fix: a real checkbox named by the step text, with the state carried by checked or unchecked; update the screen-reader label target to match. Status: fixed, 2026-10-01.
+- **A3. The 90-second bar is a time limit** (2.2.1). Severity: medium. If the bar running out closes the unlock mid-puzzle, that is a time limit the user cannot extend. Proposed fix: the bar is a hint only; when it runs out, the next-step offer appears under the unlock and nothing closes. Status: fixed, 2026-10-01.
+- **A4. Sheets and dialogs need focus rules** (2.4.3, 2.1.2). Severity: low. Capture sheet, step menu, remove prompt, and drawer: focus moves in on open, stays inside while open, Escape closes, and focus returns to the control that opened it. Proposed fix: add as a target. Status: fixed, 2026-10-01.
+- **A5. The task menu is marked as an ARIA menu** (4.1.2). Severity: low. `role="menu"` commits to arrow-key handling. Proposed fix: plain buttons in a popover, which need no extra keyboard code. Status: fixed, 2026-10-01.
+- **A6. Borders and outlines need contrast too** (1.4.11). Severity: low. Field borders, checkbox outlines, and chip outlines must reach 3:1 against their background; the targets list only covers text. Proposed fix: add the target. The grey-box greys are placeholders, not candidates. Status: fixed, 2026-10-01.
+- **A7. *Add a smaller step* has no visible label once typing starts** (3.3.2). Severity: low. The placeholder is the only visible label; the screen-reader label is present. Proposed: waive, since the parent heading directly above names what the field is for. Status: waived by Natalie, 2026-10-01.
 
 ## Open for `Tech_Scope.md`
 

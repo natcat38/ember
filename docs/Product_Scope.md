@@ -20,7 +20,7 @@ The problem is not motivation. It is executive load: not knowing where to start,
 3. **Chunk.** The app asks: "What's the very next physical action?" An optional "Break this down for me" button returns 3–6 editable steps from a free-tier LLM.
 4. **Pick.** Each morning the app builds Today: at most 5 chunks, ranked, and no more than fit the day's free time (see Day shape). One is flagged as the frog with "Do this first" / "Not today" toggles. Far-future tasks appear here only when the day is light ("Light day. Want to get ahead on X?").
 5. **Focus.** 25/5 timer by default, Flowtime mode as alternative. The current chunk fills the screen; the rest dims.
-6. **Reward.** Chunk done: progress ring fills, the cat reacts. An optional unlock of up to 90 seconds: a trivia question, a Lichess daily puzzle, or a Wikipedia "on this day" fact. The timer's real break is restful: a breathing guide or a calm screen.
+6. **Reward.** Chunk done: progress ring fills, the cat reacts. After a chunk finished in Focus, an optional unlock of up to 90 seconds (design step 2, 2026-10-01): a trivia question, a Lichess daily puzzle, or a Wikipedia "on this day" fact. The timer's real break is restful: a breathing guide or a calm screen.
 7. **Review.** Evening shutdown in three steps: "Anything urgent still open?" → "Tomorrow's list is ready: N things." → "That's it for today. You're done." One optional journal line and a 5-point mood tap.
 
 ### Day shape
@@ -51,7 +51,7 @@ After any absence, the home screen looks like a normal day: no red, no count of 
 |---|---|
 | Capture requires only text | Placeholder: "What's on your mind?" |
 | Today never shows more than 5 chunks | Overflow line: "4 more waiting. They'll come up when there's room." |
-| Every task can be removed from the list without deleting | Button: "Remove from list" (wireframe review, 2026-09-30; was "Let it go") · Prompt first (wireframe review, 2026-09-30): "Remove "<task>" from your list?" / "You can bring it back from Inbox any time." [Keep it] [Remove] · Confirmation: "Moved out of the way. It's still here if you want it back." |
+| Every task can be removed from the list without deleting | Button: "Remove from list" (wireframe review, 2026-09-30; was "Let it go") · Prompt first (wireframe review, 2026-09-30): "Remove "<task>" from your list?" [Keep it] [Remove] · Confirmation: "Moved out of the way. It's still here if you want it back." |
 | Overdue message sends once only | "X was due today and isn't marked done. Still relevant?" [Reschedule] [Done] [Remove from list] |
 | No guilt language in any notification | Forbidden patterns: quantifying absence, sad mascot, rhetorical "everything okay?", manufactured loss, social comparison. Rule set in `research/competitors-and-design.md` Part D. |
 | Deadline nudges always pair fact with help | "This deadline's getting close. Want help breaking it down?" |
@@ -77,7 +77,7 @@ After any absence, the home screen looks like a normal day: no red, no count of 
 
 Todo → In focus → Done. A chunk in focus that is abandoned returns to Todo with sessions logged.
 
-A chunk can be split once into smaller chunks; two levels at most (wireframe review, 2026-09-30). The state machine above applies only to chunks with no children. A parent's state is derived: Done when all its children are Done, otherwise Todo. Ticking a parent by hand marks its remaining children Done. Today and Focus only ever surface chunks with no children. Full rules: `UX_Flows.md` §3.3.
+A chunk can be split once into smaller chunks; two levels at most (wireframe review, 2026-09-30). The state machine above applies only to chunks with no children. A parent's state is derived: Done when all its children are Done, otherwise Todo. Ticking a parent by hand marks its remaining children Done, with one Reward. Today and Focus only ever surface chunks with no children. Full rules: `UX_Flows.md` §3.3.
 
 ### Reminder for a task
 | State | Meaning |
