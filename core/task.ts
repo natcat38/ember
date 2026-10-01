@@ -1,3 +1,5 @@
+import type { Chunk } from "./chunk";
+
 // Entity shapes match the D1 `tasks` table (Tech_Scope.md §3), so phase 2's first sync uploads them unchanged.
 export type Size = "XS" | "S" | "M" | "L" | "XL";
 export type TaskState = "inbox" | "active" | "overdue" | "done" | "removed";
@@ -19,10 +21,11 @@ export interface Task {
 
 export interface State {
   tasks: Task[];
+  chunks: Chunk[];
   draft: string; // unsent capture text, kept when the sheet closes (UX_Flows.md §3.1)
 }
 
-export const emptyState = (): State => ({ tasks: [], draft: "" });
+export const emptyState = (): State => ({ tasks: [], chunks: [], draft: "" });
 
 export interface CaptureInput {
   title: string;

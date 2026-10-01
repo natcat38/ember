@@ -1,14 +1,15 @@
 import { useRef, useState } from "react";
-import type { Size, Task, TriageAnswers } from "../core/task";
+import type { Size, State, Task, TriageAnswers } from "../core/task";
 import { formatDue } from "./Capture";
+import { ConfirmDialog, RenameDialog } from "./dialogs";
+import { Steps } from "./Steps";
 
 const SIZES: Size[] = ["XS", "S", "M", "L", "XL"];
 
-// A tap on the dimmed area closes a dialog with nothing changed. Content sits in an inner box, so only the backdrop matches.
-export const closeOnBackdrop = (e: React.MouseEvent<HTMLDialogElement>) => e.target === e.currentTarget && e.currentTarget.close();
-
 interface Props {
   task: Task;
+  state: State;
+  update: (fn: (s: State) => State) => void;
   today: string;
   onBack: () => void;
   onTriage: (answers: TriageAnswers) => void;
@@ -16,8 +17,8 @@ interface Props {
   onRemove: () => void;
 }
 
-// Wireframes.md §6. Steps, Start, and Pin to today arrive in slices 3–5.
-export function TaskView({ task, today, onBack, onTriage, onRename, onRemove }: Props) {
+// Wireframes.md §6. Start and Pin to today arrive in slices 4–5.
+export function TaskView({ task, state, update, today, onBack, onTriage, onRename, onRemove }: Props) {
   // Triage sits open until answered; an already-triaged task opens on the one-line summary.
   const [editing, setEditing] = useState(task.state === "inbox");
   const menu = useRef<HTMLDivElement>(null);
@@ -110,53 +111,12 @@ export function TaskView({ task, today, onBack, onTriage, onRename, onRemove }: 
             </button>
           </section>
         )}
+        <hr className="divider" />
+        <Steps state={state} update={update} taskId={task.id} />
       </main>
 
-      <dialog ref={renameDialog} className="prompt" aria-labelledby="rename-title" onClick={closeOnBackdrop}>
-        <form
-          method="dialog"
-          className="capture-form prompt-body"
-          onSubmit={(e) => {
-            onRename(new FormData(e.currentTarget).get("title") as string);
-          }}
-        >
-          <label className="capture-form">
-            <span id="rename-title" className="prompt-title">
-              Rename task
-            </span>
-            <input name="title" className="field" defaultValue={task.title} key={task.title} autoComplete="off" />
-          </label>
-          <div className="actions prompt-actions">
-            <button type="button" className="button" onClick={() => renameDialog.current!.close()}>
-              Cancel
-            </button>
-            <button className="button primary">Save</button>
-          </div>
-        </form>
-      </dialog>
-
-      {/* Focus lands on Keep it, the choice that changes nothing (Wireframes.md §6). */}
-      <dialog ref={removeDialog} className="prompt" role="alertdialog" aria-labelledby="remove-title" onClick={closeOnBackdrop}>
-        <div className="prompt-body">
-        <p id="remove-title" className="prompt-title">
-          Remove "{task.title}" from your list?
-        </p>
-        <div className="actions prompt-actions">
-          <button className="button" onClick={() => removeDialog.current!.close()}>
-            Keep it
-          </button>
-          <button
-            className="button primary"
-            onClick={() => {
-              removeDialog.current!.close();
-              onRemove();
-            }}
-          >
-            Remove
-          </button>
-        </div>
-        </div>
-      </dialog>
+      <RenameDialog dialog={renameDialog} label="Rename task" value={task.title} onSave={onRename} />
+      <ConfirmDialog dialog={removeDialog} question={`Remove "${task.title}" from your list?`} keep="Keep it" confirm="Remove" onConfirm={onRemove} />
     </>
   );
 }
