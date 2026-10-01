@@ -34,10 +34,11 @@ export interface State {
   days: Day[];
   sessions: Session[];
   focus: Focus | null; // the running focus session, if any
+  last_seen_at: number | null; // users.last_seen_at: drives the lapse return
   draft: string; // unsent capture text, kept when the sheet closes (UX_Flows.md §3.1)
 }
 
-export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], sessions: [], focus: null, draft: "" });
+export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], sessions: [], focus: null, last_seen_at: null, draft: "" });
 
 export interface CaptureInput {
   title: string;
