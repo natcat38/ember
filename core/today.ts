@@ -1,6 +1,6 @@
 import { childrenOf, topLevel, type Chunk } from "./chunk";
 import { dayOf } from "./day";
-import type { Day, Size, State, Task } from "./task";
+import type { Day, HardBlock, Size, State, Task } from "./task";
 
 // Tech_Scope.md §4.2–4.4. Pure: the day and the clock-derived inputs are passed in.
 
@@ -156,4 +156,34 @@ export function resetOverdue(s: State, today: string, now: number): State {
   const passed = (t: Task) => (t.state === "active" || t.state === "overdue") && !!t.deadline && daysBetween(today, t.deadline) < 0;
   if (!s.tasks.some(passed)) return s;
   return { ...s, tasks: s.tasks.map((t) => (passed(t) ? { ...t, state: "active", deadline: null, runway_start: null, updated_at: now } : t)) };
+}
+
+// §4.4 step 5: free minutes = the waking window (quiet end → quiet start) minus the day's hard blocks.
+export function freeMinutes(s: State, day: string): number {
+  const { quiet_start, quiet_end } = s.settings;
+  const len = (quiet_start - quiet_end + 1440) % 1440 || 1440;
+  // Lay the window out from quiet end, so one that runs past midnight is still a straight line.
+  const at = (m: number) => (m - quiet_end + 1440) % 1440;
+  const weekday = (new Date(Date.parse(day)).getUTCDay() + 6) % 7; // 0 = Monday
+  const busy = s.hard_blocks
+    .filter((b) => !b.deleted && b.weekdays.includes(weekday))
+    .map((b) => [Math.min(at(b.start_min), len), Math.min(at(b.start_min) + b.end_min - b.start_min, len)] as const)
+    .sort((a, b) => a[0] - b[0]);
+  let taken = 0;
+  let reach = 0; // merge overlapping blocks so shared minutes count once
+  for (const [from, to] of busy) {
+    const start = Math.max(from, reach);
+    if (to > start) taken += to - start;
+    reach = Math.max(reach, to);
+  }
+  return len - taken;
+}
+
+export const slotsFor = (s: State, day: string) => Math.min(5, Math.floor(freeMinutes(s, day) / 30));
+
+// Validated at the edge where blocks are made: at least one day, and it ends after it starts.
+export function blockProblem(b: Pick<HardBlock, "weekdays" | "start_min" | "end_min">): string | null {
+  if (!b.weekdays.length) return "Pick at least one day.";
+  if (b.end_min <= b.start_min) return "End it after it starts.";
+  return null;
 }
