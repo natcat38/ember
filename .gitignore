@@ -5,3 +5,4 @@ dist/
 .wrangler/
 .DS_Store
 Thumbs.db
+.wrangler/
