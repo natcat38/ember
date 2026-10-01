@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { addPasskey, cancelled, passkeysSupported, signInWithPasskey } from "./passkeys";
 
 // Settings → Telegram (Tech_Scope.md §6): a one-time link code from the server, opened in Telegram.
@@ -42,15 +42,30 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
   const zones = Intl.supportedValuesOf?.("timeZone") ?? [browserTz];
   const [tgProblem, setTgProblem] = useState<string | null>(null);
   const [deviceNote, setDeviceNote] = useState<string | null>(null);
+  // What the server knows about this identity (worker/me.ts); unknown offline, which shows the link button.
+  const [me, setMe] = useState<{ telegram: boolean; passkeys: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/me", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setMe)
+      .catch(() => {});
+  }, []);
 
   return (
     <>
       <section className="section" aria-labelledby="h-nudges">
         <h2 id="h-nudges">Nudges</h2>
-        <p className="empty">Ember can nudge you on Telegram while the app is closed.</p>
-        <button className="button" style={{ alignSelf: "flex-start" }} onClick={async () => setTgProblem(await linkTelegram())}>
-          Link Telegram
-        </button>
+        {me?.telegram ? (
+          // ponytail: not yet approved copy (the wireframe's row reads "Send to: Telegram").
+          <p className="empty">Nudges go to Telegram.</p>
+        ) : (
+          <>
+            <p className="empty">Ember can nudge you on Telegram while the app is closed.</p>
+            <button className="button" style={{ alignSelf: "flex-start" }} onClick={async () => setTgProblem(await linkTelegram())}>
+              Link Telegram
+            </button>
+          </>
+        )}
         {tgProblem && (
           <p className="hint" role="status">
             {tgProblem}
