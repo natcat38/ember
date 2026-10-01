@@ -18,6 +18,8 @@ Status: **approved by Natalie, 2026-10-02**. Inputs: `Product_Scope.md` (what), 
 
 Versions get pinned in `package.json` in slice 0. If TypeScript 7 (the new native compiler) breaks a tool in the chain, pin the last 5.x and note it here.
 
+Slice 0 (2026-10-02): TypeScript 7.0.2 typechecks the React skeleton without trouble. `@cloudflare/vite-plugin` is deferred to slice 8, because phase 1 deploys static assets only and needs no Worker code. When it lands, 1.62.4 requires wrangler `^4.146.0`, which resolves from npm as of 2026-10-02, so slice 8 bumps wrangler with it. Playwright arrives with the first e2e test (slice 1).
+
 ## 2. Architecture
 
 ```
