@@ -51,12 +51,17 @@ export function localToMs(day: string, minutes: number, tz: string): number {
 // --- Slots (§4.5) -------------------------------------------------------------------------------
 
 // Slot times as minutes after the waking window's start: S1 start, S2 midpoint, S3 end - 3 h, S4 end - 1 h.
-const slotOffsets = (len: number) => [0, Math.round(len / 2), Math.max(len - 180, 0), Math.max(len - 60, 0)];
+// Exported with the two helpers below so a Telegram snooze (worker/buttons.ts) lands where the planner would put a message.
+export const slotOffsets = (len: number) => [0, Math.round(len / 2), Math.max(len - 180, 0), Math.max(len - 60, 0)];
 
 // Hard blocks as [from, to) offsets from the window start, laid out like freeMinutes so a window past midnight stays straight.
-function blockSpans(s: State, day: string, windowStart: number): (readonly [number, number])[] {
+export function blockSpans(
+  blocks: { weekdays: number[]; start_min: number; end_min: number; deleted?: boolean }[],
+  day: string,
+  windowStart: number,
+): (readonly [number, number])[] {
   const weekday = (new Date(Date.parse(day)).getUTCDay() + 6) % 7; // 0 = Monday
-  return s.hard_blocks
+  return blocks
     .filter((b) => !b.deleted && b.weekdays.includes(weekday))
     .map((b) => {
       const from = (b.start_min - windowStart + 1440) % 1440;
@@ -65,7 +70,7 @@ function blockSpans(s: State, day: string, windowStart: number): (readonly [numb
 }
 
 // A slot inside a hard block moves to that block's end. Adjacent blocks chain, hence the loop.
-function clearOfBlocks(offset: number, spans: (readonly [number, number])[]): number {
+export function clearOfBlocks(offset: number, spans: (readonly [number, number])[]): number {
   let o = offset;
   for (let moved = true; moved; ) {
     const hit = spans.find(([from, to]) => from <= o && o < to);
@@ -137,7 +142,7 @@ export function planDay(input: PlanInput): PlannedMessage[] {
 
   // 2. Place in time-sensitivity order, one message per slot.
   const offsets = slotOffsets(len);
-  const spans = blockSpans(s, today, quiet_end);
+  const spans = blockSpans(s.hard_blocks, today, quiet_end);
   const slots = offsets.map((o) => clearOfBlocks(o, spans)).map((o) => (o < len ? at(o) : null)); // past the window's end: no slot
   const windowStart = at(0);
   const windowEnd = at(len);

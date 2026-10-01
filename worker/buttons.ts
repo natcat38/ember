@@ -1,5 +1,5 @@
 import { dayOf } from "../core/day";
-import { localToMs, type MessageKind } from "../core/messages";
+import { blockSpans, clearOfBlocks, localToMs, slotOffsets, type MessageKind } from "../core/messages";
 import { addDays } from "../core/today";
 import { newUserId } from "./identity";
 import type { Op } from "./protocol";
@@ -121,29 +121,7 @@ export interface DayShape {
   blocks: { weekdays: number[]; start_min: number; end_min: number }[];
 }
 
-// The planner's own slot rules (core/messages.ts, not exported there): S1 = window start, S3 = end - 3 h, S4 = end - 1 h,
-// and a slot inside a hard block moves to that block's end. Copied here so a snooze lands where the planner would put a message.
-const slotOffsets = (len: number) => [0, Math.round(len / 2), Math.max(len - 180, 0), Math.max(len - 60, 0)];
-
-function blockSpans(blocks: DayShape["blocks"], day: string, windowStart: number): (readonly [number, number])[] {
-  const weekday = (new Date(Date.parse(day)).getUTCDay() + 6) % 7; // 0 = Monday
-  return blocks
-    .filter((b) => b.weekdays.includes(weekday))
-    .map((b) => {
-      const from = (b.start_min - windowStart + 1440) % 1440;
-      return [from, from + b.end_min - b.start_min] as const;
-    });
-}
-
-function clearOfBlocks(offset: number, spans: (readonly [number, number])[]): number {
-  let o = offset;
-  for (let moved = true; moved; ) {
-    const hit = spans.find(([from, to]) => from <= o && o < to);
-    moved = !!hit;
-    if (hit) o = hit[1];
-  }
-  return o;
-}
+// Slots use the planner's own rules (core/messages.ts), so a snooze lands where the planner would put a message.
 
 export type SnoozeChoice = "1h" | "evening" | "tomorrow";
 

@@ -104,6 +104,7 @@ Changed in Build (slices 8 and 10, 2026-10-02); `migrations/0001_init.sql` is th
 - **`hard_blocks`** is one row per block, not per weekday: `weekdays` (JSON array, 0 = Monday), `label`, `updated_at`. One block covers several days with one name, as in Wireframes §8.
 - **Scheduler** (`0002`): `users.planned_until`, `planned_rev`, `plan_token` (a compare-and-set plan write); `sends.text` (composed at plan time), `sends.deadline` (what an overdue send silences). Var `APP_ORIGIN` builds the link buttons. Crons: `* * * * *` (tick) and `0 19 * * *` (retention).
 - **Passkeys** (`0003`): `passkey_challenges`, single-use and bound to the user, origin and rpID that asked. `@simplewebauthn/server` runs under workerd without `nodejs_compat` (§11's open question, settled).
+- **Telegram state buttons** (slice 13): `callback_data` is a 1–2 byte action code with no ids; the tap's chat and message id find the send through `sends.tg_message_id`. Ops go through `sync` with `op_id` `tg:<callback_query.id>`. `setWebhook` must allow `["message", "callback_query"]`. *Pick a date* links carry `pick=1`.
 - **`GET /api/me`**: read-only; whether Telegram is linked and how many passkeys exist, for Settings.
 - **Telegram secrets**: `TG_BOT_TOKEN`, `TG_WEBHOOK_SECRET`, `TG_WEBHOOK_PATH`; var `TG_BOT_USERNAME` (see `.dev.vars.example`). Not set until the production bot exists.
 
