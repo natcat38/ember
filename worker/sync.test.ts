@@ -183,7 +183,7 @@ describe("pull and cursor", () => {
       { op_id: uuid(), entity: "chunks", id: c, fields: { task_id: t, parent_id: null, title: "Draft", position: 1.5, state: "todo", deleted: false } },
       { op_id: uuid(), entity: "sessions", id: s, fields: { chunk_id: c, started_at: 1000, ended_at: 2000, completed: true } },
       { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { confirmed_at: 5, deferred: [c] } },
-      { op_id: uuid(), entity: "hard_blocks", id: h, fields: { weekday: 0, start_min: 540, end_min: 720 } },
+      { op_id: uuid(), entity: "hard_blocks", id: h, fields: { weekdays: [0, 2], start_min: 540, end_min: 720, label: "Classes" } },
     ];
     const { body } = await sync({ cursor: 0, ops }, cookie);
 
@@ -196,7 +196,7 @@ describe("pull and cursor", () => {
     expect(cr).toMatchObject({ id: c, task_id: t, parent_id: null, position: 1.5, deleted: false });
     expect(sr).toMatchObject({ id: s, chunk_id: c, completed: true });
     expect(dr).toMatchObject({ day: "2026-10-05", confirmed_at: 5, shutdown_at: null, deferred: [c] });
-    expect(hr).toMatchObject({ id: h, weekday: 0, start_min: 540, end_min: 720, deleted: false });
+    expect(hr).toMatchObject({ id: h, weekdays: [0, 2], start_min: 540, end_min: 720, label: "Classes", deleted: false });
   });
 
   it("never returns another user's rows", async () => {

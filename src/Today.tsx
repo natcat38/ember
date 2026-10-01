@@ -16,10 +16,11 @@ interface Props {
   welcome: boolean; // first open after 3+ days away
   onWelcomeDone: () => void;
   onReset: () => void;
+  backedUp: boolean;
 }
 
 // Wireframes.md §1. The cat joins the nook in phase 3.
-export function TodayView({ plan, state, update, today, onOpenTask, onStart, onInbox, onCapture, welcome, onWelcomeDone, onReset }: Props) {
+export function TodayView({ plan, state, update, today, onOpenTask, onStart, onInbox, onCapture, welcome, onWelcomeDone, onReset, backedUp }: Props) {
   const { rows, frog, waiting, lightDay } = plan;
   // The morning confirm shows on the day's first visit to Today and never returns that day, answered or not.
   // On a lapse return the welcome back takes its place.
@@ -39,6 +40,8 @@ export function TodayView({ plan, state, update, today, onOpenTask, onStart, onI
     return (
       <section className="section">
         <p className="empty">Nothing's lined up for today yet.</p>
+        {/* The landing disclosure from phase 2 on (UX_Flows.md §7). */}
+        {backedUp && <p className="hint">Your list is backed up, so it won't get lost.</p>}
         <div className="actions">
           <button className="button primary" onClick={onInbox}>
             Sort a few from Inbox

@@ -53,6 +53,13 @@ const bool = (): Field => ({
   read: (v) => v === 1 || v === true,
 });
 
+// `hard_blocks.weekdays` is a JSON array of distinct weekdays (0 = Monday) in TEXT.
+const weekdays = (): Field => ({
+  check: (v) => Array.isArray(v) && v.length >= 1 && v.length <= 7 && v.every((d) => isInt(d, 0, 6)) && new Set(v).size === v.length,
+  bind: (v) => JSON.stringify(v),
+  read: (v) => JSON.parse(String(v)),
+});
+
 // `days.deferred` is a JSON array of ids in TEXT.
 const idList = (maxItems = 500): Field => ({
   check: (v) => Array.isArray(v) && v.length <= maxItems && v.every(isId),
@@ -121,13 +128,16 @@ export const ENTITIES: Record<Entity, EntityDef> = {
   hard_blocks: {
     table: "hard_blocks",
     key: "id",
-    required: ["weekday", "start_min", "end_min"],
+    required: ["weekdays", "start_min", "end_min"],
     checkId: isId,
+    // One block on one or more days with an optional name (Wireframes.md §8), not one row per weekday as §3 first had it.
     fields: {
-      weekday: int(0, 6),
+      weekdays: weekdays(),
       start_min: int(0, 1439),
       end_min: int(1, 1440),
+      label: field((v) => typeof v === "string" && v.length <= 100, true),
       deleted: bool(),
+      updated_at: int(),
     },
   },
 };

@@ -24,9 +24,11 @@ CREATE INDEX users_last_seen ON users (last_seen_at);
 CREATE TABLE hard_blocks (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
-  weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),   -- 0 = Monday
+  weekdays TEXT NOT NULL,                               -- JSON array of 0-6, 0 = Monday (one block, several days)
   start_min INTEGER NOT NULL,
   end_min INTEGER NOT NULL,
+  label TEXT,                                           -- optional name, e.g. "Classes"
+  updated_at INTEGER,
   rev INTEGER NOT NULL,
   deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1))
 );

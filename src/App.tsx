@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { capture, pin, remove, rename, restore, triage, type CaptureInput, type State, type Task } from "../core/task";
 import { addDays, buildToday, doneTodayCount, isLapse, resetOverdue, slotsFor, wrapUp } from "../core/today";
 import { SettingsView } from "./Settings";
+import { createSync, type SyncStatus } from "./sync";
 import { RewardView } from "./Reward";
 import { ShutdownView } from "./Shutdown";
 import { TodayView } from "./Today";
@@ -33,6 +34,9 @@ export function App() {
   const [boot] = useState(() => load());
   const [state, setState] = useState<State>(() => ({ ...boot, last_seen_at: Date.now() }));
   const [saved, setSaved] = useState(true);
+  // Phase 2 backup and sync (Tech_Scope.md §5): every state change becomes ops in an outbox the server applies once.
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({ backedUp: false, pending: 0, offline: false });
+  const [sync] = useState(() => createSync(state, { update: setState, onStatus: setSyncStatus }));
   // Reopening the app mid-session goes straight back to Focus; the timer kept running on the wall clock.
   const [view, setView] = useState<View>(() => ({ name: state.focus ? "focus" : "today" }));
   const [askFor, setAskFor] = useState<Task | null>(null);
@@ -65,6 +69,19 @@ export function App() {
   }, [minute]);
 
   useEffect(() => setSaved(save(state)), [state]);
+  useEffect(() => sync.record(state), [state, sync]);
+
+  // Sync on open, on coming back to the app, and on reconnecting (§5 "When").
+  useEffect(() => {
+    void sync.push();
+    const wake = () => document.visibilityState === "visible" && void sync.push();
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("online", wake);
+    return () => {
+      document.removeEventListener("visibilitychange", wake);
+      window.removeEventListener("online", wake);
+    };
+  }, [sync]);
 
   // The ring moving is announced through the live region (Wireframes.md, accessibility targets).
   const doneCount = plan.rows.filter((r) => r.done).length;
@@ -77,7 +94,12 @@ export function App() {
 
   // Another tab saved: take its version, so this tab never writes stale data over it.
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => e.key === KEY && setState(load());
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== KEY) return;
+      const theirs = load();
+      sync.rebase(theirs); // the other tab syncs its own changes
+      setState(theirs);
+    };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
@@ -236,7 +258,7 @@ export function App() {
                 onStopped={() => navigate({ name: "today" })}
               />
             ) : view.name === "settings" ? (
-              <SettingsView state={state} update={setState} browserTz={browserTz} />
+              <SettingsView state={state} update={setState} browserTz={browserTz} backedUp={syncStatus.backedUp} />
             ) : view.name === "today" ? (
               <TodayView
                 key={today} // a new day remounts it, so its morning confirm and Adjust mode start fresh
@@ -251,6 +273,7 @@ export function App() {
                 welcome={welcome}
                 onWelcomeDone={() => setWelcome(false)}
                 onReset={() => setState((s) => resetOverdue(s, today, Date.now()))}
+                backedUp={syncStatus.backedUp}
               />
             ) : (
               <Inbox

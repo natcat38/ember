@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./fixtures";
 
 test("five captures in a row survive a reload", async ({ page }) => {
   await page.goto("/");

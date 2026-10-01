@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page } from "./fixtures";
 
 // Tech_Scope.md §4.6: Mei, Monday 2026-10-05, Asia/Singapore. Hard blocks arrive in slice 10.
 test.use({ timezoneId: "Asia/Singapore" });
