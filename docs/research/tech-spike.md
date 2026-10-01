@@ -25,3 +25,9 @@ Run 2026-10-02 against `tech-feasibility.md` (desk research, 2026-09-09). Each q
 - WebKit blog 2023-08-10: a home-screen web app gets the same quota as Safari, and `navigator.storage.persist()` is granted by heuristics that favour home-screen apps. [Updates to Storage Policy](https://webkit.org/blog/14403/updates-to-storage-policy/)
 
 **Consequence:** `UX_Flows.md` §7 is correct as written. The phase-1 install nudge copy (*"if you don't open Ember for about a week"*) is accurate enough: "about a week" of Safari use. Phase 1 should also call `navigator.storage.persist()` after install; it costs one line and can only help.
+
+## Cleanup before the repo goes public
+
+- **Revoke the spike bot token** (`@ember_natalie_bot`, BotFather `/revoke`). On 2026-10-02 the token was stored by mistake as a Worker secret's *name*, so it appears in plain text in the Cloudflare dashboard and in that session's transcript. It was never committed to git. Natalie chose to defer revoking while the repo is private.
+- Delete the misnamed secret on Worker `ember-spike`, or delete the whole spike Worker and the `ember-spike` D1 database once Build has its own.
+- Rename or remove the workers.dev subdomain `cron-telegram`, which wrangler registered automatically on the first deploy.
