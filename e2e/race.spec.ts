@@ -72,3 +72,14 @@ test("Settings offers Telegram, and says plainly when it can't link", async ({ p
   await page.getByRole("button", { name: "Link Telegram" }).click();
   await expect(page.getByText("Linking Telegram needs a connection.")).toBeVisible(); // API unreachable here
 });
+
+test.describe("Settings with the server reachable", () => {
+  test.use({ online: true });
+  test("offers to link Telegram while it isn't linked", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Link Telegram" })).toBeVisible();
+    await expect(page.getByText("Nudges go to Telegram.")).toHaveCount(0);
+  });
+});

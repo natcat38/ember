@@ -1,4 +1,5 @@
 import { handleHandoffRedeem } from "./handoff";
+import { handleMe } from "./me";
 import { handleScheduled, type SchedulerEnv } from "./scheduler";
 import { handleSync } from "./sync";
 import { handlePasskey } from "./passkeys";
@@ -21,6 +22,7 @@ export default {
       if (pathname.startsWith(PASSKEY_PREFIX)) return await handlePasskey(request, env, pathname.slice(PASSKEY_PREFIX.length));
       if (pathname === "/api/tg/link") return await handleTgLink(request, env);
       if (pathname === "/api/handoff/redeem") return await handleHandoffRedeem(request, env);
+      if (pathname === "/api/me") return await handleMe(request, env);
       if (pathname.startsWith(TG_HOOK_PREFIX)) return await handleTgWebhook(request, env, pathname.slice(TG_HOOK_PREFIX.length));
       if (pathname.startsWith("/api/")) return Response.json({ error: "not_found" }, { status: 404 });
       return await env.ASSETS.fetch(request);

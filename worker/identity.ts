@@ -7,6 +7,12 @@ const UID_RE = /^[A-Za-z0-9_-]{22}$/; // 16 random bytes, base64url without padd
 
 export const cookieFor = (uid: string) => `${COOKIE_NAME}=${uid}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${MAX_AGE_SECONDS}`;
 
+// The well-formed user id this request's cookie presents, without checking it exists (read-only callers: /api/me).
+export function presentedUser(request: Request): string | null {
+  const v = cookieValue(request);
+  return v && UID_RE.test(v) ? v : null;
+}
+
 function cookieValue(request: Request): string | null {
   for (const part of (request.headers.get("Cookie") ?? "").split(";")) {
     const eq = part.indexOf("=");
