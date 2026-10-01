@@ -5,11 +5,12 @@ import type { Chunk } from "../core/chunk";
 import type { Day, HardBlock, State, Task } from "../core/task";
 import { addDays, buildToday, daysBetween, remaining, slotsFor } from "../core/today";
 import type { Session } from "../core/focus";
+import { LOGIN_LINK_TTL_MS, messageKeyboard } from "./buttons";
 import { newUserId } from "./identity";
 import { runRetention } from "./retention";
 import type { Entity } from "./protocol";
 import { ENTITIES } from "./schema";
-import type { TelegramEnv } from "./telegram";
+import { botCall, type TelegramEnv } from "./telegram";
 
 // The scheduler (Tech_Scope.md §4.5, §6, §11, slice 12): one cron tick plans the stale users' days, then sends what is due.
 
@@ -52,7 +53,6 @@ const DAILY_CAP = 3; // Product_Scope.md §2 (planDay's own constant is not expo
 const DEFAULT_TZ = "Asia/Singapore"; // a null tz means "the browser's"; core falls back to the same zone
 const CLAIM_TTL_MS = 5 * 60_000; // §11: a claim this old with no sent_at is a crashed tick, and the row is retried
 const MAX_ATTEMPTS = 5; // counted at claim time, so a tick that dies mid-send still uses one
-const LOGIN_LINK_TTL_MS = 24 * 3_600_000; // §6
 const DISMISS_AFTER_MS = 5 * 3_600_000; // UX_Flows §5: no interaction within 5 hours = dismissed
 const LATE_GRACE_MS = 5 * 60_000; // a planned message this far past due (or more) is dropped; less is just a late tick
 const PLAN_RETRY_MS = 5 * 60_000; // a user whose plan threw is tried again after this
@@ -263,7 +263,10 @@ export function buildPlan(loaded: Loaded, settings: State["settings"], now: numb
   // Planned with the sent ones still in the pool, they hold their slots, and they are taken off afterwards.
   const raw = planDay({ state, today, sentToday: 0, lastQuietAt, overdueSentFor });
   const taken = new Map<string, number>();
-  for (const r of used) taken.set(sameMessage(r.kind, r.task_ids), (taken.get(sameMessage(r.kind, r.task_ids)) ?? 0) + 1);
+  // A snoozed close nudge (slice 13's Snooze button, which only close messages carry) still counts against the cap, but
+  // it no longer stands for a planned message: the snooze pinned its tasks' message to their own time, and that planned
+  // message is the one that must go out.
+  for (const r of used.filter((u) => !(u.kind === "close" && u.snoozed_at !== null))) taken.set(sameMessage(r.kind, r.task_ids), (taken.get(sameMessage(r.kind, r.task_ids)) ?? 0) + 1);
   const unsent = raw.filter((m) => {
     const key = sameMessage(m.kind, m.task_ids);
     const n = taken.get(key) ?? 0;
@@ -390,7 +393,7 @@ async function sendDue(env: SchedulerEnv, now: number): Promise<Omit<TickReport,
   try {
     for (const r of rows) {
       if (blocked.has(r.user_id)) continue; // this tick already learned the user blocked the bot
-      const result = await deliver(env, r.chat_id, r.text, keyboard(env.APP_ORIGIN, r, codes.get(r.id)));
+      const result = await deliver(env, r.chat_id, r.text, messageKeyboard(env.APP_ORIGIN, { id: r.id, kind: r.kind, task_ids: JSON.parse(r.task_ids) as string[] }, codes.get(r.id)));
       if (result.ok) {
         // A failure of this write after Telegram accepted the message would have the row sent again once its claim
         // is 5 minutes old; the error is let through so the tick stops rather than risk more of those.
@@ -416,36 +419,13 @@ async function sendDue(env: SchedulerEnv, now: number): Promise<Omit<TickReport,
   return { claimed: rows.length, sent, blocked: blocked.size };
 }
 
-// §6 link buttons: URLs, not callbacks. Each carries the send id and the message's sign-in code; "Start a session"
-// also names the task. (State buttons, Done and Snooze and the rest, are slice 13.)
-const START_KINDS = new Set(["deadline_day", "overdue", "close"]);
-
-function keyboard(origin: string | undefined, r: Claimed, code: string | undefined) {
-  if (!origin || !code) return undefined;
-  const link = (task?: string) => `${origin}/?h=${code}&s=${r.id}${task ? `&t=${task}` : ""}`;
-  const taskId = (JSON.parse(r.task_ids) as string[])[0];
-  const buttons = [{ text: "Open today", url: link() }];
-  if (START_KINDS.has(r.kind) && taskId) buttons.push({ text: "Start a session", url: link(taskId) });
-  return { inline_keyboard: [buttons] };
-}
-
 type Delivery = { ok: true; messageId: number | null } | { ok: false; status: number };
 
-// sendMessage in telegram.ts discards Telegram's answer, and the scheduler needs two things from it: the message id to
-// stamp, and the 403 that means "blocked". So this calls the Bot API itself. status 0 = the request never got an answer.
+// One Bot API sender for everything (botCall in telegram.ts); the scheduler needs the message id to stamp and the 403 that
+// means "blocked". status 0 = the request never got an answer.
 async function deliver(env: SchedulerEnv, chatId: string, text: string, replyMarkup?: unknown): Promise<Delivery> {
-  let res: Response;
-  try {
-    res = await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, ...(replyMarkup === undefined ? {} : { reply_markup: replyMarkup }) }),
-    });
-  } catch {
-    return { ok: false, status: 0 }; // the runtime's own error text can quote the URL, which holds the token
-  }
-  if (!res.ok) return { ok: false, status: res.status };
-  const body = (await res.json().catch(() => null)) as { result?: { message_id?: unknown } } | null;
-  const id = body?.result?.message_id;
+  const r = await botCall(env, "sendMessage", { chat_id: chatId, text, ...(replyMarkup === undefined ? {} : { reply_markup: replyMarkup }) });
+  if (!r.ok) return { ok: false, status: r.status };
+  const id = (r.result as { message_id?: unknown } | null | undefined)?.message_id;
   return { ok: true, messageId: typeof id === "number" ? id : null };
 }

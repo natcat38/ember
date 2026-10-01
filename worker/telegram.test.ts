@@ -23,13 +23,20 @@ interface Sent {
   reply_markup?: unknown;
 }
 let sent: Sent[] = [];
+let answers: { callback_query_id: string }[] = [];
 let botStatus = 200;
 
 beforeEach(() => {
   sent = [];
+  answers = [];
   botStatus = 200;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    // Button taps are answered (slice 13); buttons.test.ts covers what they do. Here only the answer is recorded.
+    if (url === `https://api.telegram.org/bot${TOKEN}/answerCallbackQuery`) {
+      answers.push(JSON.parse(String(init?.body)) as { callback_query_id: string });
+      return Response.json({ ok: true, result: true });
+    }
     if (url !== `https://api.telegram.org/bot${TOKEN}/sendMessage`) throw new Error(`unexpected outbound fetch: ${url}`);
     sent.push(JSON.parse(String(init?.body)) as Sent);
     return botStatus === 200 ? Response.json({ ok: true, result: { message_id: 1 } }) : Response.json({ ok: false, description: "nope" }, { status: botStatus });
@@ -327,7 +334,6 @@ describe("update shape", () => {
     const chat = freshChat();
     const ignored: unknown[] = [
       { update_id: nextUpdate++, edited_message: { message_id: 1, chat: { id: chat, type: "private" }, text: "edited" } },
-      { update_id: nextUpdate++, callback_query: { id: "abc", data: "d:x:y" } },
       update(undefined, chat), // a photo or sticker: no text
       update("hello group", chat, { message: { message_id: 1, chat: { id: chat, type: "group" }, text: "hello group" } }),
       update("odd", chat, { message: { message_id: 1, chat: { id: "not-a-number", type: "private" }, text: "odd" } }),
@@ -335,6 +341,24 @@ describe("update shape", () => {
     ];
     for (const body of ignored) expect((await hook(body)).status).toBe(200);
     expect(sent).toEqual([]);
+  });
+});
+
+describe("button taps", () => {
+  it("answers a tap that names no usable message, and does nothing else", async () => {
+    const bodies = [
+      { update_id: nextUpdate++, callback_query: { id: "abc", data: "d" } }, // an inline-mode tap: no message
+      { update_id: nextUpdate++, callback_query: { id: "def", data: "d", message: { message_id: 1, chat: { id: -100, type: "group" } } } },
+      { update_id: nextUpdate++, callback_query: { id: "ghi" } }, // no data
+    ];
+    for (const body of bodies) expect((await hook(body)).status).toBe(200);
+    expect(answers.map((a) => a.callback_query_id)).toEqual(["abc", "def", "ghi"]);
+    expect(sent).toEqual([]);
+  });
+
+  it("ignores a callback_query without an id", async () => {
+    expect((await hook({ update_id: nextUpdate++, callback_query: { data: "d" } })).status).toBe(200);
+    expect(answers).toEqual([]);
   });
 });
 
