@@ -1,0 +1,205 @@
+import { useEffect, useState } from "react";
+import { tick } from "../core/chunk";
+import { band, confirmDay, daysBetween, isConfirmed, notToday, type Today, type TodayRow } from "../core/today";
+import { pin, type State, type Task } from "../core/task";
+
+interface Props {
+  plan: Today;
+  state: State;
+  update: (fn: (s: State) => State) => void;
+  today: string;
+  onOpenTask: (t: Task) => void;
+  onInbox: () => void;
+  onCapture: () => void;
+}
+
+const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
+const shortDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+
+// Overdue is a plain date label, no red (UX_Flows.md §4).
+function wasDue(deadline: string, today: string) {
+  const d = Date.parse(deadline);
+  return `Was due ${daysBetween(deadline, today) < 7 ? weekday.format(d) : shortDate.format(d)}`;
+}
+
+// Wireframes.md §1. Start buttons arrive with Focus (slice 5); the ring and nook with Reward (slice 6).
+export function TodayView({ plan, state, update, today, onOpenTask, onInbox, onCapture }: Props) {
+  const { rows, frog, waiting, lightDay } = plan;
+  // The morning confirm shows on the day's first visit to Today and never returns that day, answered or not.
+  const [confirming, setConfirming] = useState(() => !isConfirmed(state, today) && rows.length > 0);
+  const [adjusting, setAdjusting] = useState(false);
+  useEffect(() => {
+    if (confirming) update((s) => confirmDay(s, today, Date.now()));
+  }, [confirming, today, update]);
+
+  const defer = (key: string) => update((s) => notToday(s, today, key));
+  const rest = rows.filter((r) => r !== frog);
+  const open = rest.filter((r) => !r.done);
+  const done = rest.filter((r) => r.done);
+
+  if (rows.length === 0) {
+    return (
+      <section className="section">
+        <p className="empty">Nothing's lined up for today yet.</p>
+        <div className="actions">
+          <button className="button primary" onClick={onInbox}>
+            Sort a few from Inbox
+          </button>
+          <button className="button" onClick={onCapture}>
+            Capture something
+          </button>
+        </div>
+        {lightDay && <LightDay task={lightDay} onPin={() => update((s) => pin(s, lightDay.id, today, Date.now()))} onDecline={() => defer(lightDay.id)} />}
+      </section>
+    );
+  }
+
+  const row = (r: TodayRow) => {
+    // A smaller step names its parent; an overdue task shows its date (Wireframes.md §1).
+    const second = r.parent?.title ?? (band(r.task, today) === "overdue" && r.task.deadline ? wasDue(r.task.deadline, today) : null);
+    return (
+      <li key={r.key} className={`row today-row${r.done ? " done" : ""}`}>
+        {r.chunk ? (
+          <label className="check">
+            <input type="checkbox" checked={r.done} aria-label={title(r)} onChange={(e) => update((s) => tick(s, r.chunk!.id, e.target.checked, Date.now()))} />
+          </label>
+        ) : (
+          <span className="check" aria-hidden="true" />
+        )}
+        <button className="row-link" onClick={() => onOpenTask(r.task)}>
+          <span>{title(r)}</span>
+          {second && <span className="meta">{second}</span>}
+        </button>
+        {!r.done &&
+          (adjusting ? (
+            <button className="text-button" onClick={() => defer(r.key)} aria-label={`Not today: ${title(r)}`}>
+              Not today
+            </button>
+          ) : (
+            <RowMenu id={`row-${r.key}`} label={title(r)} onNotToday={() => defer(r.key)} onOpen={() => onOpenTask(r.task)} />
+          ))}
+      </li>
+    );
+  };
+
+  return (
+    <>
+      {confirming && (
+        <section className="card" aria-label="Morning confirm">
+          <p className="lead">
+            Here's today: {rows.length} {rows.length === 1 ? "thing" : "things"}. Good to go?
+          </p>
+          <div className="actions card-actions">
+            {/* Outlined: the frog's Do this first is the view's one primary button (restraint rule 2). */}
+            <button className="button" onClick={() => setConfirming(false)}>
+              Let's go
+            </button>
+            <button
+              className="button"
+              onClick={() => {
+                setConfirming(false);
+                setAdjusting(true);
+              }}
+            >
+              Adjust
+            </button>
+          </div>
+        </section>
+      )}
+
+      {frog && (
+        <section className="card frog" aria-labelledby="frog-label">
+          <p id="frog-label" className="frog-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 3l2.8 6 6.2.3-4.8 4.1 1.6 6.6-5.8-3.6-5.8 3.6 1.6-6.6L3 9.3 9.2 9z" />
+            </svg>
+            Do this first
+          </p>
+          <button className="row-link lead" onClick={() => onOpenTask(frog.task)}>
+            {title(frog)}
+          </button>
+          {frog.chunk && <p className="meta">from: {[frog.task.title, frog.parent?.title].filter(Boolean).join(" · ")}</p>}
+          {frog.task.deadline && band(frog.task, today) === "overdue" && <p className="meta">{wasDue(frog.task.deadline, today)}</p>}
+          <div className="actions card-actions">
+            <button className="button" onClick={() => defer(frog.key)}>
+              Not today
+            </button>
+          </div>
+        </section>
+      )}
+
+      {(open.length > 0 || done.length > 0) && (
+        <ul className="list" aria-label="Today">
+          {open.map(row)}
+          {done.map(row)}
+        </ul>
+      )}
+
+      {open.length === 0 && !frog && <p className="empty">That's everything for today.</p>}
+
+      {adjusting && (
+        <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={onInbox}>
+          Pin a task
+        </button>
+      )}
+
+      {waiting > 0 && (
+        <button className="overflow" onClick={onInbox}>
+          {waiting} more waiting. They'll come up when there's room.
+        </button>
+      )}
+
+      {lightDay && <LightDay task={lightDay} onPin={() => update((s) => pin(s, lightDay.id, today, Date.now()))} onDecline={() => defer(lightDay.id)} />}
+    </>
+  );
+}
+
+const title = (r: TodayRow) => r.chunk?.title ?? r.task.title;
+
+// Open the popover beside its button, flipping above it near the bottom of the screen.
+function placeBelow(button: HTMLElement, id: string) {
+  const r = button.getBoundingClientRect();
+  const el = document.getElementById(id)!.style;
+  el.right = `${innerWidth - r.right}px`;
+  const below = r.bottom + 120 < innerHeight;
+  el.top = below ? `${r.bottom + 4}px` : "auto";
+  el.bottom = below ? "auto" : `${innerHeight - r.top + 4}px`;
+}
+
+function RowMenu({ id, label, onNotToday, onOpen }: { id: string; label: string; onNotToday: () => void; onOpen: () => void }) {
+  const close = (fn: () => void) => () => {
+    document.getElementById(id)?.hidePopover();
+    fn();
+  };
+  return (
+    <>
+      <button className="icon-button" popoverTarget={id} aria-label={`More actions for ${label}`} onClick={(e) => placeBelow(e.currentTarget, id)}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="5" cy="12" r="1.8" />
+          <circle cx="12" cy="12" r="1.8" />
+          <circle cx="19" cy="12" r="1.8" />
+        </svg>
+      </button>
+      <div id={id} popover="auto" className="menu row-menu">
+        <button onClick={close(onNotToday)}>Not today</button>
+        <button onClick={close(onOpen)}>Open task</button>
+      </div>
+    </>
+  );
+}
+
+function LightDay({ task, onPin, onDecline }: { task: Task; onPin: () => void; onDecline: () => void }) {
+  return (
+    <section className="card" aria-label="Light day">
+      <p>Light day. Want to get ahead on {task.title}?</p>
+      <div className="actions card-actions">
+        <button className="button" onClick={onPin}>
+          Pin to today
+        </button>
+        <button className="button" onClick={onDecline}>
+          Not today
+        </button>
+      </div>
+    </section>
+  );
+}

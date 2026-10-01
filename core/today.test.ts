@@ -1,0 +1,138 @@
+import { expect, test } from "vitest";
+import { band, buildToday, confirmDay, daysBetween, isConfirmed, notToday, remaining } from "./today";
+import { emptyState, pin, type State, type Task } from "./task";
+import type { Chunk } from "./chunk";
+
+const TODAY = "2026-10-05"; // Mei's Monday, Tech_Scope.md §4.6
+
+function task(id: string, o: Partial<Task>): Task {
+  return { id, title: id, state: "active", size: "M", quick: false, holding_up: false, deadline: null, runway_start: null, pinned_on: null, snoozed_until: null, created_at: 1, updated_at: 1, ...o };
+}
+function steps(taskId: string, n: number, o: Partial<Chunk> = {}): Chunk[] {
+  return Array.from({ length: n }, (_, i) => ({ id: `${taskId}${i + 1}`, task_id: taskId, parent_id: null, title: `${taskId}${i + 1}`, position: i + 1, state: "todo", deleted: false, updated_at: 1, ...o }));
+}
+
+// The §4.6 worked example, minus hard blocks (slice 10).
+function mei(): State {
+  return {
+    ...emptyState(),
+    tasks: [
+      task("A", { title: "DSA assignment", size: "M", deadline: "2026-10-08", runway_start: "2026-09-28" }),
+      task("B", { title: "Cover letter", size: "S", deadline: "2026-10-05", runway_start: "2026-10-01" }),
+      task("C", { title: "Lab report", size: "L", deadline: "2026-10-04", runway_start: "2026-09-20" }),
+      task("D", { title: "System design ch. 3", size: "M" }),
+      task("E", { title: "Reply to recruiter", size: "XS", deadline: "2026-10-20", runway_start: "2026-10-01", holding_up: true }),
+    ],
+    chunks: [...steps("A", 3), ...steps("B", 1), ...steps("C", 3), ...steps("D", 2), ...steps("E", 1)],
+  };
+}
+const meiSessions = (id: string) => (id === "A" ? 1 : 0);
+const ids = (rows: { key: string }[]) => rows.map((r) => r.key);
+
+test("golden: §4.6 Today is B1 (frog), C1, C2, A1, A2, with 1 more waiting and no light-day offer", () => {
+  const t = buildToday(mei(), TODAY, { sessionsDone: meiSessions });
+  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "A1", "A2"]);
+  expect(t.frog?.key).toBe("B1");
+  expect(t.waiting).toBe(1); // E1
+  expect(t.lightDay).toBeNull(); // the day is full, so D is not offered
+});
+
+test("golden: §4.6 bands and remaining sessions", () => {
+  const s = mei();
+  const get = (id: string) => s.tasks.find((t) => t.id === id)!;
+  expect(band(get("B"), TODAY)).toBe("due_today");
+  expect(band(get("C"), TODAY)).toBe("overdue");
+  expect(band(get("A"), TODAY)).toBe("close"); // 3 days left
+  expect(band(get("E"), TODAY)).toBe("on_track"); // fraction 15/19 = 0.79 → far, holding up → on track
+  expect(band(get("D"), TODAY)).toBe("far"); // no deadline
+  expect(remaining(get("A"), 1)).toBe(4);
+  expect(remaining(get("C"), 0)).toBe(10);
+  expect(remaining(get("B"), 9)).toBe(1); // never below 1 while not done
+});
+
+test("bands: first match wins; holding up never lifts into due today or overdue", () => {
+  const t = (deadline: string, runway_start: string, holding_up = false) => band(task("x", { deadline, runway_start, holding_up }), TODAY);
+  expect(t("2026-10-30", "2026-09-01")).toBe("on_track"); // fraction 25/59 = 0.42
+  expect(t("2026-10-30", "2026-09-01", true)).toBe("close");
+  expect(t("2026-10-15", "2026-08-01")).toBe("close"); // fraction 10/75 ≤ 0.3
+  expect(t("2026-10-06", "2026-10-05", true)).toBe("close"); // ≤ 3 days left
+  expect(daysBetween("2026-10-05", "2026-11-05")).toBe(31);
+});
+
+test("Not today defers a step and the next-ranked one fills the slot", () => {
+  const s = { ...mei(), days: [{ day: TODAY, confirmed_at: null, deferred: ["C2"] }] };
+  const t = buildToday(s, TODAY, { sessionsDone: meiSessions });
+  expect(ids(t.rows)).toEqual(["B1", "C1", "C3", "A1", "A2"]);
+});
+
+test("pinning a task takes a slot and bumps the lowest-ranked step out", () => {
+  const s = mei();
+  s.tasks = s.tasks.map((t) => (t.id === "D" ? { ...t, pinned_on: TODAY } : t));
+  const t = buildToday(s, TODAY, { sessionsDone: meiSessions });
+  expect(ids(t.rows)).toEqual(["D1", "B1", "C1", "C2", "A1"]);
+  expect(t.frog?.key).toBe("D1");
+});
+
+test("done means done: a step finished today keeps its slot, nothing refills", () => {
+  const s = mei();
+  const doneToday = Date.parse("2026-10-05T10:00:00+08:00");
+  s.chunks = s.chunks.map((c) => (c.id === "B1" || c.id === "C1" ? { ...c, state: "done", updated_at: doneToday } : c));
+  const t = buildToday(s, TODAY, { sessionsDone: meiSessions, tz: "Asia/Singapore" });
+  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "A1", "A2"]);
+  expect(t.frog).toBeNull(); // the frog is eaten
+});
+
+test("a step finished on an earlier day leaves Today", () => {
+  const s = mei();
+  s.chunks = s.chunks.map((c) => (c.id === "C1" ? { ...c, state: "done", updated_at: Date.parse("2026-10-04T10:00:00+08:00") } : c));
+  expect(ids(buildToday(s, TODAY, { sessionsDone: meiSessions, tz: "Asia/Singapore" }).rows)).toEqual(["B1", "C2", "C3", "A1", "A2"]);
+});
+
+test("a task with no steps contributes one row that asks for the next action", () => {
+  const s = mei();
+  s.chunks = s.chunks.filter((c) => c.task_id !== "B");
+  const t = buildToday(s, TODAY, { sessionsDone: meiSessions });
+  expect(t.rows[0]).toMatchObject({ key: "B", chunk: null });
+});
+
+test("Today surfaces smaller steps, never the parent, and names the parent", () => {
+  const s: State = {
+    ...emptyState(),
+    tasks: [task("A", { deadline: "2026-10-06", runway_start: "2026-10-01" })],
+    chunks: [...steps("A", 1), { ...steps("A", 1)[0], id: "A1a", title: "A1a", parent_id: "A1" }, { ...steps("A", 1)[0], id: "A1b", title: "A1b", parent_id: "A1", position: 2 }],
+  };
+  const t = buildToday(s, TODAY, {});
+  expect(ids(t.rows)).toEqual(["A1a", "A1b"]);
+  expect(t.rows[0].parent?.id).toBe("A1");
+});
+
+test("light day: few rows, so the top far task is offered once", () => {
+  const s: State = { ...emptyState(), tasks: [task("A", { deadline: "2026-10-06", runway_start: "2026-10-01", size: "XS" }), task("D", { size: "M" })], chunks: [...steps("A", 1), ...steps("D", 1)] };
+  expect(buildToday(s, TODAY, {}).lightDay?.id).toBe("D");
+  const declined = { ...s, days: [{ day: TODAY, confirmed_at: null, deferred: ["D"] }] };
+  expect(buildToday(declined, TODAY, {}).lightDay).toBeNull();
+});
+
+test("untriaged, done, and removed tasks never rank", () => {
+  const s: State = {
+    ...emptyState(),
+    tasks: [task("A", { state: "inbox", size: null }), task("B", { state: "done" }), task("C", { state: "removed" })],
+    chunks: [...steps("A", 1), ...steps("B", 1), ...steps("C", 1)],
+  };
+  const t = buildToday(s, TODAY, {});
+  expect(t.rows).toEqual([]);
+  expect(t.waiting).toBe(0);
+});
+
+test("Not today, confirm, and pin are recorded once per day", () => {
+  let s = notToday(mei(), TODAY, "C2");
+  expect(notToday(s, TODAY, "C2")).toBe(s);
+  expect(isConfirmed(s, TODAY)).toBe(false);
+  s = confirmDay(s, TODAY, 5);
+  expect(confirmDay(s, TODAY, 6)).toBe(s);
+  expect(s.days).toEqual([{ day: TODAY, confirmed_at: 5, deferred: ["C2"] }]);
+  expect(isConfirmed(s, "2026-10-06")).toBe(false);
+  expect(pin(s, "D", TODAY, 7).tasks.find((t) => t.id === "D")?.pinned_on).toBe(TODAY);
+  const inbox = { ...s, tasks: [task("X", { state: "inbox" })] };
+  expect(pin(inbox, "X", TODAY, 7)).toBe(inbox);
+});

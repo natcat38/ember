@@ -11,6 +11,8 @@ interface Props {
   state: State;
   update: (fn: (s: State) => State) => void;
   today: string;
+  inToday: boolean;
+  onPin: () => void;
   onBack: () => void;
   onTriage: (answers: TriageAnswers) => void;
   onRename: (title: string) => void;
@@ -18,7 +20,7 @@ interface Props {
 }
 
 // Wireframes.md §6. Start and Pin to today arrive in slices 4–5.
-export function TaskView({ task, state, update, today, onBack, onTriage, onRename, onRemove }: Props) {
+export function TaskView({ task, state, update, today, inToday, onPin, onBack, onTriage, onRename, onRemove }: Props) {
   // Triage sits open until answered; an already-triaged task opens on the one-line summary.
   const [editing, setEditing] = useState(task.state === "inbox");
   const menu = useRef<HTMLDivElement>(null);
@@ -114,6 +116,15 @@ export function TaskView({ task, state, update, today, onBack, onTriage, onRenam
         <hr className="divider" />
         <Steps state={state} update={update} taskId={task.id} />
       </main>
+
+      {/* Pin to today shows only when the task is rankable and not already in Today (Wireframes.md §6). Start arrives in slice 5. */}
+      {!inToday && (task.state === "active" || task.state === "overdue") && (
+        <div className="bottom-bar">
+          <button className="button" onClick={onPin}>
+            Pin to today
+          </button>
+        </div>
+      )}
 
       <RenameDialog dialog={renameDialog} label="Rename task" value={task.title} onSave={onRename} />
       <ConfirmDialog dialog={removeDialog} question={`Remove "${task.title}" from your list?`} keep="Keep it" confirm="Remove" onConfirm={onRemove} />
