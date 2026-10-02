@@ -38,7 +38,12 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
   - The first Reward shows the reminder offer and no unlock (onboarding stays as §7 says).
   - The Flowtime switch stays for the session's first minute; a Flowtime session counts as completed from 25 minutes.
 
+- [ ] **Today step rows** (UI walk #10): a step row shows only the step, so an overdue *"Write the email"* doesn't say which task it's from. Show the task title as a dim second line? (Product call.)
+
 ## Verify (run the real thing)
+
+- [x] ~~UI walk of every screen at 375 and 1440~~ (2026-10-02): 21 findings, 20 fixed (#56); #10 above is a product call.
+- [ ] **iPhone, after the UI fixes (#56):** safe-area insets in the installed app (portrait and landscape notch); the status bar colour (`default` gives a light bar, not exactly oat); the capture sheet staying above the keyboard; the lost-tap fix on *Add a smaller step* with a finger; Focus on a short phone (iPhone SE, 667 px) still scrolls.
 
 - [ ] Touch drag-to-reorder on a real phone (Playwright can't long-press-drag). (#9)
 - [ ] A screen-reader and keyboard pass over every screen. (Design_Direction §11)
