@@ -30,19 +30,19 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [ ] A screen-reader and keyboard pass over every screen. (Design_Direction §11)
 - [ ] The Focus break's breathing circle moves for 5 minutes: check against WCAG 2.2.2, the same finding as A1. (#11)
 - [ ] 320 / 375 / 414 / 768 px with no horizontal scroll on every screen.
-- [ ] Desktop: Today and Focus side by side (UX_Flows §2) is not built.
-- [ ] The phone back gesture (only the in-app *Back* exists). (#8)
+- [ ] Desktop: Today and Focus side by side from 1180 px, built (#34). Use it on a real laptop: selection, Focus on the right, Inbox and Settings on the left.
+- [ ] The phone back gesture: built (#33); check it on a real iPhone and Android. A reload opens on Today, so the first back press after a reload from a deeper screen may do nothing visible.
 
 ## Review (known code gaps)
 
-- [ ] **Silent foreign-id write**: a complete op reusing a row id another user owns is skipped with a 200. It should be rejected as `foreign_id`. (#19, #17)
-- [ ] **Rules check-then-write window**: two requests at the same instant can both pass a state check. The fix is guarded `UPDATE … WHERE state IN (…)`. (#17)
-- [ ] **Re-parenting** a step that already has smaller steps isn't checked server-side (the client never does it). (#17)
+- [x] ~~Silent foreign-id write~~: rejected as `foreign_id` (#31).
+- [x] ~~Rules check-then-write window~~: closed with a rev guard row; the losing request gets a 503 and the client resends (#31).
+- [x] ~~Re-parenting a step with smaller steps~~: refused as `bad_parent` server-side (#31).
 - [x] ~~The scheduler had its own Telegram sender~~: folded into `telegram.ts` `botCall` (#27).
 - [x] ~~The scheduler didn't pass `now`~~: it does on a day's first plan, so a user who links Telegram mid-day gets the day's messages at the next free slots (#28).
 - [x] ~~The snooze slot math was copied into `worker/buttons.ts`~~: it now uses `core/messages.ts`'s exported slot helpers (#28).
-- [ ] **"Done today" reads `updated_at`**: renaming a step finished on an earlier day brings it back as done today. A `done_at` would fix it. (#10)
-- [ ] **Old hashed assets** are never evicted from the service worker cache. (#13)
+- [x] ~~"Done today" reads `updated_at`~~: `done_at` (#32).
+- [x] ~~Old hashed assets never evicted~~: each fresh page load drops the ones it no longer reaches (#33).
 - [ ] **The pull has no paging**; fine for one person's list. (#15)
 - [ ] **The ops ledger keeps rows 30 days** (retention prunes them); check that matches real retry behaviour. (#21)
 - [ ] **`users.telegram_chat_id` scan**: the planning backlog drains 5 users a minute. (#24)
