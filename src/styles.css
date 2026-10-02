@@ -47,6 +47,12 @@
   box-sizing: border-box;
 }
 
+/* The sticky capture bar (~90px) and the Task view's bottom bar (~80px) must not hide a focused field near the bottom (SC 2.4.11). */
+html,
+.pane {
+  scroll-padding-block-end: 120px;
+}
+
 body {
   margin: 0;
   background: var(--color-oat);
@@ -217,6 +223,13 @@ input {
 .button:active,
 .chip:active {
   transform: scale(0.98);
+}
+
+/* Disabled (Design_Direction.md §6): 40% opacity, no pointer. */
+.button:disabled,
+.chip:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .text-button {
@@ -992,7 +1005,7 @@ dialog::backdrop {
   margin: 0;
 }
 
-.dots span {
+.dots span[aria-hidden] {
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -1196,6 +1209,7 @@ select.field {
 }
 
 .unlock-answers .button:disabled {
+  opacity: 1; /* answered, not unavailable: the picked one is marked by its fill */
   cursor: default;
   color: var(--color-ink);
 }
