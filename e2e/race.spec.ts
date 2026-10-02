@@ -51,6 +51,8 @@ test.describe("two devices", () => {
     await expect(b.getByText("This changed on another device, so you're seeing the latest version.")).toBeVisible();
     await b.getByRole("button", { name: "Back" }).click();
     await expect(b.getByText("Race")).toHaveCount(0); // Done: off Inbox, as on device A
+    const stateOnB = () => b.evaluate(() => JSON.parse(localStorage.getItem("ember")!).tasks.find((t: { title: string }) => t.title === "Race").state);
+    expect(await stateOnB()).toBe("done"); // B's stored copy is the server's Done, not its own Active
     await ctxB.close();
   });
 });

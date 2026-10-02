@@ -38,8 +38,23 @@ test("Do this first starts a 25 on the frog; Pause holds the time", async ({ pag
 test("locking the phone mid-session loses nothing", async ({ page }) => {
   await seed(page);
   await page.getByRole("button", { name: "Do this first" }).click();
+  await page.clock.pauseAt(new Date("2026-10-05T09:00:30+08:00")); // from here no timer fires on its own, as in a locked phone
+  await expect(timer(page)).toHaveText(/^2[45]:\d\d$/);
+  await page.evaluate(() => Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true }));
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await page.clock.setSystemTime(new Date("2026-10-05T09:10:30+08:00")); // 10 minutes pass while locked
+  await expect(timer(page)).toHaveText(/^2[45]:\d\d$/); // nothing ticked: the screen is as it was left
+  await page.evaluate(() => Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true }));
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await expect(timer(page)).toHaveText(/^1[45]:\d\d$/); // unlocking shows the true time at once, with no tick needed
+  await expect(page.getByRole("heading", { level: 1, name: "Tailor the opening" })).toBeVisible(); // and the session is still there
+});
+
+test("a reload mid-session loses nothing either", async ({ page }) => {
+  await seed(page);
+  await page.getByRole("button", { name: "Do this first" }).click();
   await page.clock.runFor(10 * MIN);
-  await page.reload(); // stands in for the phone locking and the page being discarded
+  await page.reload(); // the page was discarded while away
   await expect(page.getByRole("heading", { level: 1, name: "Tailor the opening" })).toBeVisible();
   await expect(timer(page)).toHaveText(/^1[45]:\d\d$/); // 10 minutes gone while away (plus the reload's own seconds)
 });
