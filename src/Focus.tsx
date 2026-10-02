@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { backToIt, breakLeft, canSwitchMode, endFocus, isFlowtime, pauseFocus, resumeFocus, skipBreak, stopFlow, switchMode, takeBreak, workedMs, workLeft, workOver } from "../core/focus";
 import type { State } from "../core/task";
 import { catPose } from "../core/cat";
@@ -53,6 +53,14 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
   }, [phase]);
 
   const act = (fn: (s: State, t: number) => State) => update((s) => fn(s, Date.now()));
+  // The switch leaves after its minute; a keyboard user standing on it would otherwise drop to the page body.
+  // Only on that change, never on mount, so opening Focus still lands on its heading.
+  const pause = useRef<HTMLButtonElement>(null);
+  const hadSwitch = useRef(canSwitch);
+  useEffect(() => {
+    if (hadSwitch.current && !canSwitch && document.activeElement === document.body) pause.current?.focus();
+    hadSwitch.current = canSwitch;
+  }, [canSwitch]);
   const finish = () => {
     act((s, t) => endFocus(s, t, true));
     onFinished(chunk?.title ?? "");
@@ -95,7 +103,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
               </div>
             )}
             {f.paused_at === null ? (
-              <button className="pause" onClick={() => act(pauseFocus)}>
+              <button ref={pause} className="pause" onClick={() => act(pauseFocus)}>
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <rect x="6" y="5" width="4" height="14" rx="1" />
                   <rect x="14" y="5" width="4" height="14" rx="1" />
@@ -103,7 +111,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
                 Pause
               </button>
             ) : (
-              <button className="pause" onClick={() => act(resumeFocus)}>
+              <button ref={pause} className="pause" onClick={() => act(resumeFocus)}>
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M8 5l11 7-11 7z" />
                 </svg>

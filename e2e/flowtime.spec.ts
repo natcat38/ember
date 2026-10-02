@@ -80,6 +80,7 @@ test("the switch can go back to 25/5, and is gone once the session is a minute o
   await page.clock.runFor(2 * MIN);
   await expect(timer(page)).toHaveText("23:00");
   await expect(page.getByRole("group", { name: "Timer for this session" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Pause" })).toBeFocused(); // the chip it stood on is gone, so focus lands here
 });
 
 test("Flowtime: Done goes to Reward and Stop for now returns to Today, with the time logged", async ({ page }) => {
