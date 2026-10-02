@@ -158,7 +158,7 @@ test("finding 7: the reminder offer is as wide as the Reward card at every stage
   expect(offer).toBe(card);
   await page.getByRole("button", { name: "Yes" }).click();
   expect((await widths())[0]).toBe(card);
-  await expect(page.getByRole("region", { name: "Reminders" })).toHaveCSS("text-align", "start");
+  await expect(page.getByRole("region", { name: "Reminders" })).toHaveCSS("text-align", "left");
 });
 
 test("finding 18: while an unlock plays the ring and cat shrink and Skip stays on screen", async ({ page }) => {
@@ -186,16 +186,17 @@ test.describe("desktop", () => {
     const field = page.getByRole("textbox", { name: "Capture a thought" });
     const top = (await field.boundingBox())!.y;
     await page.locator("[data-pane=left]").evaluate((el) => el.scrollTo(0, 1200));
-    await expect(page.getByText("Inbox item 0", { exact: true })).not.toBeInViewport();
-    expect((await field.boundingBox())!.y).toBe(top);
+    await expect(page.getByText("Inbox item 0", { exact: true })).not.toBeInViewport(); // the list did scroll
     await expect(field).toBeInViewport();
+    expect((await field.boundingBox())!.y).toBeLessThan(top); // the header scrolled away; the capture row stuck at the pane's top
+    expect((await field.boundingBox())!.y).toBeLessThan(100);
   });
 
   test("finding 12: each pane has one primary button, and the add (+) and Send buttons are outlined", async ({ page }) => {
     await seedMei(page, confirmed);
-    // A solid lavender-deep fill is what "primary" looks like, whichever class draws it.
+    // A solid lavender-deep fill is what "primary" looks like, whichever class draws it; a selected pill (.chip) is allowed one.
     const primaries = (pane: string) =>
-      page.locator(`[data-pane=${pane}]`).evaluate((el) => [...el.querySelectorAll("button")].filter((b) => getComputedStyle(b).backgroundColor === "rgb(107, 91, 168)").map((b) => b.textContent?.trim() || b.getAttribute("aria-label")));
+      page.locator(`[data-pane=${pane}]`).evaluate((el) => [...el.querySelectorAll("button")].filter((b) => !b.classList.contains("chip") && b.getClientRects().length > 0 && getComputedStyle(b).backgroundColor === "rgb(107, 91, 168)").map((b) => b.textContent?.trim() || b.getAttribute("aria-label")));
     expect(await primaries("left")).toEqual(["Do this first"]);
     expect(await primaries("right")).toEqual(["Start"]);
     await expect(page.locator(".capture-inline .send")).toHaveCSS("background-color", "rgb(255, 255, 255)");

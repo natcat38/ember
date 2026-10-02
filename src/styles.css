@@ -790,8 +790,15 @@ dialog::backdrop {
 
 /* Adjust mode: "Not today" stays on one line, so the title wraps instead and the play icons line up. */
 .today-row .text-button {
+  flex-shrink: 0;
   padding: 0 var(--space-3);
   white-space: nowrap;
+}
+
+/* The title takes what is left and wraps inside it, so the buttons keep the same place on every row. */
+.today-row .row-link {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .today-row.done {
