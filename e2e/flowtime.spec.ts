@@ -41,9 +41,9 @@ test("switching to Flowtime counts up; stopping at 50 minutes offers a 10-minute
   await expect(timer(page)).toHaveText("50:00"); // past 25 minutes and still counting: there is no end
 
   await page.getByRole("button", { name: "Take a break" }).click();
-  await expect(page.getByRole("region", { name: "Take 10?" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Take 10 min?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "I finished it" })).toBeVisible();
-  await page.getByRole("button", { name: "Take 10", exact: true }).click();
+  await page.getByRole("button", { name: "Take 10 min", exact: true }).click();
   await expect(timer(page)).toHaveText("10:00");
   await expect(timer(page)).toHaveAccessibleName(/of break left$/);
   await page.clock.runFor(10 * MIN + 2000);
@@ -65,7 +65,7 @@ test("with timer_mode set to flowtime, Focus starts in Flowtime and Back to it s
   await expect(timer(page)).toHaveText("0:00");
   await page.clock.runFor(30 * MIN);
   await page.getByRole("button", { name: "Take a break" }).click();
-  await expect(page.getByRole("region", { name: "Take 6?" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Take 6 min?" })).toBeVisible();
   await page.getByRole("button", { name: "Skip break" }).click();
   await expect(timer(page)).toHaveText("0:00"); // another Flowtime session, not a 25
 });

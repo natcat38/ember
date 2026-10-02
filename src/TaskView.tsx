@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Size, State, Task, TriageAnswers } from "../core/task";
+import { band, wasDueLabel } from "../core/today";
 import { formatDue } from "./Capture";
 import { DateButton } from "./DateButton";
 import { closeMenu, toggleMenu } from "./menu";
@@ -45,7 +46,17 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
   }
 
   const Body = inPane ? "div" : "main";
-  const summary = [task.deadline && formatDue(task.deadline), task.holding_up && "Holding things up", task.size].filter(Boolean);
+  // A past date is a plain "Was due ..." label here as on Today (Design_Direction.md §9).
+  const due = task.deadline && (band(task, today) === "overdue" ? wasDueLabel(task.deadline, today) : formatDue(task.deadline));
+  const summary = [due, task.holding_up && "Holding things up", task.size].filter(Boolean);
+  // A new task's "Not yet" and "No" are only the defaults, so they show as chosen once the user has answered (or sized it, which
+  // makes the task Active), never before: nothing looks answered that wasn't.
+  const [answered, setAnswered] = useState({ deadline: false, holding_up: false });
+  const known = task.state !== "inbox";
+  const answer = (key: keyof typeof answered, answers: TriageAnswers) => {
+    setAnswered((a) => ({ ...a, [key]: true }));
+    onTriage(answers);
+  };
 
   return (
     <>
@@ -77,18 +88,18 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
         {editing ? (
           <section className="section triage" aria-label="Triage">
             <Question label="Has a deadline?">
-              <Pill pressed={!task.deadline} onClick={() => onTriage({ deadline: null })}>
+              <Pill pressed={!task.deadline && (known || answered.deadline)} onClick={() => answer("deadline", { deadline: null })}>
                 Not yet
               </Pill>
-              <DateButton ref={pickButton} label="Pick a date" className="chip" pressed={!!task.deadline} value={task.deadline ?? ""} min={today} onPick={(d) => onTriage({ deadline: d || null })}>
+              <DateButton ref={pickButton} label="Pick a date" className="chip" pressed={!!task.deadline} value={task.deadline ?? ""} min={today} onPick={(d) => answer("deadline", { deadline: d || null })}>
                 {task.deadline ? formatDue(task.deadline) : "Pick a date"}
               </DateButton>
             </Question>
             <Question label="Is this holding up anything else?">
-              <Pill pressed={!task.holding_up} onClick={() => onTriage({ holding_up: false })}>
+              <Pill pressed={!task.holding_up && (known || answered.holding_up)} onClick={() => answer("holding_up", { holding_up: false })}>
                 No
               </Pill>
-              <Pill pressed={task.holding_up} onClick={() => onTriage({ holding_up: true })}>
+              <Pill pressed={task.holding_up} onClick={() => answer("holding_up", { holding_up: true })}>
                 Yes
               </Pill>
             </Question>

@@ -143,3 +143,35 @@ test("opening a task never steals focus from a field the user already moved to",
   await page.waitForTimeout(100);
   await expect(nextAction(page)).toBeFocused();
 });
+
+// Verify finding 1: the empty "Add a smaller step" field used to unmount the moment it lost focus, so the rows below it
+// jumped up and the tap that caused the blur landed on nothing. It now goes only once that tap has been delivered.
+test("tapping a row below the empty smaller-step field opens that row's menu on the first tap", async ({ page }) => {
+  await openTask(page);
+  await addSteps(page, "A", "B", "C");
+  await stepMenu(page, "A", "Break this step down");
+  const smaller = page.getByRole("textbox", { name: "Add a smaller step to A" });
+  await expect(smaller).toBeFocused();
+  await expect(smaller).toHaveValue("");
+
+  await page.getByRole("button", { name: "More actions for C", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Actions for C" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(smaller).toHaveCount(0); // the empty field still goes, just after the tap
+});
+
+test("an empty smaller-step field with text typed in it stays, and a keyboard exit collapses it on the next key", async ({ page }) => {
+  await openTask(page);
+  await addSteps(page, "A", "B");
+  await stepMenu(page, "A", "Break this step down");
+  const smaller = page.getByRole("textbox", { name: "Add a smaller step to A" });
+  await smaller.fill("half typed");
+  await page.getByRole("heading", { name: "Steps" }).click();
+  await expect(smaller).toHaveValue("half typed"); // never lose typed text
+
+  await smaller.fill("");
+  await smaller.press("Tab"); // leaves it empty by keyboard: nothing has been pressed since
+  await expect(smaller).toHaveCount(1);
+  await page.keyboard.press("Tab");
+  await expect(smaller).toHaveCount(0);
+});

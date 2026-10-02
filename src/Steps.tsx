@@ -116,7 +116,7 @@ export function Steps({ state, update, taskId, onStart }: Props) {
                         button="Add smaller step"
                         autoFocus
                         onAdd={(title) => act((s) => addChunk(s, taskId, title, c.id, Date.now()))}
-                        onBlurEmpty={() => setAddingTo(null)}
+                        onBlurEmpty={() => setAddingTo((now) => (now === c.id ? null : now))}
                       />
                     )}
                   </div>
@@ -172,6 +172,28 @@ export function Steps({ state, update, taskId, onStart }: Props) {
 // Enter or the round (+) adds; the field clears and stays ready; an empty entry is ignored.
 function AddField(props: { label: string; visibleLabel?: boolean; placeholder: string; button: string; autoFocus?: boolean; onAdd: (title: string) => void; onBlurEmpty?: () => void }) {
   const [text, setText] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+  const cancelCollapse = useRef<() => void>(undefined);
+  useEffect(() => () => cancelCollapse.current?.(), []);
+
+  // An empty field goes away when the user moves on, but not on the blur itself: that blur is the start of a tap, and
+  // taking the field out of the page then moves the rows under the finger so the tap lands on nothing (Verify finding 1).
+  // So it waits for the next click or key press, which has already been delivered by the time this runs.
+  function collapseAfterNextPress() {
+    cancelCollapse.current?.();
+    const stop = () => {
+      window.removeEventListener("click", go);
+      window.removeEventListener("keydown", go);
+    };
+    const go = () => {
+      stop();
+      if (input.current && input.current !== document.activeElement && !input.current.value.trim()) props.onBlurEmpty?.();
+    };
+    cancelCollapse.current = stop;
+    window.addEventListener("click", go);
+    window.addEventListener("keydown", go);
+  }
+
   return (
     <form
       className="question"
@@ -186,6 +208,7 @@ function AddField(props: { label: string; visibleLabel?: boolean; placeholder: s
         <span className={props.visibleLabel ? "question-label" : "sr-only"}>{props.label}</span>
         <span className="field-row">
           <input
+            ref={input}
             className="field step-field"
             placeholder={props.placeholder}
             autoFocus={props.autoFocus}
@@ -193,7 +216,7 @@ function AddField(props: { label: string; visibleLabel?: boolean; placeholder: s
             enterKeyHint="done"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            onBlur={() => !text.trim() && props.onBlurEmpty?.()}
+            onBlur={() => !text.trim() && props.onBlurEmpty && collapseAfterNextPress()}
           />
           <button className="send" aria-label={props.button}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">

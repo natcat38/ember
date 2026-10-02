@@ -119,6 +119,14 @@ test("a server without push keys says it isn't set up, and nothing is asked", as
   await page.getByRole("radio", { name: "This device" }).click();
   await expect(page.getByRole("main").getByText("Web push isn't set up yet. Try again later.")).toBeVisible();
   expect((await stubs(page)).asked).toBe(0);
+
+  // Verify finding 6: the line sits straight under the radios it answers, above the Link Telegram button it used to read as.
+  const radios = (await page.getByRole("radiogroup", { name: "Send to" }).boundingBox())!;
+  const line = (await page.getByRole("main").getByText("Web push isn't set up yet. Try again later.").boundingBox())!;
+  const link = (await page.getByRole("button", { name: "Link Telegram" }).boundingBox())!;
+  expect(line.y).toBeGreaterThanOrEqual(radios.y + radios.height);
+  expect(line.y - (radios.y + radios.height)).toBeLessThan(20);
+  expect(line.y).toBeLessThan(link.y);
 });
 
 test("without a connection, turning on notifications says it needs one", async ({ page }) => {
@@ -162,6 +170,8 @@ test("a push tap opens the task with 'Not now? Snooze', and Snooze moves it to t
   await page.goto("/?s=SEND1&t=T1&via=push");
   await expect(page.getByRole("heading", { name: "Cover letter" })).toBeVisible();
   await expect(page.getByText("Not now?")).toBeVisible();
+  // Verify finding 19: opening on a link is a page load, so the title is not focused (no focus rectangle round it).
+  await expect(page.getByRole("heading", { name: "Cover letter" })).not.toBeFocused();
   expect(page.url()).not.toContain("via="); // the marker is used once, like the sign-in code
 
   await page.getByRole("button", { name: "Snooze" }).click();

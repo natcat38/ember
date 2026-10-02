@@ -70,3 +70,16 @@ test("a failed sign-in says so plainly, and the device keeps its own list", asyn
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
   await expect(page.getByRole("region", { name: "Needs sorting" })).toContainText("Kept on this device"); // the device keeps its own list
 });
+
+// Verify finding 5: the failure line sits above the two buttons, so it is never pushed off the foot of the screen.
+test("a failed passkey request puts its note above the buttons", async ({ page, context }) => {
+  await authenticator(context, page);
+  await page.route("**/api/passkey/**", (route) => route.fulfill({ status: 500, json: {} }));
+  await page.goto("/");
+  await settings(page);
+  await page.getByRole("button", { name: "Sign in with a passkey" }).click();
+  const note = page.getByRole("main").getByText("That didn't sign you in. Try again, or keep using Ember on this device.");
+  await expect(note).toBeVisible();
+  const [n, add, signIn] = await Promise.all([note, page.getByRole("button", { name: "Use Ember on another device" }), page.getByRole("button", { name: "Sign in with a passkey" })].map((l) => l.boundingBox()));
+  expect(n!.y + n!.height).toBeLessThanOrEqual(Math.min(add!.y, signIn!.y));
+});

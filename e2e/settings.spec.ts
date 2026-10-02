@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "./fixtures";
 
 // Slice 10 done-when: the §4.6 example renders in full, hard blocks included.
-test.use({ timezoneId: "Asia/Singapore" });
+test.use({ timezoneId: "Asia/Singapore", locale: "en-US" }); // the locale decides how the time inputs and the sentences beside them show a time
 
 async function seedMei(page: Page) {
   await page.clock.install({ time: new Date("2026-10-05T09:00:00+08:00") });
@@ -44,7 +44,7 @@ test("§4.6 in full: Mei's Monday lectures leave 540 minutes, so Today is still 
   await openSettings(page);
   await addBlock(page, ["Monday"], "09:00", "12:00", "Lecture");
   await addBlock(page, ["Monday"], "14:00", "16:00", "Lab");
-  await expect(page.getByRole("list", { name: "Hard blocks" })).toContainText("Mon 09:00–12:00 Lecture");
+  await expect(page.getByRole("list", { name: "Hard blocks" })).toContainText(/Mon 09:00\sAM–12:00\sPM Lecture/); // times show the way the time inputs do (en-US here)
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect(page.getByRole("region", { name: "Do this first" })).toContainText("B1");
@@ -82,8 +82,8 @@ test("a block needs a day; quiet hours move the day's start", async ({ page }) =
 
   const quiet = page.getByRole("region", { name: "Quiet hours" });
   await quiet.getByLabel("To").fill("07:00");
-  await expect(quiet).toContainText("No nudges between 22:00 and 07:00.");
-  await expect(quiet).toContainText("Today is rebuilt at 07:00.");
+  await expect(quiet).toContainText(/No nudges between 10:00\sPM and 07:00\sAM\./); // the same format as the inputs (en-US here), not 22:00
+  await expect(quiet).toContainText(/Today is rebuilt at 07:00\sAM\./);
   await page.reload();
   await openSettings(page);
   await expect(page.getByRole("region", { name: "Quiet hours" }).getByLabel("To")).toHaveValue("07:00"); // saved

@@ -44,7 +44,9 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
   const flow = isFlowtime(f);
   const onBreak = f.break_started_at !== null;
   const phase = onBreak ? (breakLeft(f, now) > 0 ? "break" : "back") : workOver(f, now) ? "prompt" : "work";
-  const offer = `Take ${Math.round(breakLeft(f, now) / 60_000)}`; // "Take 5" in 25/5; Flowtime's break grows with the time worked
+  // "Take 5" in 25/5 (approved copy). Flowtime's break grows with the time worked and can be 1, so it names the unit.
+  // ponytail: draft copy for the Flowtime wording.
+  const offer = `Take ${Math.round(breakLeft(f, now) / 60_000)}${flow ? " min" : ""}`;
   const canSwitch = canSwitchMode(f, now);
 
   useEffect(() => {
