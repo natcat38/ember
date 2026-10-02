@@ -107,10 +107,12 @@ Changed in Build (slices 8 and 10, 2026-10-02); `migrations/0001_init.sql` is th
 - **Telegram state buttons** (slice 13): `callback_data` is a 1–2 byte action code with no ids; the tap's chat and message id find the send through `sends.tg_message_id`. Ops go through `sync` with `op_id` `tg:<callback_query.id>`. `setWebhook` must allow `["message", "callback_query"]`. *Pick a date* links carry `pick=1`.
 - **`GET /api/me`**: read-only; whether Telegram is linked and how many passkeys exist, for Settings.
 - **Telegram secrets**: `TG_BOT_TOKEN`, `TG_WEBHOOK_SECRET`, `TG_WEBHOOK_PATH`; var `TG_BOT_USERNAME` (see `.dev.vars.example`). Not set until the production bot exists.
+- **`done_at`** (`0004`) on `tasks` and `chunks`: set when a row becomes done, cleared when it leaves done, untouched by other edits. "Done today" reads it, falling back to `updated_at` for rows older than the column (#32).
+- **Sync race guard** (#31): a writing `/api/sync` request first inserts ledger row `#rev:<rev it read>`. Two requests that read the same rev collide on the primary key; the loser's batch rolls back and it answers 503 with `Retry-After: 1`, and the client resends once. Budget: `MAX_OPS + 11` = 49 statements.
 
 Rules the schema does not show:
 
-- **Row ids are global, writes are user-scoped.** `tasks`, `chunks`, `sessions`, and `hard_blocks` keep `id` as the primary key (clients generate UUIDs), and every write carries `user_id`. An op naming a row id that belongs to another user changes nothing.
+- **Row ids are global, writes are user-scoped.** `tasks`, `chunks`, `sessions`, and `hard_blocks` keep `id` as the primary key (clients generate UUIDs), and every write carries `user_id`. An op naming a row id that belongs to another user is rejected as `foreign_id` (#31).
 - **Nothing is hard-deleted by the user.** *Remove from list* sets `state = removed`; deleting a step sets `deleted = 1`. Sync needs the tombstone to tell other devices. Only the retention job (§8) deletes rows.
 - **A parent chunk's state is never stored.** It is computed from its children (Product_Scope §4).
 - **Reminder states are derived, not stored as one column:** Scheduled = planned row, not sent; Sent = `sent_at`; Acted = `acted_at`; Snoozed = `snoozed_at`; Dismissed = sent more than 5 hours ago with neither; Silenced = an `overdue` row exists for the task and the deadline hasn't changed since.
