@@ -1,4 +1,4 @@
-import { childrenOf, topLevel, type Chunk } from "./chunk";
+import { byPosition, type Chunk } from "./chunk";
 import { DEFAULT_TZ, blockSpans, dayOf, windowLen } from "./day";
 import type { Day, HardBlock, Size, State, Task } from "./task";
 
@@ -60,17 +60,29 @@ export interface TodayOptions {
 }
 
 // Leaves in list order: a parent is replaced by its smaller steps (Today never shows a parent).
-function leaves(s: State, taskId: string): { chunk: Chunk; parent: Chunk | null }[] {
-  return topLevel(s, taskId).flatMap((c): { chunk: Chunk; parent: Chunk | null }[] => {
-    const kids = childrenOf(s, c.id);
-    return kids.length ? kids.map((k) => ({ chunk: k, parent: c })) : [{ chunk: c, parent: null }];
-  });
+// One pass groups the steps by task (top level) and by parent, so each task's leaves cost its own size, not every step's.
+function leavesOf(s: State): (taskId: string) => { chunk: Chunk; parent: Chunk | null }[] {
+  const groups = new Map<string, Chunk[]>(); // key: a parent's id, or a task's id for its top-level steps
+  for (const c of s.chunks) {
+    if (c.deleted) continue;
+    const key = c.parent_id ?? c.task_id;
+    const g = groups.get(key);
+    if (g) g.push(c);
+    else groups.set(key, [c]);
+  }
+  for (const g of groups.values()) g.sort(byPosition);
+  return (taskId) =>
+    (groups.get(taskId) ?? []).flatMap((c): { chunk: Chunk; parent: Chunk | null }[] => {
+      const kids = groups.get(c.id) ?? [];
+      return kids.length ? kids.map((k) => ({ chunk: k, parent: c })) : [{ chunk: c, parent: null }];
+    });
 }
 
 export function buildToday(s: State, today: string, o: TodayOptions): Today {
   const sessionsDone = o.sessionsDone ?? (() => 0);
   const tz = o.tz ?? DEFAULT_TZ;
   const slots = o.slots ?? 5;
+  const leaves = leavesOf(s);
   const deferred = new Set(s.days.find((d) => d.day === today)?.deferred ?? []);
   const doneToday = (c: Chunk) => c.state === "done" && dayOf(finishedAt(c), tz, o.quietEndMin) === today;
 
@@ -93,7 +105,7 @@ export function buildToday(s: State, today: string, o: TodayOptions): Today {
     );
 
   const rowsOf = ({ t, tier, pressure }: (typeof ranked)[number]): TodayRow[] => {
-    const all = leaves(s, t.id);
+    const all = leaves(t.id);
     if (!all.length) return deferred.has(t.id) ? [] : [{ key: t.id, task: t, chunk: null, parent: null, done: false, tier }];
     // A step finished today keeps its slot, so finishing never pulls in a new one ("done means done").
     const eligible = all.filter(({ chunk }) => (chunk.state !== "done" && !deferred.has(chunk.id)) || doneToday(chunk));

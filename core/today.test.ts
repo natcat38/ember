@@ -205,6 +205,14 @@ test("capacity follows quiet hours, including a window that runs past midnight",
   expect(freeMinutes({ ...late, hard_blocks: [block([0], "23:00", "23:59")] }, TODAY)).toBe(960 - 59);
 });
 
+test("buildToday groups steps once instead of scanning every step per step", () => {
+  const s = { ...mei(), chunks: [...mei().chunks, ...steps("D", 300).map((c) => ({ ...c, id: `big${c.id}` }))] };
+  let scans = 0;
+  const chunks = new Proxy(s.chunks, { get: (t, k, r) => (k === "filter" || k === "find" || k === "some" ? (scans++, Reflect.get(t, k, r)) : Reflect.get(t, k, r)) });
+  buildToday({ ...s, chunks }, TODAY, { sessionsDone: meiSessions });
+  expect(scans).toBeLessThan(10); // it was one scan per step
+});
+
 test("a block that starts before the window and runs into it still takes its minutes", () => {
   const early = { ...mei(), hard_blocks: [block([0], "07:00", "09:00")] }; // awake from 08:00
   expect(freeMinutes(early, TODAY)).toBe(840 - 60);

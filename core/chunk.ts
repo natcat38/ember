@@ -18,7 +18,7 @@ export interface Chunk {
 }
 
 // Ties (two offline devices adding a step both get last + 1) break by id, so every device sorts them the same way.
-const byPosition = (a: Chunk, b: Chunk) => a.position - b.position || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+export const byPosition = (a: Chunk, b: Chunk) => a.position - b.position || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
 const MIN_GAP = 1e-6; // a midpoint between neighbours closer than this loses precision after a few more moves
 
