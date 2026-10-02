@@ -1,12 +1,16 @@
 import { handleHandoffRedeem } from "./handoff";
 import { handleMe } from "./me";
 import { handleScheduled, type SchedulerEnv } from "./scheduler";
+import { handleSubscriptions } from "./subscriptions";
 import { handleSync } from "./sync";
 import { handlePasskey } from "./passkeys";
 import { handleTgLink, handleTgWebhook } from "./telegram";
 
 // Passkey routes are /api/passkey/{register,login}/{options,verify} (Tech_Scope.md §8, ADR-0005).
 const PASSKEY_PREFIX = "/api/passkey/";
+
+// Web push subscribe and unsubscribe are /api/push/{subscribe,unsubscribe} (Tech_Scope.md §10 slice 18, ADR-0002).
+const PUSH_PREFIX = "/api/push/";
 
 // The Telegram webhook lives at /api/tg/<secret>; the secret is the rest of the path (Tech_Scope.md §6).
 const TG_HOOK_PREFIX = "/api/tg/";
@@ -22,6 +26,7 @@ export default {
       if (pathname.startsWith(PASSKEY_PREFIX)) return await handlePasskey(request, env, pathname.slice(PASSKEY_PREFIX.length));
       if (pathname === "/api/tg/link") return await handleTgLink(request, env);
       if (pathname === "/api/handoff/redeem") return await handleHandoffRedeem(request, env);
+      if (pathname.startsWith(PUSH_PREFIX)) return await handleSubscriptions(request, env, pathname.slice(PUSH_PREFIX.length));
       if (pathname === "/api/me") return await handleMe(request, env);
       if (pathname.startsWith(TG_HOOK_PREFIX)) return await handleTgWebhook(request, env, pathname.slice(TG_HOOK_PREFIX.length));
       if (pathname.startsWith("/api/")) return Response.json({ error: "not_found" }, { status: 404 });

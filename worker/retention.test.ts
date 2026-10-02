@@ -10,7 +10,7 @@ const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 2, 19, 0, 0); // the cron's own time, 2026-10-02 19:00 UTC
 const uuid = () => crypto.randomUUID();
 
-const OWNED_TABLES = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings", "journal", "ops", "sends", "handoffs"] as const;
+const OWNED_TABLES = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings", "journal", "ops", "sends", "handoffs", "push_subscriptions"] as const;
 
 // A user last seen `idleDays` ago, with one row in every table that carries user_id.
 async function seedUser(idleDays: number, opts: { passkey?: boolean } = {}): Promise<string> {
@@ -29,6 +29,7 @@ async function seedUser(idleDays: number, opts: { passkey?: boolean } = {}): Pro
     env.DB.prepare("INSERT INTO ops (user_id, op_id, applied_at) VALUES (?1, ?2, ?3)").bind(uid, uuid(), NOW - DAY),
     env.DB.prepare("INSERT INTO sends (id, user_id, day, kind, due_at) VALUES (?1, ?2, '2025-01-01', 'morning', ?3)").bind(uuid(), uid, seen),
     env.DB.prepare("INSERT INTO handoffs (code, user_id, purpose, expires_at) VALUES (?1, ?2, 'install', ?3)").bind(uuid(), uid, NOW + DAY),
+    env.DB.prepare("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at) VALUES (?1, ?2, 'k', 'a', ?3)").bind(uid, `https://push.example/${uuid()}`, seen),
   ];
   if (opts.passkey) {
     stmts.push(env.DB.prepare("INSERT INTO credentials (id, user_id, public_key, created_at) VALUES (?1, ?2, x'00', ?3)").bind(uuid(), uid, seen));
@@ -64,7 +65,7 @@ describe("idle anonymous users", () => {
     expect(await allRows(neighbour)).toEqual(FULL);
     expect(result.users).toBeGreaterThanOrEqual(1);
     expect(result.userRows).toBeGreaterThanOrEqual(OWNED_TABLES.length);
-  });
+  }, 20_000); // two users' rows across every table, counted one query at a time: near 5 s under a full parallel run
 
   it("keeps a user idle 366 days who has a passkey", async () => {
     const uid = await seedUser(366, { passkey: true });

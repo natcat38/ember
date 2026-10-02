@@ -12,6 +12,19 @@ TG_BOT_TOKEN=000000000:replace-with-the-token-from-botfather
 # 1 to 256 characters of A-Z a-z 0-9 _ -. Generate 32+ random characters.
 TG_WEBHOOK_SECRET=replace-with-32-random-chars-0000000
 
+# Web push (slice 18, ADR-0002). Leave all three empty to keep web push off. The three belong together: make one key pair.
+# In production: VAPID_PUBLIC_KEY goes under `vars` in wrangler.jsonc, the other two with `wrangler secret put <NAME>`.
+
+# Var. The VAPID public key: 65 bytes (an uncompressed P-256 point) as base64url, 87 characters. Not secret.
+VAPID_PUBLIC_KEY=
+
+# Secret. The matching private key: the 32-byte `d` as base64url (43 characters), or the private key as a JWK (JSON on one line).
+# Never commit it, never log it. Placeholder here on purpose: generate a pair for dev, do not reuse the production one.
+VAPID_PRIVATE_KEY=
+
+# Secret. Who runs this server, as a mailto: or https: URL (RFC 8292). Push services may use it to contact us.
+VAPID_SUBJECT=mailto:you@example.com
+
 # Secret. The unguessable path segment of the webhook URL: https://<host>/api/tg/<TG_WEBHOOK_PATH>
 # Use a different random value from TG_WEBHOOK_SECRET, and do not use the word "link".
 TG_WEBHOOK_PATH=replace-with-another-random-string

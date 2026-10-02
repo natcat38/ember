@@ -2,6 +2,8 @@ import { env } from "cloudflare:workers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import worker from "./index";
 import type { Op } from "./protocol";
+import { MAX_SUBSCRIPTIONS, type PushSub } from "./push";
+import { browserSubscription, decryptPayload, vapidKeys } from "./push-testing";
 import { MAX_PLANNED, MAX_SENDS, runTick, type SchedulerEnv } from "./scheduler";
 import { sync } from "./sync";
 
@@ -10,7 +12,8 @@ import { sync } from "./sync";
 // day runs in a few calls. The secret is not bound in vitest.config.ts, so it is added to the env here.
 
 const TOKEN = "123456:TEST-TOKEN";
-const testEnv: SchedulerEnv = { ...env, TG_BOT_TOKEN: TOKEN };
+const vapid = await vapidKeys();
+const testEnv: SchedulerEnv = { ...env, TG_BOT_TOKEN: TOKEN, VAPID_PUBLIC_KEY: vapid.publicB64, VAPID_PRIVATE_KEY: vapid.d, VAPID_SUBJECT: "mailto:ember@example.com" };
 const ORIGIN = env.APP_ORIGIN;
 
 // Local Singapore time (UTC+8, no DST) as unix ms. The golden day is Monday 2026-10-05 (§4.6).
@@ -32,15 +35,33 @@ let statusFor: Record<string, number> = {};
 // Lets a test hold every send for a macrotask, so two ticks really interleave.
 let sendDelayMs = 0;
 
+// Web push (slice 18): the push service is any https://push.example.net/<name>. What it was sent, and the status it answers
+// with per endpoint (anything not listed gets 201). `browsers` holds each subscribed browser's private key, to read the payload.
+const PUSH_HOST = "https://push.example.net/";
+interface PushCall {
+  endpoint: string;
+  body: Uint8Array;
+  headers: Record<string, string>;
+}
+let pushCalls: PushCall[] = [];
+let pushStatusFor: Record<string, number> = {};
+const browsers = new Map<string, { sub: PushSub; privateKey: CryptoKey }>();
+
 beforeEach(async () => {
   calls = [];
   nextMessageId = 100;
   statusFor = {};
   sendDelayMs = 0;
+  pushCalls = [];
+  pushStatusFor = {};
   // The scheduler scans every user, so tests start from an empty database.
-  for (const t of ["sends", "handoffs", "sessions", "chunks", "tasks", "hard_blocks", "days", "settings", "ops", "users"]) await env.DB.prepare(`DELETE FROM ${t}`).run();
+  for (const t of ["sends", "handoffs", "sessions", "chunks", "tasks", "hard_blocks", "days", "settings", "ops", "push_subscriptions", "users"]) await env.DB.prepare(`DELETE FROM ${t}`).run();
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.startsWith(PUSH_HOST)) {
+      pushCalls.push({ endpoint: url, body: new Uint8Array(init?.body as ArrayBuffer), headers: init?.headers as Record<string, string> });
+      return new Response(null, { status: pushStatusFor[url] ?? 201 });
+    }
     if (url !== `https://api.telegram.org/bot${TOKEN}/sendMessage`) throw new Error(`unexpected outbound fetch: ${url}`);
     const body = JSON.parse(String(init?.body)) as Sent;
     body.chat_id = String(body.chat_id);
@@ -480,6 +501,221 @@ describe("the cron entry point", () => {
   });
 });
 
+// --- Web push (slice 18) -----------------------------------------------------------------------------------------
+
+/** A user whose channel is web push, with `subs` browsers subscribed (the oldest first). `chat` links a Telegram chat as well. */
+async function pushUser(opts: { subs?: number; planned?: boolean; chat?: string | null } = {}) {
+  const { uid, chat } = await linkedUser({ planned: opts.planned, channel: "push", chat: opts.chat ?? null });
+  const endpoints: string[] = [];
+  for (let i = 0; i < (opts.subs ?? 1); i++) {
+    const endpoint = `${PUSH_HOST}${crypto.randomUUID()}`;
+    browsers.set(endpoint, await browserSubscription(endpoint));
+    endpoints.push(endpoint);
+  }
+  await env.DB.batch(
+    endpoints.map((e, i) => {
+      const { sub } = browsers.get(e)!;
+      return env.DB.prepare("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at) VALUES (?1, ?2, ?3, ?4, ?5)").bind(uid, e, sub.p256dh, sub.auth, i + 1);
+    }),
+  );
+  return { uid, endpoints, chat };
+}
+
+/** What each push to this endpoint carried, decrypted the way its browser would. */
+async function payloadsTo(endpoint: string): Promise<{ text: string; url: string }[]> {
+  const { sub, privateKey } = browsers.get(endpoint)!;
+  return Promise.all(pushCalls.filter((c) => c.endpoint === endpoint).map(async (c) => JSON.parse(new TextDecoder().decode(await decryptPayload(c.body, privateKey, sub)))));
+}
+const subsOf = async (uid: string) => (await env.DB.prepare("SELECT endpoint FROM push_subscriptions WHERE user_id = ? ORDER BY created_at").bind(uid).all<{ endpoint: string }>()).results.map((r) => r.endpoint);
+const channelOf = async (uid: string) => (await env.DB.prepare("SELECT channel FROM users WHERE id = ?").bind(uid).first<{ channel: string | null }>())!.channel;
+
+describe("web push", () => {
+  it("sends a due message to each of the user's browsers, and to nobody on Telegram: one channel per message", async () => {
+    const pushy = await pushUser({ subs: 2, planned: true });
+    const telegram = await linkedUser({ planned: true });
+    const NOW = sg(DAY, "09:00:31");
+    const pushId = await seedSend({ uid: pushy.uid, due_at: NOW - 1000, text: "Today's ready: 3 things." });
+    await seedSend({ uid: telegram.uid, due_at: NOW - 1000, text: "for telegram" });
+
+    const report = await tick(NOW);
+
+    expect(report).toMatchObject({ claimed: 2, sent: 2, blocked: 0 });
+    expect(pushCalls.map((c) => c.endpoint).sort()).toEqual([...pushy.endpoints].sort());
+    for (const e of pushy.endpoints) expect(await payloadsTo(e)).toEqual([{ text: "Today's ready: 3 things.", url: expect.stringContaining(`${ORIGIN}/?h=`) }]);
+    expect(textsTo(telegram.chat)).toEqual(["for telegram"]);
+    expect(calls).toHaveLength(1); // nothing went to Telegram for the push user
+    expect(await sendRow(pushId)).toMatchObject({ sent_at: NOW, attempts: 1, cancelled: 0, tg_message_id: null });
+    for (const c of pushCalls) {
+      expect(c.headers["Content-Encoding"]).toBe("aes128gcm");
+      expect(c.headers.Authorization).toMatch(/^vapid t=/);
+    }
+  });
+
+  it("opens the app where Telegram's link does: the send, its sign-in code, and the task for a message about one task", async () => {
+    const { uid, endpoints } = await pushUser({ planned: true });
+    const NOW = sg(DAY, "09:00:31");
+    const [overdue, morning] = await seedSends([
+      { uid, kind: "overdue", task_ids: ["task-x"], due_at: NOW - 3000, text: "overdue text" },
+      { uid, kind: "morning", due_at: NOW - 2000, text: "morning text" },
+      { uid, kind: "close", task_ids: ["t1", "t2"], due_at: NOW - 1000, text: "batch text" },
+    ]);
+
+    await tick(NOW);
+
+    const urls = new Map((await payloadsTo(endpoints[0])).map((p) => [p.text, new URL(p.url)]));
+    const handoff = (text: string) => env.DB.prepare("SELECT user_id, purpose, expires_at FROM handoffs WHERE code = ?").bind(urls.get(text)!.searchParams.get("h")).first();
+    expect(urls.get("overdue text")!.origin).toBe(ORIGIN);
+    expect(urls.get("overdue text")!.searchParams.get("s")).toBe(overdue);
+    expect(urls.get("overdue text")!.searchParams.get("t")).toBe("task-x");
+    expect(urls.get("morning text")!.searchParams.get("s")).toBe(morning);
+    expect(urls.get("morning text")!.searchParams.has("t")).toBe(false); // Today's morning confirm
+    expect(urls.get("batch text")!.searchParams.has("t")).toBe(false); // several tasks: Today
+    for (const text of ["overdue text", "morning text", "batch text"]) expect(await handoff(text)).toEqual({ user_id: uid, purpose: "login_link", expires_at: NOW + 24 * 3_600_000 });  });
+
+  it("plans a push user's day like a Telegram user's and sends the planned message", async () => {
+    const { uid, endpoints } = await pushUser({ planned: false });
+    await seedMei(uid);
+
+    const report = await tick(sg(DAY, "08:00:31"));
+
+    expect(report.planned).toBe(1);
+    expect(report.sent).toBeGreaterThanOrEqual(1);
+    const row = (await env.DB.prepare("SELECT id, text FROM sends WHERE user_id = ? AND sent_at IS NOT NULL").bind(uid).first<{ id: string; text: string }>())!;
+    expect((await payloadsTo(endpoints[0])).map((p) => p.text)).toContain(row.text);
+  });
+
+  it("neither plans nor sends for a user on the push channel with no subscription left", async () => {
+    const orphan = await linkedUser({ channel: "push", chat: null });
+    await put(orphan.uid, [op("settings", "me", { tz: "Asia/Singapore", quiet_start: 1320, quiet_end: 480 }), taskOp("orphan-task", "Orphan", { size: "S", deadline: DAY, runway_start: DAY })]);
+    const planned = await linkedUser({ channel: "push", chat: null, planned: true });
+    const id = await seedSend({ uid: planned.uid, due_at: sg(DAY, "08:00:00") });
+
+    const report = await tick(sg(DAY, "08:00:31"));
+
+    expect(report).toMatchObject({ planned: 0, claimed: 0, sent: 0 });
+    expect(pushCalls).toEqual([]);
+    expect(await sendRow(id)).toMatchObject({ claimed_at: null, attempts: 0 });
+  });
+
+  describe("a subscription the push service has dropped (404 or 410)", () => {
+    for (const status of [404, 410]) {
+      it(`${status}: deletes it; with none left and no Telegram, cancels the unsent messages and clears the channel`, async () => {
+        const { uid, endpoints } = await pushUser({ planned: true });
+        pushStatusFor[endpoints[0]] = status;
+        const NOW = sg(DAY, "09:00:31");
+        const due = await seedSend({ uid, due_at: NOW - 1000 });
+        const later = await seedSend({ uid, kind: "wrap_up", due_at: sg(DAY, "21:00:00") });
+
+        const report = await tick(NOW);
+
+        expect(report).toMatchObject({ claimed: 1, sent: 0 });
+        expect(await subsOf(uid)).toEqual([]);
+        expect(await channelOf(uid)).toBeNull();
+        expect(await sendRow(due)).toMatchObject({ sent_at: null, attempts: 1, cancelled: 1 });
+        expect(await sendRow(later)).toMatchObject({ sent_at: null, cancelled: 1 });
+        await tick(sg(DAY, "21:00:31"));
+        expect(pushCalls).toHaveLength(1); // nothing more is attempted
+      });
+    }
+
+    it("with a Telegram chat linked, hands the channel to Telegram, which then delivers the waiting message", async () => {
+      const { uid, endpoints, chat } = await pushUser({ planned: true, chat: "5550001" });
+      pushStatusFor[endpoints[0]] = 410;
+      const NOW = sg(DAY, "09:00:31");
+      const id = await seedSend({ uid, due_at: NOW - 1000, text: "waiting" });
+
+      await tick(NOW);
+      expect(await channelOf(uid)).toBe("telegram");
+      expect(await sendRow(id)).toMatchObject({ sent_at: null, cancelled: 0, attempts: 1 });
+
+      await tick(NOW + 6 * 60_000); // the claim is 5 minutes old now
+      expect(textsTo(chat)).toEqual(["waiting"]);
+      expect(await sendRow(id)).toMatchObject({ sent_at: NOW + 6 * 60_000, attempts: 2 });
+    });
+
+    it("drops only the dead browser: the message still counts as sent and the channel stays push", async () => {
+      const { uid, endpoints } = await pushUser({ subs: 2, planned: true });
+      pushStatusFor[endpoints[0]] = 410;
+      const NOW = sg(DAY, "09:00:31");
+      const id = await seedSend({ uid, due_at: NOW - 1000 });
+
+      const report = await tick(NOW);
+
+      expect(report).toMatchObject({ claimed: 1, sent: 1 });
+      expect(await subsOf(uid)).toEqual([endpoints[1]]);
+      expect(await channelOf(uid)).toBe("push");
+      expect(await sendRow(id)).toMatchObject({ sent_at: NOW, cancelled: 0 });
+    });
+
+    it("does not ask a dead endpoint twice in one tick", async () => {
+      const { uid, endpoints } = await pushUser({ planned: true });
+      pushStatusFor[endpoints[0]] = 410;
+      const NOW = sg(DAY, "09:00:31");
+      await seedSends([1, 2, 3].map((i) => ({ uid, due_at: NOW - 1000 * i })));
+      await tick(NOW);
+      expect(pushCalls).toHaveLength(1);
+    });
+  });
+
+  describe("other failures", () => {
+    it("count an attempt like Telegram's, keep the subscription, and are retried after the claim is 5 minutes old", async () => {
+      const { uid, endpoints } = await pushUser({ planned: true });
+      pushStatusFor[endpoints[0]] = 503;
+      const NOW = sg(DAY, "09:00:31");
+      const id = await seedSend({ uid, due_at: NOW - 1000 });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      expect(await tick(NOW)).toMatchObject({ claimed: 1, sent: 0 });
+      expect(await sendRow(id)).toMatchObject({ sent_at: null, attempts: 1 });
+      expect(await subsOf(uid)).toEqual(endpoints);
+      expect(await channelOf(uid)).toBe("push");
+
+      await tick(NOW + 60_000); // still inside the 5 minutes: not claimed
+      expect(pushCalls).toHaveLength(1);
+
+      pushStatusFor = {};
+      expect(await tick(NOW + 6 * 60_000)).toMatchObject({ claimed: 1, sent: 1 });
+      expect(await sendRow(id)).toMatchObject({ sent_at: NOW + 6 * 60_000, attempts: 2 });
+    });
+
+    it("count as sent when one browser took the message and another failed, so the message is not sent twice", async () => {
+      const { uid, endpoints } = await pushUser({ subs: 2, planned: true });
+      pushStatusFor[endpoints[1]] = 500;
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const NOW = sg(DAY, "09:00:31");
+      const id = await seedSend({ uid, due_at: NOW - 1000 });
+      expect(await tick(NOW)).toMatchObject({ sent: 1 });
+      expect(await sendRow(id)).toMatchObject({ sent_at: NOW });
+    });
+  });
+
+  it("claims only the channels that are set up: without VAPID, push rows wait and burn no attempt, and Telegram goes on", async () => {
+    const pushy = await pushUser({ planned: true });
+    const telegram = await linkedUser({ planned: true });
+    const NOW = sg(DAY, "09:00:31");
+    const pushId = await seedSend({ uid: pushy.uid, due_at: NOW - 1000 });
+    await seedSend({ uid: telegram.uid, due_at: NOW - 1000, text: "for telegram" });
+
+    const report = await runTick({ ...testEnv, VAPID_PRIVATE_KEY: undefined }, NOW);
+
+    expect(report).toMatchObject({ claimed: 1, sent: 1 });
+    expect(pushCalls).toEqual([]);
+    expect(await sendRow(pushId)).toMatchObject({ claimed_at: null, attempts: 0 });
+    // And the other way round: without the bot token the push user is still served.
+    expect(await runTick({ ...testEnv, TG_BOT_TOKEN: undefined }, NOW + 60_000)).toMatchObject({ claimed: 1, sent: 1 });
+    expect(pushCalls).toHaveLength(1);
+  });
+
+  it("sends each row once when two ticks overlap", async () => {
+    const { uid } = await pushUser({ planned: true });
+    const NOW = sg(DAY, "09:00:31");
+    await seedSends(Array.from({ length: 6 }, (_, i) => ({ uid, due_at: NOW - 1000 - i })));
+    const [a, b] = await Promise.all([tick(NOW), tick(NOW)]);
+    expect(a.claimed + b.claimed).toBe(6);
+    expect(pushCalls).toHaveLength(6);
+  });
+});
+
 // --- Budget ------------------------------------------------------------------------------------------------------
 
 // Counts D1 statements the way the platform does: each query is one, and each statement of a batch is one.
@@ -552,6 +788,55 @@ describe("budget", () => {
     const counter = countingDb(env.DB);
     const report = await runTick({ ...testEnv, DB: counter.db }, NOW);
     expect(report.blocked).toBeGreaterThan(0);
+    expect(counter.statements()).toBeLessThan(50);
+  });
+
+  // 20 users at the most browsers a user may keep: the worst case for subrequests.
+  it("keeps a full tick of web push (20 users, every browser they keep, and a planning backlog) under 50 subrequests and 50 statements", async () => {
+    const NOW = sg(DAY, "08:00:31");
+    for (let i = 0; i < 8; i++) {
+      const { uid } = await linkedUser();
+      await put(uid, [op("settings", "me", { tz: "Asia/Singapore", quiet_start: 1320, quiet_end: 480 }), taskOp(`bt-${i}`, `Task ${i}`, { size: "S", deadline: DAY, runway_start: DAY })]);
+    }
+    for (let i = 0; i < MAX_SENDS + 5; i++) {
+      const u = await pushUser({ subs: MAX_SUBSCRIPTIONS, planned: true });
+      await seedSend({ uid: u.uid, due_at: NOW - 60_000 + i });
+      if (i === 0) pushStatusFor[u.endpoints[0]] = 410; // every message is still sent, and the clean-up statements are spent too
+    }
+
+    const counter = countingDb(env.DB);
+    const report = await runTick({ ...testEnv, DB: counter.db }, NOW);
+
+    expect(report.planned).toBe(MAX_PLANNED);
+    expect(report.claimed).toBe(MAX_SENDS);
+    expect(report.sent).toBe(MAX_SENDS);
+    expect(pushCalls).toHaveLength(MAX_SENDS * MAX_SUBSCRIPTIONS);
+    expect(pushCalls.length + calls.length).toBeLessThan(50);
+    expect(counter.statements()).toBeLessThan(50);
+  });
+
+  it("stays under the limits when every push is a 410 and every Telegram send a 403, which clean up after themselves", async () => {
+    const NOW = sg(DAY, "08:00:31");
+    for (let i = 0; i < 8; i++) {
+      const { uid } = await linkedUser();
+      await put(uid, [op("settings", "me", { tz: "Asia/Singapore", quiet_start: 1320, quiet_end: 480 }), taskOp(`bt-${i}`, `Task ${i}`, { size: "S", deadline: DAY, runway_start: DAY })]);
+    }
+    for (let i = 0; i < MAX_SENDS; i++) {
+      if (i % 2) {
+        const u = await linkedUser({ planned: true });
+        statusFor[u.chat] = 403;
+        await seedSend({ uid: u.uid, due_at: NOW - 60_000 });
+      } else {
+        const u = await pushUser({ subs: MAX_SUBSCRIPTIONS, planned: true });
+        for (const e of u.endpoints) pushStatusFor[e] = 410;
+        await seedSend({ uid: u.uid, due_at: NOW - 60_000 });
+      }
+    }
+    const counter = countingDb(env.DB);
+    const report = await runTick({ ...testEnv, DB: counter.db }, NOW);
+    expect(report.blocked).toBeGreaterThan(0);
+    expect(await count("SELECT COUNT(*) AS n FROM push_subscriptions")).toBe(0);
+    expect(pushCalls.length + calls.length).toBeLessThan(50);
     expect(counter.statements()).toBeLessThan(50);
   });
 });
