@@ -96,6 +96,27 @@ describe("POST /api/push/subscribe", () => {
     expect(await endpointsOf(b.uid)).toEqual([sub.endpoint]);
   });
 
+  it("hands the old owner's channel on when its last browser moves away, and has the next tick replan both users (audit #19, #15)", async () => {
+    const a = await newUser(); // chat linked: falls back to Telegram
+    const c = await newUser(); // no chat: reminders stay in the app
+    const d = await newUser(); // keeps a second browser, so stays on push
+    const b = await newUser();
+    const [s1, s2, s3, s4] = [await newSub("m1"), await newSub("m2"), await newSub("m3"), await newSub("m4")];
+    for (const [user, sub] of [[a, s1], [c, s2], [d, s3], [d, s4]] as const) await call("subscribe", sub, user.cookie);
+    await env.DB.prepare("UPDATE users SET telegram_chat_id = '77' WHERE id = ?").bind(a.uid).run();
+    await env.DB.prepare("UPDATE users SET planned_until = 9e15").run();
+
+    for (const sub of [s1, s2, s3]) await call("subscribe", sub, b.cookie);
+
+    expect(await channelOf(a.uid)).toBe("telegram");
+    expect(await channelOf(c.uid)).toBeNull();
+    expect(await channelOf(d.uid)).toBe("push");
+    expect(await channelOf(b.uid)).toBe("push");
+    const planned = async (uid: string) => (await env.DB.prepare("SELECT planned_until FROM users WHERE id = ?").bind(uid).first<{ planned_until: number | null }>())!.planned_until;
+    expect([await planned(a.uid), await planned(c.uid), await planned(b.uid)]).toEqual([null, null, null]);
+    expect(await planned(d.uid)).toBe(9e15); // still on push: nothing changed for them
+  });
+
   it("answers 503 when VAPID is not configured, and stores nothing", async () => {
     const { cookie, uid } = await newUser();
     const res = await call("subscribe", await newSub(4), cookie, { ...env, VAPID_PUBLIC_KEY: "" });

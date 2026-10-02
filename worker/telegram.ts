@@ -196,7 +196,8 @@ async function handleMessage(env: TelegramEnv, { updateId, chatId, text: message
 
 // Redeems a tg_link code. The three statements run as one D1 batch (one transaction), so the code is spent exactly when
 // the link is made, and two deliveries of the same code cannot both win. The first statement frees the chat from any
-// other user who linked it earlier: the latest link wins, so a chat never maps to two users.
+// other user who linked it earlier: the latest link wins, so a chat never maps to two users. `planned_until = NULL`
+// has the next tick plan the day afresh, so what the old channel never sent does not go out in a burst (audit #15).
 async function redeem(db: D1Database, chatId: number, code: string | undefined): Promise<string> {
   if (code === undefined) return COPY.startBare;
   if (!CODE_RE.test(code)) return COPY.restart;
@@ -212,7 +213,7 @@ async function redeem(db: D1Database, chatId: number, code: string | undefined):
       )
       .bind(chat, code, now),
     db
-      .prepare(`UPDATE users SET telegram_chat_id = ?1, channel = 'telegram' WHERE id = (SELECT user_id FROM handoffs WHERE ${valid}) RETURNING id`)
+      .prepare(`UPDATE users SET telegram_chat_id = ?1, channel = 'telegram', planned_until = NULL WHERE id = (SELECT user_id FROM handoffs WHERE ${valid}) RETURNING id`)
       .bind(chat, code, now),
     db.prepare(`UPDATE handoffs SET used_at = ?3 WHERE ${valid}`).bind(chat, code, now),
   ]);

@@ -79,9 +79,19 @@ async function subscribe(request: Request, env: SubscriptionEnv, raw: string): P
 
   const now = Date.now();
   const { uid } = await resolveUser(env.DB, request, now);
-  // One batch (a transaction). The upsert moves a browser that now presents a different cookie to its new user; the
-  // trim keeps the newest few; the channel flips last. Telegram's chat id is left in place.
+  // One batch (a transaction). First the old owner of this browser, if another user had it: left with no subscription
+  // they would stay on the push channel and get nothing, so the channel is handed on as unsubscribe does (audit #19).
+  // Then the upsert moves a browser that now presents a different cookie to its new user; the trim keeps the newest few;
+  // the channel flips last, and `planned_until = NULL` has the next tick plan the day afresh, so messages the old channel
+  // never sent are not sent in a burst (audit #15). Telegram's chat id is left in place.
   await env.DB.batch([
+    env.DB
+      .prepare(
+        `UPDATE users SET channel = CASE WHEN telegram_chat_id IS NOT NULL THEN 'telegram' END, planned_until = NULL
+         WHERE channel = 'push' AND id = (SELECT user_id FROM push_subscriptions WHERE endpoint = ?1) AND id != ?2
+           AND NOT EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = users.id AND p.endpoint != ?1)`,
+      )
+      .bind(sub.endpoint, uid),
     env.DB
       .prepare(
         `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at) VALUES (?1, ?2, ?3, ?4, ?5)
@@ -94,7 +104,7 @@ async function subscribe(request: Request, env: SubscriptionEnv, raw: string): P
            AND id NOT IN (SELECT id FROM push_subscriptions WHERE user_id = ?1 ORDER BY created_at DESC, id DESC LIMIT ?2)`,
       )
       .bind(uid, MAX_SUBSCRIPTIONS),
-    env.DB.prepare("UPDATE users SET channel = 'push' WHERE id = ?1").bind(uid),
+    env.DB.prepare("UPDATE users SET channel = 'push', planned_until = NULL WHERE id = ?1").bind(uid),
   ]);
   return json({ ok: true }, 200, { "Set-Cookie": cookieFor(uid) });
 }
@@ -116,7 +126,7 @@ async function unsubscribe(request: Request, env: SubscriptionEnv, raw: string):
       // With no subscription left the push channel has nothing to send to. A linked chat takes over; otherwise reminders stay in the app.
       env.DB
         .prepare(
-          `UPDATE users SET channel = CASE WHEN telegram_chat_id IS NOT NULL THEN 'telegram' END
+          `UPDATE users SET channel = CASE WHEN telegram_chat_id IS NOT NULL THEN 'telegram' END, planned_until = NULL
            WHERE id = ?1 AND channel = 'push' AND NOT EXISTS (SELECT 1 FROM push_subscriptions WHERE user_id = ?1)`,
         )
         .bind(uid),
