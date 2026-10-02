@@ -16,13 +16,13 @@ export const USERS_PER_BATCH = 100;
 // TODO(lead): 0002 (scheduler) and 0003 (passkeys) may add per-user tables. Add each one's name here: nothing else
 // changes, because BATCHES below shrinks by itself as the list grows. Check that a new table's user column is
 // called `user_id`, and that a passkey table is not listed here (those users are never deleted).
-const USER_TABLES = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings", "journal", "ops", "sends", "handoffs"] as const;
+const USER_TABLES = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings", "journal", "ops", "sends", "handoffs", "push_subscriptions"] as const;
 
 // Statement arithmetic (the cap is MAX_STATEMENTS = 40 per call):
 //   housekeeping   2   one DELETE on ops, one on handoffs
 //   more check     1   one SELECT, after the last full batch
-//   one batch     11   one DELETE per table in USER_TABLES (10), plus one on users
-//   batches        3   floor((40 - 2 - 1) / 11), so 2 + 3 x 11 + 1 = 36 statements at most
+//   one batch     12   one DELETE per table in USER_TABLES (11), plus one on users
+//   batches        3   floor((40 - 2 - 1) / 12), so 2 + 3 x 12 + 1 = 39 statements at most
 // 3 batches x 100 users clears 300 users a day, far above the rate at which anonymous users go idle. The cap is
 // on statements, not rows, so a batch may be larger; a batch that loses a race with a returning user simply
 // deletes fewer.

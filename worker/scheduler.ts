@@ -9,12 +9,14 @@ import { LOGIN_LINK_TTL_MS, messageKeyboard } from "./buttons";
 import { newUserId } from "./identity";
 import { runRetention } from "./retention";
 import type { Entity } from "./protocol";
+import { pushConfigured, sendPush, MAX_SUBSCRIPTIONS, type PushEnv, type PushPayload, type PushSub } from "./push";
 import { ENTITIES } from "./schema";
 import { botCall, type TelegramEnv } from "./telegram";
 
 // The scheduler (Tech_Scope.md §4.5, §6, §11, slice 12): one cron tick plans the stale users' days, then sends what is due.
+// A message goes through the user's one channel (UX_Flows.md §5): Telegram, or web push (slice 18, ADR-0002).
 
-export interface SchedulerEnv extends TelegramEnv {
+export interface SchedulerEnv extends TelegramEnv, PushEnv {
   /** Var: the app's origin, for the link buttons (`https://ember-tasks.<subdomain>.workers.dev`). */
   APP_ORIGIN?: string;
 }
@@ -29,23 +31,29 @@ export const DAILY_RETENTION = "0 19 * * *"; // 03:00 Singapore (Tech_Scope.md �
 // two are separate limits. One tick, worst case, with MAX_SENDS = 20:
 //
 //   stale-user scan ............................................... 1
-//   send phase:  claim (UPDATE ... RETURNING, chat id included) ... 1
-//                handoff codes for the claimed rows (one INSERT) .. 1
-//                stamp sent_at after each Telegram send ........... 20
-//                403 clean-up: cancel rows, clear channel ......... 2   (only if a send was a 403; a 403 is not stamped)
-//                                                                  = 24 (SEND_COST)
+//   send phase:  claim (UPDATE ... RETURNING, chat id and browsers included) .. 1
+//                handoff codes for the claimed rows (one INSERT) ............... 1
+//                stamp sent_at after each send ................................. 20
+//                403 clean-up: cancel rows, clear channel ...................... 2   (only if a send was a 403; a 403 is not stamped)
+//                404/410 clean-up: delete subscriptions, hand on the channel, cancel rows ... 3   (only if a push was dropped)
+//                                                                  = 27 (SEND_COST; the three kinds cannot all be maxed at once, so this is a bound)
 //   plan phase:  per user: state load (one statement) ............. 1
 //                           plan write (one batch of 3) ........... 3
 //                                                                  = 4 each (PLAN_COST); a failed plan costs 1 + 1, still under
 //   5 users planned (MAX_PLANNED) ................................. 20
-//                                                                  total 45, under the 48 of STATEMENT_BUDGET
+//                                                                  total 48, under the 50 limit (STATEMENT_BUDGET keeps two spare)
 //
-// Subrequests: one Telegram call per send, at most 20. The plan phase spends the statements the send phase does not
+// Subrequests: one call per Telegram send and one per browser a web push goes to. A user keeps at most MAX_SUBSCRIPTIONS
+// (2) browsers, so 20 sends are at most 40 calls. The plan phase spends the statements the send phase does not
 // reserve, so a backlog of stale users (a whole city waking at 08:00) drains MAX_PLANNED per minute, never more.
+//
+// CPU (10 ms on the free plan, §11): a Telegram send is I/O. A push also encrypts (one ECDH key pair, one ECDH, two HKDF,
+// one AES-GCM), about 0.8 ms each measured under Node's WebCrypto; the VAPID token is signed (0.08 ms) once per push
+// service per isolate. So a full tick of 40 pushes could use more CPU than 10 ms; Telegram sends are unaffected.
 export const MAX_SENDS = 20;
 const STATEMENT_BUDGET = 48; // 50 less two spare
 const STALE_SCAN_COST = 1;
-const SEND_COST = 2 + MAX_SENDS + 2;
+const SEND_COST = 2 + MAX_SENDS + 2 + 3;
 const PLAN_COST = 4;
 export const MAX_PLANNED = Math.floor((STATEMENT_BUDGET - STALE_SCAN_COST - SEND_COST) / PLAN_COST);
 
@@ -103,13 +111,17 @@ interface StaleUser {
 }
 
 // §4.5: stale = not planned for the current local day (`planned_until` has passed), or `users.rev` has moved on since
-// the plan. Only linked Telegram users are ever planned. Settings default as the table does when the row is missing.
+// the plan. Only users with somewhere to send are ever planned: linked Telegram users, and web push users with a
+// subscription. Settings default as the table does when the row is missing.
+const TELEGRAM_LINKED = (u: string) => `(${u}.channel = 'telegram' AND ${u}.telegram_chat_id IS NOT NULL)`;
+const PUSH_SUBSCRIBED = (u: string) => `(${u}.channel = 'push' AND EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = ${u}.id))`;
+
 async function staleUsers(db: Db, now: number, limit: number): Promise<StaleUser[]> {
   const { results } = await db
     .prepare(
       `SELECT u.id, u.rev, u.planned_rev, u.planned_until, s.tz AS tz, COALESCE(s.quiet_start, 1320) AS quiet_start, COALESCE(s.quiet_end, 480) AS quiet_end
        FROM users u LEFT JOIN settings s ON s.user_id = u.id AND s.id = 'me'
-       WHERE u.channel = 'telegram' AND u.telegram_chat_id IS NOT NULL AND (u.planned_until IS NULL OR u.planned_until <= ?1 OR u.planned_rev < u.rev)
+       WHERE (${TELEGRAM_LINKED("u")} OR ${PUSH_SUBSCRIBED("u")}) AND (u.planned_until IS NULL OR u.planned_until <= ?1 OR u.planned_rev < u.rev)
        ORDER BY u.id LIMIT ?2`,
     )
     .bind(now, limit)
@@ -358,34 +370,45 @@ interface Claimed {
   task_ids: string;
   text: string;
   attempts: number;
-  chat_id: string;
+  channel: "telegram" | "push";
+  chat_id: string | null;
+  subs: string; // JSON: the user's newest MAX_SUBSCRIPTIONS browsers ([] for a Telegram user)
 }
 
 // §11, claim first. One statement takes up to MAX_SENDS due rows that nobody holds (never claimed, or claimed more than
 // 5 minutes ago with no sent_at: a crashed tick or a failed send waiting its turn), so two overlapping ticks cannot
 // both get a row. `attempts` goes up here, not on failure: a tick that dies mid-send also uses an attempt, and a failed
 // send needs no write at all, because the claim already makes the next try wait 5 minutes. After MAX_ATTEMPTS the row
-// is never claimed again. Rows of users who are no longer linked are left alone.
-const CLAIM_SQL = `UPDATE sends SET claimed_at = ?1, attempts = attempts + 1
+// is never claimed again. Rows of users who have nowhere to send are left alone, and so are the rows of a channel that
+// is not set up (no bot token, no VAPID keys), so a missing secret burns no attempts. The user's channel is read here,
+// at claim time: one channel per message (UX_Flows §5), whichever the user has chosen by now.
+const claimSql = (telegram: boolean, push: boolean) => `UPDATE sends SET claimed_at = ?1, attempts = attempts + 1
   WHERE id IN (
     SELECT id FROM sends
     WHERE due_at <= ?1 AND sent_at IS NULL AND cancelled = 0 AND attempts < ?3 AND (claimed_at IS NULL OR claimed_at < ?2)
-      AND user_id IN (SELECT id FROM users WHERE channel = 'telegram' AND telegram_chat_id IS NOT NULL)
+      AND user_id IN (SELECT id FROM users WHERE ${[telegram && TELEGRAM_LINKED("users"), push && PUSH_SUBSCRIBED("users")].filter(Boolean).join(" OR ")})
     ORDER BY due_at LIMIT ?4)
-  RETURNING id, user_id, kind, task_ids, text, attempts, (SELECT telegram_chat_id FROM users WHERE users.id = sends.user_id) AS chat_id`;
+  RETURNING id, user_id, kind, task_ids, text, attempts,
+    (SELECT channel FROM users WHERE users.id = sends.user_id) AS channel,
+    (SELECT telegram_chat_id FROM users WHERE users.id = sends.user_id) AS chat_id,
+    (SELECT json_group_array(json_object('endpoint', endpoint, 'p256dh', p256dh, 'auth', auth))
+       FROM (SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = sends.user_id ORDER BY created_at DESC, id DESC LIMIT ?5)) AS subs`;
 
 async function sendDue(env: SchedulerEnv, now: number): Promise<Omit<TickReport, "planned">> {
   const none = { claimed: 0, sent: 0, blocked: 0 };
-  // Without the token every send would fail and burn an attempt, so nothing is claimed.
-  if (!env.TG_BOT_TOKEN) {
-    console.error("scheduler: TG_BOT_TOKEN is not set, nothing sent");
+  const telegram = !!env.TG_BOT_TOKEN;
+  const push = pushConfigured(env);
+  // Without a channel every send would fail and burn an attempt, so nothing is claimed.
+  if (!telegram && !push) {
+    console.error("scheduler: neither TG_BOT_TOKEN nor the VAPID keys are set, nothing sent");
     return none;
   }
   const db = env.DB;
-  const { results: rows } = await db.prepare(CLAIM_SQL).bind(now, now - CLAIM_TTL_MS, MAX_ATTEMPTS, MAX_SENDS).all<Claimed>();
+  const { results: rows } = await db.prepare(claimSql(telegram, push)).bind(now, now - CLAIM_TTL_MS, MAX_ATTEMPTS, MAX_SENDS, MAX_SUBSCRIPTIONS).all<Claimed>();
   if (!rows.length) return none;
 
   // One sign-in code per message, made now so it has its full 24 hours from the send (§6). One INSERT for all of them.
+  // Web push uses it too: the installed app on an iPhone keeps its own cookies, like Telegram's browser (§7).
   const codes = new Map<string, string>();
   if (env.APP_ORIGIN) {
     for (const r of rows) codes.set(r.id, newUserId());
@@ -397,10 +420,21 @@ async function sendDue(env: SchedulerEnv, now: number): Promise<Omit<TickReport,
 
   let sent = 0;
   const blocked = new Set<string>();
+  const gone = new Map<string, string>(); // push endpoints the service dropped (404/410) this tick -> their user
   try {
     for (const r of rows) {
+      const send = { id: r.id, kind: r.kind, task_ids: JSON.parse(r.task_ids) as string[] };
+      if (r.channel === "push") {
+        const payload: PushPayload = { text: r.text, url: pushUrl(env.APP_ORIGIN, send, codes.get(r.id)) };
+        if (await deliverPush(env, r, JSON.parse(r.subs) as PushSub[], payload, now, gone)) {
+          await db.prepare("UPDATE sends SET sent_at = ?1 WHERE id = ?2").bind(now, r.id).run();
+          sent++;
+        }
+        continue;
+      }
+
       if (blocked.has(r.user_id)) continue; // this tick already learned the user blocked the bot
-      const result = await deliver(env, r.chat_id, r.text, messageKeyboard(env.APP_ORIGIN, { id: r.id, kind: r.kind, task_ids: JSON.parse(r.task_ids) as string[] }, codes.get(r.id)));
+      const result = await deliver(env, r.chat_id!, r.text, messageKeyboard(env.APP_ORIGIN, send, codes.get(r.id)));
       if (result.ok) {
         // A failure of this write after Telegram accepted the message would have the row sent again once its claim
         // is 5 minutes old; the error is let through so the tick stops rather than risk more of those.
@@ -422,6 +456,7 @@ async function sendDue(env: SchedulerEnv, now: number): Promise<Omit<TickReport,
         db.prepare("UPDATE users SET channel = NULL WHERE channel = 'telegram' AND id IN (SELECT value FROM json_each(?1))").bind(ids),
       ]);
     }
+    if (gone.size) await dropGoneSubscriptions(db, gone);
   }
   return { claimed: rows.length, sent, blocked: blocked.size };
 }
@@ -435,4 +470,56 @@ async function deliver(env: SchedulerEnv, chatId: string, text: string, replyMar
   if (!r.ok) return { ok: false, status: r.status };
   const id = (r.result as { message_id?: unknown } | null | undefined)?.message_id;
   return { ok: true, messageId: typeof id === "number" ? id : null };
+}
+
+// --- Web push ----------------------------------------------------------------------------------------------------
+
+// Where a tap on the notification goes (UX_Flows §5, "Web push tap opens"). It is the link Telegram's buttons build
+// (buttons.ts messageKeyboard): the send, the sign-in code, and for a message about one task, that task. A morning, a
+// wrap-up and a batch of several tasks open Today. The service worker (public/sw.js) opens it; the app does the rest.
+const TASK_KINDS = new Set<MessageKind>(["deadline_day", "overdue", "close", "light_day"]);
+
+export function pushUrl(origin: string | undefined, send: { id: string; kind: MessageKind; task_ids: string[] }, code: string | undefined): string {
+  const q = new URLSearchParams();
+  if (code) q.set("h", code);
+  q.set("s", send.id);
+  if (TASK_KINDS.has(send.kind) && send.task_ids.length === 1) q.set("t", send.task_ids[0]);
+  return `${origin ?? ""}/?${q}`;
+}
+
+// Sends one message to each browser the user has. True if at least one took it (the message is then sent: the others
+// would only be sent twice by a retry). Browsers the push service dropped (404/410) are recorded in `gone` and not
+// asked again this tick; any other failure is logged, and when no browser took the message the row is left claimed, so
+// it is retried after 5 minutes like a failed Telegram send.
+async function deliverPush(env: SchedulerEnv, r: Claimed, subs: PushSub[], payload: PushPayload, now: number, gone: Map<string, string>): Promise<boolean> {
+  let delivered = false;
+  for (const sub of subs) {
+    if (gone.has(sub.endpoint)) continue;
+    const result = await sendPush(env, sub, payload, now);
+    if (result.ok) delivered = true;
+    else if (result.gone) gone.set(sub.endpoint, r.user_id);
+    else console.error(`push ${r.id} failed with ${result.status || "a network error"} (attempt ${r.attempts} of ${MAX_ATTEMPTS})`);
+  }
+  return delivered;
+}
+
+// Deletes the dropped subscriptions, and for a user left with none, hands the channel to Telegram if a chat is linked, else
+// clears it (reminders then live in the app only). In the second case their unsent rows are cancelled, as for a 403, so
+// they do not all go out late if the user subscribes again. In the first the rows wait and Telegram delivers them.
+// One batch (a transaction), so each statement sees the one before.
+async function dropGoneSubscriptions(db: Db, gone: Map<string, string>): Promise<void> {
+  const endpoints = JSON.stringify([...gone.keys()]);
+  const users = JSON.stringify([...new Set(gone.values())]);
+  await db.batch([
+    db.prepare("DELETE FROM push_subscriptions WHERE endpoint IN (SELECT value FROM json_each(?1))").bind(endpoints),
+    db
+      .prepare(
+        `UPDATE users SET channel = CASE WHEN telegram_chat_id IS NOT NULL THEN 'telegram' END
+         WHERE channel = 'push' AND id IN (SELECT value FROM json_each(?1)) AND NOT EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = users.id)`,
+      )
+      .bind(users),
+    db
+      .prepare("UPDATE sends SET cancelled = 1 WHERE sent_at IS NULL AND cancelled = 0 AND user_id IN (SELECT id FROM users WHERE channel IS NULL AND id IN (SELECT value FROM json_each(?1)))")
+      .bind(users),
+  ]);
 }

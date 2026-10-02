@@ -14,7 +14,11 @@
   "triggers": { "crons": ["* * * * *", "0 19 * * *"] }, // the scheduler tick; daily retention (03:00 Singapore)
   "vars": {
     // The app's own origin, for the link buttons in Telegram messages (Tech_Scope.md §6).
-    "APP_ORIGIN": "https://ember-tasks.cron-telegram.workers.dev"
+    "APP_ORIGIN": "https://ember-tasks.cron-telegram.workers.dev",
+    // Web push (slice 18, ADR-0002): the VAPID public key, base64url. Empty = web push is off. Not a secret: the browser needs
+    // it to subscribe (GET /api/me returns it). The private half is the secret VAPID_PRIVATE_KEY and the contact is the
+    // secret VAPID_SUBJECT (a mailto: URL); the three come from one key pair. See .dev.vars.example.
+    "VAPID_PUBLIC_KEY": ""
   },
   "d1_databases": [
     {

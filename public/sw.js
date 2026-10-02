@@ -43,6 +43,51 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
+// Web push (ADR-0002, UX_Flows.md §5): tap to open, with no action buttons on any platform. The server sends
+// { text, url } encrypted (worker/push.ts). iOS and Chrome drop a subscription that receives a push and shows nothing,
+// so a notification is always shown, even for a payload that cannot be read.
+const OPEN_EMBER = "Open Ember to see where today stands.";
+
+// Only our own pages: the URL comes out of a payload, and a click must never leave the app.
+const ownUrl = (raw) => {
+  try {
+    const url = new URL(raw, location.origin);
+    return url.origin === location.origin ? url.href : location.origin + "/";
+  } catch {
+    return location.origin + "/";
+  }
+};
+
+self.addEventListener("push", (e) => {
+  let data = {};
+  try {
+    data = JSON.parse(e.data ? e.data.text() : "") ?? {};
+  } catch {
+    // a payload that is not our JSON: show the generic line, open the app
+  }
+  const text = typeof data.text === "string" && data.text ? data.text : OPEN_EMBER;
+  e.waitUntil(self.registration.showNotification("Ember", { body: text, icon: "/icon-192.png", data: { url: ownUrl(data.url) } }));
+});
+
+// Focus an open Ember window and send it to the notification's page, or open one.
+async function openEmber(url) {
+  const wins = await clients.matchAll({ type: "window", includeUncontrolled: true });
+  const win = wins.find((w) => new URL(w.url).origin === location.origin);
+  if (win) {
+    try {
+      return await (await win.focus()).navigate(url);
+    } catch {
+      // this browser cannot navigate a window it does not control: open a new one
+    }
+  }
+  return clients.openWindow(url);
+}
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  e.waitUntil(openEmber(ownUrl(e.notification.data && e.notification.data.url)));
+});
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   const url = new URL(req.url);
