@@ -18,8 +18,15 @@ export async function handleSync(request: Request, env: { DB: D1Database }): Pro
 
   const now = Date.now();
   const { uid } = await resolveUser(env.DB, request, now);
-  const result = await sync(env.DB, uid, parsed.value.cursor, parsed.value.ops, now);
-  return json(result, 200, { "Set-Cookie": cookieFor(uid) });
+  const headers = { "Set-Cookie": cookieFor(uid) };
+  try {
+    const result = await sync(env.DB, uid, parsed.value.cursor, parsed.value.ops, now);
+    return json(result, 200, headers);
+  } catch (e) {
+    // Nothing was applied. The client keeps its outbox and sends the same op ids again; the ledger makes that safe.
+    if (e instanceof SyncConflict) return json({ error: "conflict", detail: "another request changed your data first; try again" }, 503, { ...headers, "Retry-After": "1" });
+    throw e;
+  }
 }
 
 interface Planned {
@@ -28,27 +35,27 @@ interface Planned {
   update: boolean;
 }
 
-// A concurrent request recorded one of our op ids between our check and our batch. The batch rolled back whole, so
-// nothing of ours was applied; the check is re-run and now filters those ops out (Tech_Scope.md §5).
+/** Another request for the same user committed after this one read its rows. The batch rolled back whole. */
+export class SyncConflict extends Error {
+  constructor(options?: ErrorOptions) {
+    super("a concurrent request changed this user's rows between our read and our write", options);
+  }
+}
+
+// The guard row's batch statement hit a primary key, so some other request wrote the ledger first. The batch rolled back.
 const isLedgerCollision = (e: unknown) => e instanceof Error && /UNIQUE constraint failed: ops\./.test(e.message);
-const MAX_ATTEMPTS = 3;
 
 const isComplete = (op: Op) => ENTITIES[op.entity].required.every((f) => f in op.fields);
 
+// One request is three steps: lookup (one batch, reads), planOps (pure, judges the ops against what was read), and
+// commit (one batch, writes). Another request can run between the first and the last; see the rev guard in commit.
 export async function sync(db: D1Database, uid: string, cursor: number, requested: Op[], now: number): Promise<SyncResponse> {
   const seen = new Set<string>(); // the same op_id twice in one body counts once
   const ops = requested.filter((o) => !seen.has(o.op_id) && seen.add(o.op_id));
 
-  for (let attempt = 1; ; attempt++) {
-    const { applied, rows } = await lookup(db, uid, ops);
-    const { plan, rejected } = planOps(ops, applied, rows);
-    try {
-      return { ...(await commit(db, uid, plan, cursor, now)), rejected };
-    } catch (e) {
-      if (attempt < MAX_ATTEMPTS && isLedgerCollision(e)) continue;
-      throw e;
-    }
-  }
+  const { applied, rows, rev } = await lookup(db, uid, ops);
+  const { plan, rejected } = planOps(ops, applied, rows);
+  return { ...(await commit(db, uid, plan, cursor, now, rev)), rejected };
 }
 
 const rowKey = (entity: Entity, id: string) => `${entity}:${id}`;
@@ -63,65 +70,100 @@ const LOOKUP_COLUMNS: Record<Entity, string> = {
   settings: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
 };
 
-// The row ids this request needs the stored state of. Tasks and chunks are always loaded, because their state rules
-// judge every op (and a complete op may be an upsert of a row that exists). The other entities are loaded only for
-// partial patches, to know whether the row exists. Rows an op refers to are loaded too: a chunk's task and parent,
-// and a session's chunk.
-function wantedIds(ops: Op[]): Map<Entity, Set<string>> {
-  const wanted = new Map<Entity, Set<string>>();
-  const want = (entity: Entity, id: unknown) => {
-    if (typeof id === "string") (wanted.get(entity) ?? wanted.set(entity, new Set()).get(entity)!).add(id);
+/** What the lookup loads: the rows of an entity by id, or (`children`) the live chunks under the given parent ids. */
+type Wanted = Entity | "children";
+
+// The row ids this request needs the stored state of. The tables keyed by id alone (tasks, chunks, sessions,
+// hard_blocks) are always loaded for every op: the state rules judge them, a complete op may be an upsert of a row that
+// exists, and the id may be another user's row (foreign_id). The per-user tables (days, settings) are loaded only for a
+// partial patch, to know whether the row exists. Rows an op refers to are loaded too: a chunk's task and parent, and a
+// session's chunk. A chunk op that sets a parent also loads the live children of that chunk (Rule 6: a chunk with
+// children of its own cannot take a parent).
+function wantedIds(ops: Op[]): Map<Wanted, Set<string>> {
+  const wanted = new Map<Wanted, Set<string>>();
+  const want = (kind: Wanted, id: unknown) => {
+    if (typeof id === "string") (wanted.get(kind) ?? wanted.set(kind, new Set()).get(kind)!).add(id);
   };
   for (const op of ops) {
-    if (op.entity === "tasks" || op.entity === "chunks" || !isComplete(op)) want(op.entity, op.id);
+    if (!ENTITIES[op.entity].perUser || !isComplete(op)) want(op.entity, op.id);
     if (op.entity === "chunks") {
       want("tasks", op.fields.task_id);
       want("chunks", op.fields.parent_id);
+      if (typeof op.fields.parent_id === "string") want("children", op.id);
     }
     if (op.entity === "sessions") want("chunks", op.fields.chunk_id);
   }
   return wanted;
 }
 
-// Which of these op ids are already in the ledger, and the stored state of every row the ops touch or refer to.
-// Two statements however many ops there are. D1 allows at most 5 terms in a compound SELECT, so the ledger query and
-// the row query are separate, and the row query has one term per entity needed (five at most, one per table).
-async function lookup(db: D1Database, uid: string, ops: Op[]) {
+// One term of the row query. For the tables keyed by id alone the user filter is dropped, so an id that another user
+// owns still comes back, with `mine` = 0 (checkOp then answers foreign_id). The per-user tables are always mine.
+function lookupTerm(kind: Wanted, param: number): string {
+  const ids = `IN (SELECT value FROM json_each(?${param}))`;
+  if (kind === "children") return `SELECT 'chunks' AS entity, id, ${LOOKUP_COLUMNS.chunks}, 1 AS mine FROM chunks WHERE user_id = ?1 AND deleted = 0 AND parent_id ${ids}`;
+  const { table, key, perUser } = ENTITIES[kind];
+  const scope = perUser ? "user_id = ?1 AND " : "";
+  return `SELECT '${kind}' AS entity, ${key} AS id, ${LOOKUP_COLUMNS[kind]}, ${perUser ? "1" : "user_id = ?1"} AS mine FROM ${table} WHERE ${scope}${key} ${ids}`;
+}
+
+// Which of these op ids are already in the ledger, the user's `rev` as of this read, and the stored state of every row
+// the ops touch or refer to. The rev is the snapshot the checks are judged against; commit's guard row uses it.
+//
+// Statements: the ledger query carries the rev as one more UNION term, so it is 1. D1 allows at most 5 terms in a
+// compound SELECT, so the row query is separate, one term per kind needed (the four id-keyed tables and `children`
+// make 5 today; days and settings would add a sixth, hence the groups of 5): 1 or 2 more. All in one batch, which D1
+// runs as one transaction, so the rev and the rows are from the same moment.
+export async function lookup(db: D1Database, uid: string, ops: Op[]) {
   const applied = new Set<string>();
   const rows = new Map<string, Row>();
-  if (!ops.length) return { applied, rows };
+  if (!ops.length) return { applied, rows, rev: 0 };
 
   const stmts = [
     db
-      .prepare("SELECT op_id AS id FROM ops WHERE user_id = ?1 AND op_id IN (SELECT value FROM json_each(?2))")
+      .prepare("SELECT op_id AS id, NULL AS rev FROM ops WHERE user_id = ?1 AND op_id IN (SELECT value FROM json_each(?2)) UNION ALL SELECT NULL, rev FROM users WHERE id = ?1")
       .bind(uid, JSON.stringify(ops.map((o) => o.op_id))),
   ];
   for (const group of groupsOf5([...wantedIds(ops)])) {
-    const terms = group.map(([name], i) => {
-      const { table, key } = ENTITIES[name];
-      return `SELECT '${name}' AS entity, ${key} AS id, ${LOOKUP_COLUMNS[name]} FROM ${table} WHERE user_id = ?1 AND ${key} IN (SELECT value FROM json_each(?${i + 2}))`;
-    });
+    const terms = group.map(([kind], i) => lookupTerm(kind, i + 2));
     stmts.push(db.prepare(terms.join(" UNION ALL ")).bind(uid, ...group.map(([, ids]) => JSON.stringify([...ids]))));
   }
 
-  const [ledger, ...found] = await db.batch<{ id: string; entity?: Entity } & Record<string, unknown>>(stmts);
-  for (const r of ledger.results) applied.add(r.id);
-  for (const r of found.flatMap((f) => f.results)) {
-    rows.set(rowKey(r.entity!, r.id), { state: r.state as string | null, task_id: r.task_id as string | null, parent_id: r.parent_id as string | null, deleted: r.deleted === 1 });
+  const [ledger, ...found] = await db.batch<{ id: string | null; rev?: number | null; entity?: Entity } & Record<string, unknown>>(stmts);
+  let rev = 0;
+  for (const r of ledger.results) {
+    if (r.id === null) rev = r.rev as number;
+    else applied.add(r.id);
   }
-  return { applied, rows };
+  for (const r of found.flatMap((f) => f.results)) {
+    rows.set(rowKey(r.entity!, r.id!), {
+      state: r.state as string | null,
+      task_id: r.task_id as string | null,
+      parent_id: r.parent_id as string | null,
+      deleted: r.deleted === 1,
+      mine: r.mine === 1,
+    });
+  }
+  return { applied, rows, rev };
 }
 
 // Drop ops already in the ledger, refuse the ones that cannot be applied, and mark each remaining op as an upsert
 // or a patch. Arrival order is preserved: it decides which write wins a conflict, and each accepted op becomes the
 // stored state the next op is judged against. A rejected op changes nothing, so it is not part of that state.
-function planOps(ops: Op[], applied: Set<string>, stored: Map<string, Row>) {
+export function planOps(ops: Op[], applied: Set<string>, stored: Map<string, Row>) {
   const plan: Planned[] = [];
   const rejected: Rejected[] = [];
   const rows = new Map(stored);
+  // task and chunk answer only for this user's rows: a foreign id was loaded so it can be named, not so it can be used.
+  const mine = (key: string) => {
+    const row = rows.get(key);
+    return row?.mine ? row : null;
+  };
   const ctx: Ctx = {
-    task: (id) => rows.get(rowKey("tasks", id)) ?? null,
-    chunk: (id) => rows.get(rowKey("chunks", id)) ?? null,
+    task: (id) => mine(rowKey("tasks", id)),
+    chunk: (id) => mine(rowKey("chunks", id)),
+    // `rows` holds the children read from the database and every chunk an accepted op created or changed, so a child
+    // created, moved or deleted earlier in this request is already counted.
+    hasLiveChildren: (id) => [...rows].some(([key, r]) => key.startsWith("chunks:") && r.mine && !r.deleted && r.parent_id === id),
   };
   for (const op of ops) {
     if (applied.has(op.op_id)) continue;
@@ -139,13 +181,27 @@ function planOps(ops: Op[], applied: Set<string>, stored: Map<string, Row>) {
   return { plan, rejected };
 }
 
-// Everything below runs as one db.batch(), which D1 executes as a single transaction: the rev bump, the ledger rows,
-// the writes, and the pull. Nothing interleaves, so the revs are consecutive, the cursor read matches the rows read,
-// and a failure anywhere leaves no trace.
-async function commit(db: D1Database, uid: string, plan: Planned[], cursor: number, now: number) {
+// Everything below runs as one db.batch(), which D1 executes as a single transaction: the guard row, the rev bump, the
+// ledger rows, the writes, and the pull. Nothing interleaves, so the revs are consecutive, the cursor read matches the
+// rows read, and a failure anywhere leaves no trace.
+//
+// The guard row is what makes the read in lookup safe to act on. lookup and commit are two batches, so two requests for
+// the same user can both read the same old rows and both pass a check against them (two devices moving a task out of
+// Done, say). Each write request therefore starts by inserting ledger row '#rev:<rev it read>' (plain INSERT, no OR
+// IGNORE). Every commit that writes bumps users.rev, so the next request reads a different number; two requests that
+// read the same one collide on the primary key, D1 rolls back the loser's whole batch, and we throw SyncConflict, which
+// handleSync answers with 503 and Retry-After. We do not retry here: a second lookup and commit would not fit in the 50
+// statement budget (protocol.ts). The client resends the same op ids, so the retry is safe. The '#' is outside the
+// op_id alphabet (validate.ts), so a client can never produce a guard row's id. Retention prunes guard rows with the
+// rest of the ledger after 30 days.
+//
+// Statements: guard 1 + rev bump 1 + ledger insert 1 + n writes + pull 2 + cursor 1 = n + 6 (the pull is up to 2).
+export async function commit(db: D1Database, uid: string, plan: Planned[], cursor: number, now: number, seenRev: number) {
   const stmts: D1PreparedStatement[] = [];
   const n = plan.length;
   if (n) {
+    // D1 binds a JS number as a float, so the cast keeps the id '#rev:5', not '#rev:5.0'.
+    stmts.push(db.prepare("INSERT INTO ops (user_id, op_id, applied_at) VALUES (?1, '#rev:' || CAST(?2 AS INTEGER), ?3)").bind(uid, seenRev, now));
     stmts.push(db.prepare("UPDATE users SET rev = rev + ?1 WHERE id = ?2").bind(n, uid));
     stmts.push(
       db
@@ -159,7 +215,13 @@ async function commit(db: D1Database, uid: string, plan: Planned[], cursor: numb
   stmts.push(...pulls);
   stmts.push(db.prepare("SELECT rev FROM users WHERE id = ?1").bind(uid));
 
-  const results = await db.batch(stmts);
+  let results;
+  try {
+    results = await db.batch(stmts);
+  } catch (e) {
+    if (n && isLedgerCollision(e)) throw new SyncConflict({ cause: e });
+    throw e;
+  }
   const rows = results
     .slice(results.length - 1 - pulls.length, results.length - 1)
     .flatMap((r) => r.results as { entity: Entity; rev: number; row: string }[])

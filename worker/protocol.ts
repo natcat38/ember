@@ -30,9 +30,12 @@ export interface Change {
 //   illegal_initial_state  a new task created as done
 //   foreign_task           a chunk's task_id is not one of this user's tasks (or does not exist)
 //   moved_task             a chunk was pointed at a different task than the one it belongs to
-//   bad_parent             a chunk's parent_id is not a live, top-level chunk of the same task (two levels at most)
+//   bad_parent             a chunk's parent_id is not a live, top-level chunk of the same task, or the chunk taking a
+//                          parent has live children of its own (two levels at most)
 //   undelete               a deleted chunk was set back to deleted = false
 //   foreign_chunk          a session's chunk_id is not one of this user's chunks (or does not exist)
+//   foreign_id             the op's own row id already belongs to another user (tasks, chunks, sessions and hard_blocks
+//                          are keyed by id alone), for a complete op or a patch alike
 export interface Rejected {
   op_id: string;
   reason: string;
@@ -47,10 +50,11 @@ export interface SyncResponse {
 // D1 allows 50 queries per invocation on the free plan and every statement in a db.batch() counts (Tech_Scope.md §11).
 // D1 also caps a compound SELECT at 5 terms, and there are 6 synced tables, so the row lookup and the pull each take up
 // to 2 statements. One request costs: up to 2 (identity: a stale cookie's lookup, then the new user) + up to 3 (ledger
-// check, row lookup) + MAX_OPS + 2 (rev bump, ledger insert) + 3 (pull, cursor) = MAX_OPS + 10, which is 48 at 38. A request with more ops
-// is refused whole with 413, and the client sends its outbox in slices of at most MAX_OPS and loops until it is empty.
-// The one path that can pass 50 is a rare retry after a concurrent request wins an op (sync.ts), and only on a body
-// near the cap; it fails the request with 500 and the client retries.
+// and rev read, row lookup) + MAX_OPS + 3 (rev guard row, rev bump, ledger insert) + 3 (pull, cursor) = MAX_OPS + 11,
+// which is 49 at 38. A request with more ops is refused whole with 413, and the client sends its outbox in slices of at
+// most MAX_OPS and loops until it is empty. A request that loses a race with another of the same user's (the rev guard
+// in sync.ts) is not retried in the Worker, because a second pass would not fit: it answers 503 with Retry-After and
+// the client sends the same ops again.
 export const MAX_OPS = 38;
 
 // Request body cap in characters, checked before parsing.

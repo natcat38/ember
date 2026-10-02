@@ -2,6 +2,7 @@ import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import worker from "./index";
 import { MAX_OPS, type Op, type SyncResponse } from "./protocol";
+import { commit, lookup, planOps, SyncConflict } from "./sync";
 
 const URL_SYNC = "https://ember.test/api/sync";
 const uuid = () => crypto.randomUUID();
@@ -47,7 +48,9 @@ async function newUser(): Promise<string> {
 const uidOf = (cookie: string) => cookie.split("=")[1];
 const count = async (sql: string, ...binds: unknown[]) => (await env.DB.prepare(sql).bind(...binds).first<{ n: number }>())!.n;
 const userRev = async (cookie: string) => (await env.DB.prepare("SELECT rev FROM users WHERE id = ?").bind(uidOf(cookie)).first<{ rev: number }>())!.rev;
-const taskRow = (id: string) => env.DB.prepare("SELECT * FROM tasks WHERE id = ?").bind(id).first<Record<string, unknown>>();
+// The ledger also holds one '#rev:<n>' guard row per write request (see commit in sync.ts); client ops are the rest.
+const NOT_GUARD = "op_id NOT LIKE '#rev:%'";
+const taskRow = (id: string) =>env.DB.prepare("SELECT * FROM tasks WHERE id = ?").bind(id).first<Record<string, unknown>>();
 
 describe("idempotency", () => {
   it("applies the same op sent twice once", async () => {
@@ -64,7 +67,7 @@ describe("idempotency", () => {
     expect(second.res.status).toBe(200);
     expect(second.body.rejected).toEqual([]);
     expect(await userRev(cookie)).toBe(1);
-    expect(await count("SELECT COUNT(*) AS n FROM ops WHERE user_id = ?", uidOf(cookie))).toBe(1);
+    expect(await count(`SELECT COUNT(*) AS n FROM ops WHERE user_id = ? AND ${NOT_GUARD}`, uidOf(cookie))).toBe(1);
     expect(await count("SELECT COUNT(*) AS n FROM tasks WHERE id = ?", id)).toBe(1);
     expect((await taskRow(id))!.title).toBe("Write cover letter");
     // The replay still gets the current rows back, so the client can finish the sync it thinks it lost.
@@ -84,16 +87,18 @@ describe("idempotency", () => {
     const op = task(id);
     const body = { cursor: 0, ops: [op] };
 
+    // If the two interleave, the loser is told to retry (503); either way the op lands once.
     const [a, b] = await Promise.all([sync(body, cookie), sync(body, cookie)]);
-    expect([a.res.status, b.res.status]).toEqual([200, 200]);
+    expect([a.res.status, b.res.status].every((s) => s === 200 || s === 503)).toBe(true);
+    expect([a.res.status, b.res.status]).toContain(200);
     expect(await userRev(cookie)).toBe(1);
-    expect(await count("SELECT COUNT(*) AS n FROM ops WHERE user_id = ?", uidOf(cookie))).toBe(1);
+    expect(await count(`SELECT COUNT(*) AS n FROM ops WHERE user_id = ? AND ${NOT_GUARD}`, uidOf(cookie))).toBe(1);
     expect(await count("SELECT COUNT(*) AS n FROM tasks WHERE id = ?", id)).toBe(1);
   });
 
-  it("recovers when a rival request records the op between our check and our batch", async () => {
-    // Promise.all above may or may not interleave. This forces it: just before our first batch, a full rival request
-    // carrying the same op runs to completion, so our batch hits the ledger's primary key and rolls back whole.
+  it("answers 503 and Retry-After when a rival request lands between our check and our batch", async () => {
+    // Promise.all above may or may not interleave. This forces it: just before our batch, a full rival request carrying
+    // the same op runs to completion, so our batch hits the rev guard row's primary key and rolls back whole.
     const cookie = await newUser();
     const id = uuid();
     const op = task(id);
@@ -136,12 +141,21 @@ describe("idempotency", () => {
     });
 
     const res = await worker.fetch(request(body, cookie) as Parameters<typeof worker.fetch>[0], { ...env, DB: db });
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Retry-After")).toBe("1");
+    expect(await res.json()).toMatchObject({ error: "conflict" });
+    expect(res.headers.get("Set-Cookie")).toContain("ember_uid="); // the identity is still confirmed, so a retry stays this user
     expect(rivalRan).toBe(true);
-    expect(collisions).toBe(1); // our first commit collided and rolled back; the retry filtered the op out
+    expect(collisions).toBe(1); // our one commit collided and rolled back whole; the Worker did not run a second pass
     expect(await userRev(cookie)).toBe(1);
     expect(await count("SELECT COUNT(*) AS n FROM tasks WHERE id = ?", id)).toBe(1);
-    expect((await read(res)).body.changes).toHaveLength(1);
+
+    // The client's retry carries the same op_id: the ledger has it, so it is not applied twice, and it gets the rows back.
+    const retry = await sync(body, cookie);
+    expect(retry.res.status).toBe(200);
+    expect(retry.body.rejected).toEqual([]);
+    expect(retry.body.changes).toHaveLength(1);
+    expect(await userRev(cookie)).toBe(1);
   });
 
   it("keeps op ids separate per user", async () => {
@@ -259,8 +273,65 @@ describe("per-field last write wins", () => {
     const [a, b] = [await newUser(), await newUser()];
     const id = uuid();
     await sync({ cursor: 0, ops: [task(id, { title: "Mine" })] }, a);
-    await sync({ cursor: 0, ops: [task(id, { title: "Hijacked" }), patch(id, { state: "done" })] }, b);
+    const [create, edit] = [task(id, { title: "Hijacked" }), patch(id, { state: "done" })];
+    const { res, body } = await sync({ cursor: 0, ops: [create, edit] }, b);
+    // Not a silent skip: both ops come back refused (reasons are covered in rules.test.ts), and b's rev stays 0.
+    expect(res.status).toBe(200);
+    expect(body.rejected).toEqual([
+      { op_id: create.op_id, reason: "foreign_id" },
+      { op_id: edit.op_id, reason: "foreign_id" },
+    ]);
+    expect(await userRev(b)).toBe(0);
     expect(await taskRow(id)).toMatchObject({ title: "Mine", state: "inbox" });
+  });
+});
+
+describe("a stale read", () => {
+  // lookup reads in one batch and commit writes in a later one, so two requests can both judge their ops against the
+  // same old state. The rev guard row makes the second commit fail instead of applying a check that no longer holds.
+  async function seeded() {
+    const cookie = await newUser();
+    const id = uuid();
+    await sync({ cursor: 0, ops: [task(id, { state: "active" })] }, cookie);
+    return { cookie, uid: uidOf(cookie), id };
+  }
+
+  it("fails the first request's commit, and changes nothing, when a second request committed in between", async () => {
+    const { cookie, uid, id } = await seeded();
+    const stale = [patch(id, { state: "overdue" })]; // legal from active
+    const { applied, rows, rev } = await lookup(env.DB, uid, stale);
+    const { plan, rejected } = planOps(stale, applied, rows);
+    expect(rejected).toEqual([]);
+
+    // Another device moves the task to done first. From done, overdue is illegal, so the stale check no longer holds.
+    expect((await sync({ cursor: 0, ops: [patch(id, { state: "done" })] }, cookie)).body.rejected).toEqual([]);
+    const revAfterRival = await userRev(cookie);
+
+    await expect(commit(env.DB, uid, plan, 0, Date.now(), rev)).rejects.toBeInstanceOf(SyncConflict);
+    expect(await taskRow(id)).toMatchObject({ state: "done" });
+    expect(await userRev(cookie)).toBe(revAfterRival);
+    expect(await count("SELECT COUNT(*) AS n FROM ops WHERE op_id = ?", stale[0].op_id)).toBe(0);
+
+    // A fresh request reads the new state and rejects the op by the rules, as it should.
+    const retry = await sync({ cursor: 0, ops: stale }, cookie);
+    expect(retry.res.status).toBe(200);
+    expect(retry.body.rejected).toEqual([{ op_id: stale[0].op_id, reason: "illegal_transition" }]);
+  });
+
+  it("commits when nothing has landed since the read, and writes one guard row per write request", async () => {
+    const { cookie, uid, id } = await seeded();
+    const ops = [patch(id, { state: "overdue" })];
+    const { applied, rows, rev } = await lookup(env.DB, uid, ops);
+    const { plan } = planOps(ops, applied, rows);
+    await commit(env.DB, uid, plan, 0, Date.now(), rev);
+    expect(await taskRow(id)).toMatchObject({ state: "overdue" });
+    expect(await count("SELECT COUNT(*) AS n FROM ops WHERE user_id = ? AND op_id = ?", uid, `#rev:${rev}`)).toBe(1);
+
+    // A request that writes nothing (no ops, or every op refused) takes no guard and never conflicts.
+    const before = await count("SELECT COUNT(*) AS n FROM ops WHERE user_id = ?", uid);
+    expect((await sync({ cursor: 0, ops: [] }, cookie)).res.status).toBe(200);
+    expect((await sync({ cursor: 0, ops: [patch(uuid(), { state: "active" })] }, cookie)).res.status).toBe(200);
+    expect(await count("SELECT COUNT(*) AS n FROM ops WHERE user_id = ?", uid)).toBe(before);
   });
 });
 
@@ -283,7 +354,7 @@ describe("settings", () => {
     expect((await bad({ quiet_end: 420 }, "you")).res.status).toBe(400);
   });
 
-  it("looks up rows across all six tables in one request (two statements, D1's 5-term cap)", async () => {
+  it("patches rows of all six tables in one request", async () => {
     const cookie = await newUser();
     const [t, c, s, h] = [uuid(), uuid(), uuid(), uuid()];
     await sync({ cursor: 0, ops: [

@@ -269,6 +269,56 @@ describe("chunk rules", () => {
     expect(await row("chunks", op.id)).toBeNull();
   });
 
+  it("rejects giving a parent to a chunk that has live children of its own", async () => {
+    const cookie = await newUser();
+    const task = await withTask(cookie);
+    const [top, mid, child] = [uuid(), uuid(), uuid()];
+    await sync([chunkOp(top, task), chunkOp(mid, task), chunkOp(child, task, { parent_id: mid })], cookie);
+
+    // mid would become a child of top while child hangs under it: three levels.
+    const move = chunkPatch(mid, { parent_id: top });
+    expect((await sync([move], cookie)).rejected).toEqual([{ op_id: move.op_id, reason: "bad_parent" }]);
+    expect((await row("chunks", mid))!.parent_id).toBeNull();
+    expect(await ledger(move.op_id)).toBe(0);
+  });
+
+  it("allows giving a parent to a chunk whose only child is deleted", async () => {
+    const cookie = await newUser();
+    const task = await withTask(cookie);
+    const [top, mid, child] = [uuid(), uuid(), uuid()];
+    await sync([chunkOp(top, task), chunkOp(mid, task), chunkOp(child, task, { parent_id: mid, deleted: true })], cookie);
+
+    const move = chunkPatch(mid, { parent_id: top });
+    expect((await sync([move], cookie)).rejected).toEqual([]);
+    expect((await row("chunks", mid))!.parent_id).toBe(top);
+  });
+
+  it("counts a child created earlier in the same request, and one deleted earlier in it", async () => {
+    const cookie = await newUser();
+    const task = await withTask(cookie);
+    const [top, mid, child] = [uuid(), uuid(), uuid()];
+    await sync([chunkOp(top, task), chunkOp(mid, task)], cookie);
+
+    // Created in the same request: mid has a child by the time it is moved.
+    const move = chunkPatch(mid, { parent_id: top });
+    const { rejected } = await sync([chunkOp(child, task, { parent_id: mid }), move], cookie);
+    expect(rejected).toEqual([{ op_id: move.op_id, reason: "bad_parent" }]);
+    expect((await row("chunks", mid))!.parent_id).toBeNull();
+
+    // child is live in the database now, so a request that deletes it first frees mid to move.
+    const [del, move2] = [chunkPatch(child, { deleted: true }), chunkPatch(mid, { parent_id: top })];
+    expect((await sync([del, move2], cookie)).rejected).toEqual([]);
+    expect((await row("chunks", mid))!.parent_id).toBe(top);
+  });
+
+  it("does not judge a chunk again for re-sending the parent it already has", async () => {
+    const cookie = await newUser();
+    const task = await withTask(cookie);
+    const [top, mid] = [uuid(), uuid()];
+    await sync([chunkOp(top, task), chunkOp(mid, task, { parent_id: top })], cookie);
+    expect((await sync([chunkPatch(mid, { parent_id: top, title: "Renamed" })], cookie)).rejected).toEqual([]);
+  });
+
   it("rejects a chunk under another user's task, and under a task that does not exist", async () => {
     const [mine, theirs] = [await newUser(), await newUser()];
     const theirTask = await withTask(theirs);
@@ -359,5 +409,71 @@ describe("session rules", () => {
     ]);
     expect(await row("sessions", foreign.id)).toBeNull();
     expect(await ledger(foreign.op_id)).toBe(0);
+  });
+});
+
+// A row id is unique across users (tasks, chunks, sessions and hard_blocks are keyed by id alone), so reusing one that
+// another user owns used to be skipped silently. It is refused now, with a reason the client can see.
+describe("foreign ids", () => {
+  const blockOp = (id: string, label: string): Op => ({ op_id: uuid(), entity: "hard_blocks", id, fields: { weekdays: [1], start_min: 60, end_min: 120, label } });
+  async function withOwnTask(cookie: string) {
+    const id = uuid();
+    await sync([taskOp(id, { state: "active" })], cookie);
+    return id;
+  }
+
+  it("rejects a complete op, and a patch, on a task id another user owns, and leaves the row alone", async () => {
+    const [a, b] = [await newUser(), await newUser()];
+    const id = uuid();
+    await sync([taskOp(id, { title: "Mine" })], a);
+    const before = await row("tasks", id);
+    const revA = await rev(a);
+
+    const [create, edit] = [taskOp(id, { title: "Hijacked" }), taskPatch(id, { state: "done" })];
+    const { rejected, changes } = await sync([create, edit], b);
+    expect(rejected).toEqual([
+      { op_id: create.op_id, reason: "foreign_id" },
+      { op_id: edit.op_id, reason: "foreign_id" },
+    ]);
+    expect(changes).toEqual([]);
+    expect(await row("tasks", id)).toEqual(before);
+    expect(await rev(a)).toBe(revA);
+    expect(await rev(b)).toBe(0);
+    expect(await ledger(create.op_id)).toBe(0);
+  });
+
+  it("rejects a complete op on a chunk, session or hard block id another user owns", async () => {
+    const [a, b] = [await newUser(), await newUser()];
+    const [aTask, bTask] = [await withOwnTask(a), await withOwnTask(b)];
+    const [chunk, aSession, block, bChunk] = [uuid(), uuid(), uuid(), uuid()];
+    await sync([chunkOp(chunk, aTask, { title: "Mine" }), sessionOp(aSession, chunk), blockOp(block, "Mine")], a);
+    await sync([chunkOp(bChunk, bTask)], b);
+
+    const attempts = [chunkOp(chunk, bTask, { title: "Hijacked" }), sessionOp(aSession, bChunk), blockOp(block, "Hijacked")];
+    const { rejected } = await sync(attempts, b);
+    expect(rejected).toEqual(attempts.map((o) => ({ op_id: o.op_id, reason: "foreign_id" })));
+    expect(await row("chunks", chunk)).toMatchObject({ title: "Mine", task_id: aTask });
+    expect(await row("sessions", aSession)).toMatchObject({ chunk_id: chunk });
+    expect(await row("hard_blocks", block)).toMatchObject({ label: "Mine" });
+  });
+
+  it("still applies a user's own ops on their own ids", async () => {
+    const a = await newUser();
+    const id = uuid();
+    await sync([taskOp(id)], a);
+    expect((await sync([taskOp(id, { title: "Again" }), taskPatch(id, { size: "M" })], a)).rejected).toEqual([]);
+    expect(await row("tasks", id)).toMatchObject({ title: "Again", size: "M" });
+  });
+
+  it("keeps foreign_task and foreign_chunk for ids that are not the op's own", async () => {
+    const [a, b] = [await newUser(), await newUser()];
+    const aTask = await withOwnTask(a);
+    const aChunk = uuid();
+    await sync([chunkOp(aChunk, aTask)], a);
+    const [c, s] = [chunkOp(uuid(), aTask), sessionOp(uuid(), aChunk)];
+    expect((await sync([c, s], b)).rejected).toEqual([
+      { op_id: c.op_id, reason: "foreign_task" },
+      { op_id: s.op_id, reason: "foreign_chunk" },
+    ]);
   });
 });
