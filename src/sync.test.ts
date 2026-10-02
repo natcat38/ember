@@ -3,6 +3,7 @@ import { allOps, applyChanges, createSync, diff } from "./sync";
 import type { Op } from "../worker/protocol";
 import { capture, emptyState, triage, type State } from "../core/task";
 import { addChunk, tick } from "../core/chunk";
+import { decryptLine, encryptLine, ensureKey } from "./journal";
 
 let n = 0;
 const id = () => `id-${++n}`;
@@ -363,4 +364,41 @@ test("a device that uploaded before the pull-first fix sends, once, the rows the
   expect(bodies[0]).toMatchObject({ cursor: 0, ops: [] });
   expect(bodies[1].ops.map((o) => `${o.entity}:${o.id}`)).toEqual(["chunks:id-2", "chunks:id-3", "chunks:id-4", "days:2026-10-05", "settings:me"]);
   expect(JSON.parse(storage.getItem("ember.sync")!)).toMatchObject({ uploaded: true, seeded: true, outbox: [] });
+});
+
+test("joining a list with its own journal key re-seals this browser's lines with it, and keeps the list's key", async () => {
+  const mine = ensureKey(emptyState()).settings.journal_key!;
+  const theirs = ensureKey(emptyState()).settings.journal_key!;
+  const local: State = { ...emptyState(), settings: { ...emptyState().settings, journal_key: mine } };
+  local.journal = [
+    { day: "2026-10-04", ...(await encryptLine(mine, "Only on this browser")), mood: 2, updated_at: 1 },
+    { day: "2026-10-05", ...(await encryptLine(mine, "Written before sign-in")), mood: 4, updated_at: 1 },
+  ];
+  const storage = fakeStorage();
+  // A sign-in restarts the sync; the key this browser made is still queued.
+  storage.setItem("ember.sync", JSON.stringify({ cursor: 0, outbox: [{ op_id: "k", entity: "settings", id: "me", fields: { journal_key: mine } }], uploaded: false, seeded: false }));
+  const server = [
+    { entity: "settings", row: { ...emptyState().settings, id: "me", journal_key: theirs, rev: 1 } },
+    { entity: "journal", row: { day: "2026-10-05", ...(await encryptLine(theirs, "Written on the phone")), mood: 3, updated_at: 1, rev: 2 } },
+  ];
+  const bodies: { ops: { entity: string; id: string; fields: Record<string, unknown> }[] }[] = [];
+  const responses = [reply({ cursor: 2, changes: server, rejected: [] }), reply({ cursor: 4, changes: [], rejected: [] })];
+  let state: State = local;
+  const engine = createSync(local, {
+    update: (fn) => (state = fn(state)),
+    storage,
+    fetch: (async (_url: string, init: RequestInit) => (bodies.push(JSON.parse(init.body as string)), responses.shift()!)) as typeof fetch,
+  });
+  await engine.push();
+
+  const sent = bodies[1].ops;
+  expect(sent.some((o) => o.fields.journal_key === mine)).toBe(false); // the list's key stays
+  const line = async (day: string) => {
+    const op = sent.find((o) => o.entity === "journal" && o.id === day)!;
+    return decryptLine(theirs, op.fields as { iv: string; text: string });
+  };
+  expect(await line("2026-10-04")).toBe("Only on this browser");
+  expect(await line("2026-10-05")).toBe("Written on the phone · Written before sign-in");
+  expect(state.settings.journal_key).toBe(theirs);
+  expect(state.journal.find((j) => j.day === "2026-10-05")!.mood).toBe(3); // the list's mood wins
 });

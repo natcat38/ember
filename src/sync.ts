@@ -1,4 +1,5 @@
-import type { State } from "../core/task";
+import type { JournalEntry, State } from "../core/task";
+import { MAX_LINE_CHARS, decryptLine, encryptLine } from "./journal";
 import { MAX_OPS, type Change, type Entity, type Op, type SyncResponse } from "../worker/protocol";
 
 // Client side of POST /api/sync (Tech_Scope.md §5). The app never builds ops by hand: every state change is diffed
@@ -43,6 +44,32 @@ export function diff(prev: State, next: State, newId: () => string = uuid): Op[]
     }
   }
   return ops;
+}
+
+// Lines sealed with this browser's own key, opened and sealed again with the list's key. A day the list already has a
+// line for keeps both, the list's first; the list's mood wins. A line that won't open even here is left behind.
+async function reseal(local: JournalEntry[], changes: Change[], mine: string, theirs: string): Promise<JournalEntry[]> {
+  const server = new Map(changes.filter((c) => c.entity === "journal").map((c) => [String(c.row.day), c.row as unknown as JournalEntry]));
+  const out: JournalEntry[] = [];
+  for (const e of local) {
+    const line = await decryptLine(mine, e);
+    if (line === null) continue;
+    const there = server.get(e.day);
+    const theirLine = there ? ((await decryptLine(theirs, there)) ?? "") : "";
+    const text = theirLine && line && theirLine !== line ? `${theirLine} · ${line}`.slice(0, MAX_LINE_CHARS) : theirLine || line;
+    out.push({ day: e.day, ...(await encryptLine(theirs, text)), mood: there?.mood ?? e.mood, updated_at: Date.now() });
+  }
+  return out;
+}
+
+// Queued edits made before joining: journal lines are re-sealed above, and this browser's key must not replace the list's.
+function withoutOwnKey(ops: Op[]): Op[] {
+  return ops.flatMap((o) => {
+    if (o.entity === "journal") return [];
+    if (o.entity !== "settings" || !("journal_key" in o.fields)) return [o];
+    const { journal_key: _, ...fields } = o.fields;
+    return Object.keys(fields).length ? [{ ...o, fields }] : [];
+  });
 }
 
 // The first sync uploads everything this device has (phase-1 data included), in an order the server's rules accept.
@@ -186,19 +213,32 @@ export function createSync(initial: State, { update, storage = localStorage, fet
     });
     if (!res.ok) throw new Error(`sync ${res.status}`);
     const body = (await res.json()) as SyncResponse;
-    const queued = readMeta().outbox;
     const had = new Set(body.changes.map((c) => `${c.entity}:${String(c.row[keyOf(c.entity)])}`));
-    const theirKey = body.changes.find((c) => c.entity === "settings")?.row.journal_key ?? null;
+    const theirKey = (body.changes.find((c) => c.entity === "settings")?.row.journal_key as string | null | undefined) ?? null;
     const myKey = baseline.settings.journal_key;
+    // This browser wrote journal lines before joining a list that already has its own key. Every other device reads with
+    // that key, so this browser's lines are sealed again with it, and its own key never reaches the server (Natalie,
+    // 2026-10-02: a line written before sign-in is kept, not lost).
+    const rekey = !!theirKey && !!myKey && theirKey !== myKey;
+    const resealed = rekey ? await reseal(baseline.journal, body.changes, myKey!, theirKey!) : [];
+    const queued = rekey ? withoutOwnKey(readMeta().outbox) : readMeta().outbox;
     // The server's settings stay as they are; only a journal key it lacks is filled in from this device.
     const upload = allOps(baseline)
       .map((o) => (o.entity === "settings" && had.has("settings:me") ? (theirKey === null && myKey ? { ...o, fields: { journal_key: myKey } } : null) : o))
-      .filter((o): o is Op => !!o && (o.entity === "settings" || !had.has(`${o.entity}:${o.id}`)));
+      .filter((o): o is Op => !!o && (o.entity === "settings" || !had.has(`${o.entity}:${o.id}`)) && !(rekey && o.entity === "journal"));
     if (body.changes.length) {
       baseline = applyChanges(baseline, body.changes, queued);
       update((s) => applyChanges(s, body.changes, queued));
     }
-    meta = { cursor: body.cursor, outbox: [...upload, ...queued], uploaded: false, seeded: true };
+    let resealOps: Op[] = [];
+    if (resealed.length) {
+      const swap = (s: State): State => ({ ...s, journal: [...s.journal.filter((j) => !resealed.some((r) => r.day === j.day)), ...resealed] });
+      const next = swap(baseline);
+      resealOps = diff(baseline, next);
+      baseline = next;
+      update(swap);
+    }
+    meta = { cursor: body.cursor, outbox: [...upload, ...resealOps, ...queued], uploaded: false, seeded: true };
     writeMeta(meta);
   }
 

@@ -22,6 +22,9 @@
     // secret VAPID_SUBJECT (a mailto: URL); the three come from one key pair. See .dev.vars.example.
     "VAPID_PUBLIC_KEY": "BK3XbT_B7wciHAaw6ov_3asLZneNYxCWXcLBrV4sJjWcaAYLO55MmFvn02l0pBT7bReNsI3lMGYswVyuJaKG4jQ"
   },
+  // Audit #34: requests to /api/* per IP address per minute (worker/index.ts). A sync is debounced 2 s, so a person stays far
+  // under it. The namespace id is any positive integer unique to this account.
+  "ratelimits": [{ "name": "API_LIMIT", "namespace_id": "1001", "simple": { "limit": 120, "period": 60 } }],
   "d1_databases": [
     {
       "binding": "DB",
