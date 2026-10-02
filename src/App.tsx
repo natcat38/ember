@@ -470,6 +470,7 @@ export function App() {
             today={today}
             tomorrow={build(addDays(today, 1))}
             doneToday={doneTodayCount(state, today, tz, quietEndMin)}
+            canMakeKey={syncStatus.backedUp && syncStatus.pending === 0 && !syncStatus.offline} // the journal key race, Shutdown.tsx
             onClose={() => {
               setState((s) => wrapUp(s, today, Date.now()));
               navigate({ name: "today" });
