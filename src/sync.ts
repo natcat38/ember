@@ -95,6 +95,7 @@ interface Meta {
   cursor: number;
   outbox: Op[];
   uploaded: boolean; // the first full upload has gone through
+  seeded: boolean; // the first upload's ops are in the outbox (made once, after asking the server what it already has)
 }
 
 export interface SyncStatus {
@@ -119,18 +120,36 @@ export function createSync(initial: State, { update, storage = localStorage, fet
   let batchSize = MAX_OPS;
   let offline = false;
 
+  // The newest meta that did not fit in storage (a full device), with what storage held when it was parked. Reads
+  // return it while storage is unchanged, so no op is lost; if another tab wrote since, its ops merge with ours.
+  let held: { meta: Meta; raw: string | null } | null = null;
   const readMeta = (): Meta => {
+    let raw: string | null = null;
+    let stored: Meta = { cursor: 0, outbox: [], uploaded: false, seeded: false };
     try {
-      return { cursor: 0, outbox: [], uploaded: false, ...JSON.parse(storage.getItem(META_KEY) ?? "{}") };
+      raw = storage.getItem(META_KEY);
+      stored = { ...stored, ...JSON.parse(raw ?? "{}") };
     } catch {
-      return { cursor: 0, outbox: [], uploaded: false };
+      // unreadable: start from nothing
     }
+    if (!held) return stored;
+    if (raw === held.raw) return held.meta;
+    const have = new Set(stored.outbox.map((o) => o.op_id));
+    return { ...stored, outbox: [...stored.outbox, ...held.meta.outbox.filter((o) => !have.has(o.op_id))] };
   };
   const writeMeta = (m: Meta) => {
     try {
       storage.setItem(META_KEY, JSON.stringify(m));
+      held = null;
     } catch {
       // A full device: the outbox stays in memory for this session and the state itself is still saved by the app.
+      let raw: string | null = null;
+      try {
+        raw = storage.getItem(META_KEY);
+      } catch {
+        // nothing to compare against
+      }
+      held = { meta: m, raw };
     }
   };
   let meta = readMeta();
@@ -140,7 +159,8 @@ export function createSync(initial: State, { update, storage = localStorage, fet
     const ops = diff(baseline, next);
     baseline = next;
     if (!ops.length) return;
-    meta = { ...readMeta(), outbox: [...readMeta().outbox, ...ops] };
+    const now = readMeta();
+    meta = { ...now, outbox: [...now.outbox, ...ops] };
     writeMeta(meta);
     status();
     clearTimeout(timer);
@@ -153,6 +173,35 @@ export function createSync(initial: State, { update, storage = localStorage, fet
     meta = readMeta();
   }
 
+  // A device that has not uploaded yet first asks the server what it holds (a sign-in or Telegram link joins an existing
+  // list; a fresh device with no cookie gets an empty answer), merges that in, and queues only what the server lacks,
+  // ahead of any edits already waiting. The queue is saved before anything is sent, so a failed or partial upload
+  // resumes where it stopped instead of vanishing (Improvement_Audit.md #1-#3).
+  async function firstPull() {
+    const res = await send("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ cursor: 0, ops: [] }),
+    });
+    if (!res.ok) throw new Error(`sync ${res.status}`);
+    const body = (await res.json()) as SyncResponse;
+    const queued = readMeta().outbox;
+    const had = new Set(body.changes.map((c) => `${c.entity}:${String(c.row[keyOf(c.entity)])}`));
+    const theirKey = body.changes.find((c) => c.entity === "settings")?.row.journal_key ?? null;
+    const myKey = baseline.settings.journal_key;
+    // The server's settings stay as they are; only a journal key it lacks is filled in from this device.
+    const upload = allOps(baseline)
+      .map((o) => (o.entity === "settings" && had.has("settings:me") ? (theirKey === null && myKey ? { ...o, fields: { journal_key: myKey } } : null) : o))
+      .filter((o): o is Op => !!o && (o.entity === "settings" || !had.has(`${o.entity}:${o.id}`)));
+    if (body.changes.length) {
+      baseline = applyChanges(baseline, body.changes, queued);
+      update((s) => applyChanges(s, body.changes, queued));
+    }
+    meta = { cursor: body.cursor, outbox: [...upload, ...queued], uploaded: false, seeded: true };
+    writeMeta(meta);
+  }
+
   async function push() {
     if (busy) {
       again = true;
@@ -161,7 +210,7 @@ export function createSync(initial: State, { update, storage = localStorage, fet
     busy = true;
     try {
       meta = readMeta();
-      if (!meta.uploaded && !meta.outbox.length) meta = { ...meta, outbox: allOps(baseline) };
+      if (!meta.seeded && !meta.uploaded) await firstPull(); // a device synced before `seeded` existed has uploaded already
       let refetch = false;
       let raced = false;
       do {
@@ -180,10 +229,17 @@ export function createSync(initial: State, { update, storage = localStorage, fet
         }
         const sent = new Set(batch.map((o) => o.op_id));
         if (res.status === 400) {
-          // A malformed op is a bug, not a network blip: retrying it would wedge the outbox forever. Drop it, say so.
-          console.error("Ember sync: the server refused a malformed batch; dropping it", await res.text());
-          meta = { ...readMeta(), outbox: readMeta().outbox.filter((o) => !sent.has(o.op_id)) };
+          // The server refuses a whole body for one malformed op. Retrying it would wedge the outbox forever, but the
+          // rest of the batch is valid: halve until a single op is refused, then drop only that one and say so.
+          if (batch.length > 1) {
+            batchSize = Math.max(1, Math.floor(batch.length / 2));
+            continue;
+          }
+          console.error("Ember sync: the server refused a malformed change; dropping it", batch[0], await res.text());
+          const now = readMeta();
+          meta = { ...now, outbox: now.outbox.filter((o) => !sent.has(o.op_id)) };
           writeMeta(meta);
+          batchSize = MAX_OPS;
           continue;
         }
         if (res.status === 503 && !raced) {
@@ -195,6 +251,14 @@ export function createSync(initial: State, { update, storage = localStorage, fet
         }
         if (!res.ok) throw new Error(`sync ${res.status}`);
         const body = (await res.json()) as SyncResponse;
+        if (body.created && (meta.uploaded || meta.cursor > 0)) {
+          // This device had a server list and the server just made a new, empty user: the cookie was lost or the user
+          // deleted. Start over; the pull-first path uploads everything this device has to the new user.
+          restart();
+          offline = false;
+          again = true;
+          return;
+        }
         const remaining = readMeta().outbox.filter((o) => !sent.has(o.op_id));
         // A refused op changed nothing on the server, so its row isn't in `changes`. Pull everything once more: the
         // server's version then replaces the local change wherever no other edit is still waiting (Tech_Scope.md §5).
@@ -203,7 +267,7 @@ export function createSync(initial: State, { update, storage = localStorage, fet
           console.warn("Ember sync: changes refused by the server", body.rejected);
           onRejected?.();
         }
-        meta = { cursor: refetch ? 0 : body.cursor, outbox: remaining, uploaded: true };
+        meta = { cursor: refetch ? 0 : body.cursor, outbox: remaining, uploaded: true, seeded: true };
         writeMeta(meta);
         if (body.changes.length) {
           // The baseline takes the same merge, so server rows are never echoed back as new ops.
@@ -229,7 +293,7 @@ export function createSync(initial: State, { update, storage = localStorage, fet
   // This browser just joined another identity (a Telegram sign-in link): start over, so what's on the device uploads
   // to that user and everything of theirs comes down.
   function restart() {
-    meta = { cursor: 0, outbox: [], uploaded: false };
+    meta = { cursor: 0, outbox: [], uploaded: false, seeded: false };
     writeMeta(meta);
   }
 

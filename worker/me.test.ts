@@ -6,9 +6,12 @@ const me = (cookie?: string) => exports.default.fetch(new Request("https://ember
 const configured = { ...env, VAPID_PUBLIC_KEY: "BPUBLIC-KEY", VAPID_PRIVATE_KEY: "private", VAPID_SUBJECT: "mailto:ember@example.com" };
 const meWithVapid = (cookie: string) => handleMe(new Request("https://ember.test/api/me", { headers: { Cookie: cookie } }), configured);
 
+// An empty pull makes no user (Improvement_Audit.md #34); a refused op does, and writes nothing else.
+const refusedOp = () => ({ op_id: crypto.randomUUID(), entity: "tasks", id: crypto.randomUUID(), fields: { title: "x" } });
+
 async function newUser(): Promise<{ cookie: string; uid: string }> {
   const res = await exports.default.fetch(
-    new Request("https://ember.test/api/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: '{"cursor":0,"ops":[]}' }),
+    new Request("https://ember.test/api/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cursor: 0, ops: [refusedOp()] }) }),
   );
   const cookie = res.headers.get("Set-Cookie")!.split(";")[0];
   return { cookie, uid: cookie.split("=")[1] };

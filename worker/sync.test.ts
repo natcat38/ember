@@ -47,9 +47,10 @@ async function sync(body: unknown, cookie?: string): Promise<Reply> {
   return read(await exports.default.fetch(request(body, cookie)));
 }
 
-// A fresh anonymous user, so each test owns its data.
+// A fresh anonymous user, so each test owns its data. An empty pull makes no user (Improvement_Audit.md #34), so this
+// sends one op the server refuses (a patch of a row that does not exist): it creates the user and writes nothing else.
 async function newUser(): Promise<string> {
-  const { cookie } = await sync({ cursor: 0, ops: [] });
+  const { cookie } = await sync({ cursor: 0, ops: [patch(uuid(), { title: "x" })] });
   return cookie!;
 }
 
@@ -547,14 +548,34 @@ describe("statement budget (Tech_Scope.md §11: 50 D1 statements per invocation)
 describe("identity", () => {
   it("creates a user and sets the cookie when none is presented", async () => {
     const before = await count("SELECT COUNT(*) AS n FROM users");
-    const res = await exports.default.fetch(request({ cursor: 0, ops: [] }));
+    const res = await exports.default.fetch(request({ cursor: 0, ops: [patch(uuid(), { title: "x" })] }));
     expect(res.status).toBe(200);
+    expect(((await res.clone().json()) as SyncResponse).created).toBe(true);
     expect(res.headers.get("Set-Cookie")).toMatch(/^ember_uid=[A-Za-z0-9_-]{22}; HttpOnly; Secure; SameSite=Lax; Path=\/; Max-Age=34560000$/);
     expect(await count("SELECT COUNT(*) AS n FROM users")).toBe(before + 1);
     const uid = uidOf(res.headers.get("Set-Cookie")!.split(";")[0]);
     const user = await env.DB.prepare("SELECT * FROM users WHERE id = ?").bind(uid).first<Record<string, number | string>>();
     expect(user).toMatchObject({ rev: 0 });
     expect(user!.created_at).toBe(user!.last_seen_at);
+  });
+
+  // Improvement_Audit.md #34: any cookie-less request wrote a user row, so a script could fill the table.
+  it("answers an empty pull with no usable cookie without making a user or setting a cookie", async () => {
+    const before = await count("SELECT COUNT(*) AS n FROM users");
+    for (const cookie of [undefined, "ember_uid=nope", "ember_uid=AAAAAAAAAAAAAAAAAAAAAA"]) {
+      const { res, body } = await sync({ cursor: 0, ops: [] }, cookie);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("Set-Cookie")).toBeNull();
+      expect(body).toEqual({ cursor: 0, changes: [], rejected: [] });
+    }
+    expect(await count("SELECT COUNT(*) AS n FROM users")).toBe(before);
+  });
+
+  // Improvement_Audit.md #16: a lost cookie got a fresh user and nothing told the device, which never re-uploaded.
+  it("says so when a request made a fresh user, and only then", async () => {
+    const cookie = await newUser();
+    expect((await sync({ cursor: 0, ops: [patch(uuid(), { title: "x" })] }, cookie)).body.created).toBeUndefined();
+    expect((await sync({ cursor: 0, ops: [patch(uuid(), { title: "x" })] }, "ember_uid=AAAAAAAAAAAAAAAAAAAAAA")).body.created).toBe(true);
   });
 
   it("reuses the user and refreshes the cookie and last_seen_at on a second call", async () => {
@@ -572,7 +593,7 @@ describe("identity", () => {
 
   it("issues a new user for a malformed or unknown cookie instead of trusting it", async () => {
     for (const cookie of ["ember_uid=nope", "ember_uid=AAAAAAAAAAAAAAAAAAAAAA", "other=1"]) {
-      const { cookie: issued } = await sync({ cursor: 0, ops: [] }, cookie);
+      const { cookie: issued } = await sync({ cursor: 0, ops: [patch(uuid(), { title: "x" })] }, cookie);
       expect(issued).toMatch(/^ember_uid=[A-Za-z0-9_-]{22}$/);
       expect(issued).not.toBe(cookie);
     }

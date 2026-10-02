@@ -18,7 +18,8 @@ const call = async (body: unknown, cookie?: string) => {
   return { res, body: (await res.json()) as SyncResponse, cookie: res.headers.get("Set-Cookie")?.split(";")[0] };
 };
 const sync = async (ops: Op[], cookie: string, cursor = 0) => (await call({ cursor, ops }, cookie)).body;
-const newUser = async () => (await call({ cursor: 0, ops: [] })).cookie!;
+// An empty pull makes no user (Improvement_Audit.md #34); a refused op does, and writes nothing else.
+const newUser = async () => (await call({ cursor: 0, ops: [taskPatch(uuid(), { title: "x" })] })).cookie!;
 const uidOf = (cookie: string) => cookie.split("=")[1];
 
 const taskOp = (id: string, fields: Record<string, unknown> = {}): Op => ({ op_id: uuid(), entity: "tasks", id, fields: { title: "Write cover letter", state: "inbox", ...fields } });
