@@ -15,6 +15,8 @@ import { closeOnBackdrop, TextDialog } from "./dialogs";
 import { FocusView } from "./Focus";
 import { sessionsDone, startFocus } from "../core/focus";
 import { addChunk, firstOpenLeaf } from "../core/chunk";
+import { ArrivalLine } from "./Arrival";
+import { arrivalFrom, snoozeTomorrow } from "./push";
 
 type View =
   | { name: "today" | "inbox" | "focus" | "shutdown" | "settings" }
@@ -80,6 +82,8 @@ export function App() {
     }
     return !boot.onboarded && boot.tasks.length === 0 && !synced && !new URLSearchParams(location.search).has("h");
   });
+  // Opened from a web push tap (public/sw.js adds the marker): Today or that task shows "Not now? Snooze" until it's used.
+  const [arrival, setArrival] = useState(() => arrivalFrom(location.search));
   const nextAction = useRef<HTMLDialogElement>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -127,7 +131,7 @@ export function App() {
     const code = q.get("h");
     const taskId = q.get("t");
     const pickDate = q.get("pick") === "1"; // Telegram's Reschedule → Pick a date
-    if (code || taskId) history.replaceState(history.state, "", location.pathname); // keep the entry's screen stack
+    if (code || taskId || q.has("via")) history.replaceState(history.state, "", location.pathname); // keep the entry's screen stack
     const joined = code
       ? fetch("/api/handoff/redeem", {
           method: "POST",
@@ -289,6 +293,9 @@ export function App() {
   const rightTask = state.tasks.find((t) => t.id === selected && t.state !== "removed") ?? plan.frog?.task;
   const right = view.name === "reward" ? "reward" : state.focus ? "focus" : "task";
 
+  const arrivalTask = arrival?.task ? state.tasks.find((t) => t.id === arrival.task) : undefined;
+  const showArrival = !!arrivalTask && (arrivalTask.state === "active" || arrivalTask.state === "overdue") && (view.name === "today" || (view.name === "task" && view.id === arrivalTask.id));
+
   const form = (
     <CaptureForm
       draft={state.draft}
@@ -405,6 +412,15 @@ export function App() {
 
   return (
     <div className={`app${twoPane ? " two-pane" : ""}`}>
+      {showArrival && (
+        <ArrivalLine
+          onSnooze={() => {
+            setState((s) => snoozeTomorrow(s, [arrivalTask.id], Date.now()));
+            setArrival(null);
+            announce("Snoozed until tomorrow.");
+          }}
+        />
+      )}
       {twoPane ? (
         <div className="panes">
           <main className="pane pane-left" data-pane="left" aria-label={titleOf[leftScreen.current]}>

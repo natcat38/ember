@@ -1253,3 +1253,97 @@ select.field {
     transform: scaleX(1);
   }
 }
+
+/* Settings choices, the arrival line, and the journal (slice 22) */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.choice {
+  min-height: 44px;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-row);
+  cursor: pointer;
+}
+
+.choice input {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--color-lavender-deep);
+}
+
+.choice .hint {
+  display: block;
+}
+
+/* "Not now? Snooze" under a notification tap: the return-bar's look, at the top of the screen. */
+.arrival-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) var(--space-4) 0;
+  padding: 0 var(--space-1) 0 var(--space-4);
+  background: var(--color-nook);
+  border-radius: var(--radius-row);
+}
+
+.arrival-line span {
+  flex-grow: 1;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+/* Shutdown, after "You're done": one line and a mood row, both optional. */
+.journal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.mood {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mood label {
+  position: relative;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0 var(--space-4);
+  border: 1.5px solid var(--color-line-control);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mood label:has(input:checked) {
+  background: var(--color-nook);
+  border-color: var(--color-lavender-deep);
+}
+
+.mood label:has(input:focus-visible) {
+  outline: 2px solid var(--color-lavender-deep);
+  outline-offset: 2px;
+}
+
+.mood input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
