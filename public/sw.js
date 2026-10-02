@@ -83,9 +83,17 @@ async function openEmber(url) {
   return clients.openWindow(url);
 }
 
+// The link carries `via=push`, so the app can tell a notification tap from Telegram's buttons, which build the same link,
+// and show "Not now? Snooze" (UX_Flows.md §5; src/push.ts arrivalFrom).
+const tapUrl = (raw) => {
+  const url = new URL(ownUrl(raw));
+  url.searchParams.set("via", "push");
+  return url.href;
+};
+
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
-  e.waitUntil(openEmber(ownUrl(e.notification.data && e.notification.data.url)));
+  e.waitUntil(openEmber(tapUrl(e.notification.data && e.notification.data.url)));
 });
 
 self.addEventListener("fetch", (e) => {

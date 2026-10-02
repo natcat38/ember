@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { addPasskey, cancelled, passkeysSupported, signInWithPasskey } from "./passkeys";
+import { channelOf, disablePush, enablePush, type Me, type PushOutcome, type PushProblem } from "./push";
 
 // Settings → Telegram (Tech_Scope.md §6): a one-time link code from the server, opened in Telegram.
 export async function linkTelegram(): Promise<string | null> {
@@ -33,45 +34,25 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
-// Wireframes.md §8, phase-1 rows only: quiet hours, time zone, hard blocks. Changes save as you make them.
-// Channels (slice 11), the focus timer and rewards (phase 3), and devices (slice 14) join later.
+// Wireframes.md §8: reminders, quiet hours, time zone, hard blocks, the focus timer, rewards, and devices. Changes save as you make them.
 export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }: Props) {
   const { quiet_start, quiet_end, tz } = state.settings;
   const set = (patch: Partial<State["settings"]>) => update((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
   const blocks = state.hard_blocks.filter((b) => !b.deleted);
   const zones = Intl.supportedValuesOf?.("timeZone") ?? [browserTz];
-  const [tgProblem, setTgProblem] = useState<string | null>(null);
   const [deviceNote, setDeviceNote] = useState<string | null>(null);
   // What the server knows about this identity (worker/me.ts); unknown offline, which shows the link button.
-  const [me, setMe] = useState<{ telegram: boolean; passkeys: number } | null>(null);
-  useEffect(() => {
+  const [me, setMe] = useState<Me | null>(null);
+  const refreshMe = () =>
     fetch("/api/me", { credentials: "same-origin" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setMe)
-      .catch(() => {});
-  }, []);
+      .then((r) => (r.ok ? (r.json() as Promise<Me>) : null))
+      .catch(() => null)
+      .then((m) => (setMe(m), m));
+  useEffect(() => void refreshMe(), []);
 
   return (
     <>
-      <section className="section" aria-labelledby="h-nudges">
-        <h2 id="h-nudges">Nudges</h2>
-        {me?.telegram ? (
-          // ponytail: not yet approved copy (the wireframe's row reads "Send to: Telegram").
-          <p className="empty">Nudges go to Telegram.</p>
-        ) : (
-          <>
-            <p className="empty">Ember can nudge you on Telegram while the app is closed.</p>
-            <button className="button" style={{ alignSelf: "flex-start" }} onClick={async () => setTgProblem(await linkTelegram())}>
-              Link Telegram
-            </button>
-          </>
-        )}
-        {tgProblem && (
-          <p className="hint" role="status">
-            {tgProblem}
-          </p>
-        )}
-      </section>
+      <Reminders me={me} refresh={refreshMe} />
 
       <section className="section" aria-labelledby="h-quiet">
         <h2 id="h-quiet">Quiet hours</h2>
@@ -130,6 +111,38 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
         <AddBlock onAdd={(b) => update((s) => ({ ...s, hard_blocks: [...s.hard_blocks, b] }))} />
       </section>
 
+      {/* Wireframes.md §8, "Focus timer": one choice; the per-session switch lives on Focus. */}
+      <section className="section" aria-labelledby="h-timer">
+        <h2 id="h-timer">Focus timer</h2>
+        <Choices
+          label="Focus timer"
+          value={state.settings.timer_mode}
+          onPick={(timer_mode) => set({ timer_mode })}
+          options={[
+            { value: "pomodoro", label: "25 / 5", note: "25 minutes of focus, then a 5-minute break." },
+            { value: "flowtime", label: "Flowtime", note: "Count up and stop when you stop. The break grows with how long you worked." },
+          ]}
+        />
+        <p className="hint">You can switch for one session when you start it.</p>
+      </section>
+
+      {/* Wireframes.md §8, "Rewards": every reward stays skippable, so there is no off switch. */}
+      <section className="section" aria-labelledby="h-rewards">
+        <h2 id="h-rewards">Rewards</h2>
+        <p className="empty">After each finished step, Ember offers one quick reward. You can always skip it.</p>
+        <Choices
+          label="Reward"
+          value={state.settings.unlock}
+          onPick={(unlock) => set({ unlock })}
+          options={[
+            { value: "rotate", label: "Surprise me" },
+            { value: "puzzle", label: "Chess puzzle" },
+            { value: "trivia", label: "Trivia question" },
+            { value: "fact", label: "On this day" },
+          ]}
+        />
+      </section>
+
       <section className="section" aria-labelledby="h-data">
         <h2 id="h-data">Data</h2>
         {backedUp && <p className="empty">Your list is backed up, so it won't get lost.</p>}
@@ -173,6 +186,120 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
         )}
       </section>
     </>
+  );
+}
+
+// A radio group: one choice, saved as soon as it is made. Native radios, so the arrow keys move the choice.
+function Choices<T extends string>({ label, value, options, onPick }: { label: string; value: T; options: { value: T; label: string; note?: string }[]; onPick: (v: T) => void }) {
+  const name = `choice-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  return (
+    <div role="radiogroup" aria-label={label} className="choices">
+      {options.map((o) => (
+        <label key={o.value} className="choice">
+          <input type="radio" name={name} checked={value === o.value} onChange={() => onPick(o.value)} />
+          <span>
+            {o.label}
+            {o.note && <span className="hint">{o.note}</span>}
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+// Reminders (Wireframes.md §8 "Send to"; UX_Flows.md §5 Channels): one channel, Telegram or this device (web push).
+// ponytail: draft copy, not yet approved: every line below that is not quoted from UX_Flows.md §4 or the wireframe.
+const PUSH_COPY: Record<PushProblem, string | null> = {
+  unsupported: "This browser can't show notifications. Use Telegram instead.",
+  not_set_up: "Web push isn't set up yet. Try again later.",
+  denied: "Notifications are off for this browser. You can turn them on in your browser settings, or use Telegram instead.", // UX_Flows.md §4
+  home_screen: "To get nudges on iPhone, add Ember to your Home Screen. Tap Share, then Add to Home Screen.", // UX_Flows.md §4
+  dismissed: null, // the browser's prompt was closed: nothing was refused, so nothing is said
+  offline: "Turning on notifications needs a connection.",
+  failed: "That didn't work. Try again in a moment.",
+};
+
+function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me | null> }) {
+  const [note, setNote] = useState<ReactNode>(null);
+  const [problem, setProblem] = useState<PushProblem | null>(null);
+  const [busy, setBusy] = useState(false);
+  const channel = channelOf(me);
+
+  const run = async (job: () => Promise<PushOutcome>) => {
+    setBusy(true);
+    const out = await job();
+    setProblem(out.ok ? null : out.problem);
+    setNote(null);
+    await refresh();
+    setBusy(false);
+  };
+  const linkTg = async () => setNote(await linkTelegram());
+  const text = problem && PUSH_COPY[problem];
+
+  return (
+    <section className="section" aria-labelledby="h-nudges">
+      <h2 id="h-nudges">Nudges</h2>
+      <div role="radiogroup" aria-label="Send to" className="choices">
+        <label className="choice">
+          <input
+            type="radio"
+            name="send-to"
+            checked={channel === "telegram"}
+            disabled={busy}
+            onChange={() => {
+              if (channel === "push") void run(disablePush); // the server hands the channel back to a linked chat
+              else void linkTg();
+            }}
+          />
+          <span>Telegram</span>
+        </label>
+        <label className="choice">
+          <input
+            type="radio"
+            name="send-to"
+            checked={channel === "push"}
+            disabled={busy}
+            // Inside the tap: the permission prompt is only shown for a gesture.
+            onChange={() => void run(() => enablePush(me ? me.vapid_public_key : undefined))}
+          />
+          <span>This device</span>
+        </label>
+      </div>
+
+      {channel === "telegram" && <p className="empty">Nudges go to Telegram.</p>}
+      {channel === "push" && (
+        <>
+          <p className="empty">Nudges come to this device.</p>
+          <button className="button" style={{ alignSelf: "flex-start" }} disabled={busy} onClick={() => void run(disablePush)}>
+            Turn off
+          </button>
+        </>
+      )}
+      {channel === null && (
+        <>
+          <p className="empty">Ember can nudge you on Telegram while the app is closed.</p>
+          <button className="button" style={{ alignSelf: "flex-start" }} onClick={linkTg}>
+            Link Telegram
+          </button>
+        </>
+      )}
+
+      {text && (
+        <p className="hint" role="status">
+          {text}
+        </p>
+      )}
+      {problem === "home_screen" && (
+        <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={() => setProblem(null)}>
+          Got it
+        </button>
+      )}
+      {note && (
+        <p className="hint" role="status">
+          {note}
+        </p>
+      )}
+    </section>
   );
 }
 
