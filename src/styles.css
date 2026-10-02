@@ -1162,6 +1162,8 @@ select.field {
 
 .focus-actions.tight {
   margin-top: var(--space-2);
+}
+
 /* Reward unlocks (UX_Flows.md §3.6). The bar is a hint, not a limit: it fills over 90 s by transform only, and under
    reduced motion it is hidden, leaving the label. */
 .unlock {

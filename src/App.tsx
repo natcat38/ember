@@ -316,7 +316,8 @@ export function App() {
         onToday={() => navigate({ name: "today" })}
         offerNudges={!state.nudge_offered}
         onOffered={() => setState((s) => ({ ...s, nudge_offered: true }))}
-        unlock={view.fromFocus ? state.settings.unlock : null}
+        // The first Reward carries the one-time reminder offer (UX_Flows.md §7, step 7), and no unlock in front of it.
+        unlock={view.fromFocus && state.nudge_offered ? state.settings.unlock : null}
       />
     ) : null;
 

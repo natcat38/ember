@@ -17,7 +17,7 @@ async function seed(page: Page, unlock: string) {
     const step = (id: string, title: string, position: number) => ({ id, task_id: "B", parent_id: null, title, position, state: "todo", deleted: false, updated_at: 1 });
     const days = [{ day: "2026-10-05", confirmed_at: 1, deferred: [] }];
     const settings = { tz: null, quiet_start: 1320, quiet_end: 480, timer_mode: "pomodoro", unlock, journal_key: null };
-    localStorage.setItem("ember", JSON.stringify({ tasks: [task("B", "Cover letter", {})], chunks: [step("B1", "Tailor the opening", 1), step("B2", "Proofread", 2)], days, draft: "", settings }));
+    localStorage.setItem("ember", JSON.stringify({ onboarded: true, nudge_offered: true, tasks: [task("B", "Cover letter", {})], chunks: [step("B1", "Tailor the opening", 1), step("B2", "Proofread", 2)], days, draft: "", settings }));
   }, unlock);
   await page.reload();
 }
