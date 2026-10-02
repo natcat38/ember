@@ -36,9 +36,10 @@ export function Onboarding({ state, update, today, onDone, announce }: Props) {
   };
 
   // A returning user whose device storage was wiped gets their list back from the server on the first sync:
-  // that's not a first run, so the sequence steps aside.
+  // that's not a first run, so the sequence steps aside, even if they had already started typing. Tasks made here
+  // don't count; their own stay on the list. (Not once a starter session is running: that is a step they chose.)
   useEffect(() => {
-    if (step.name === "dump" && !captured.length && state.tasks.length) finish("today");
+    if (step.name !== "starter" && state.tasks.some((t) => !captured.includes(t.id))) finish("today");
   });
 
   const tasks = captured.map((id) => state.tasks.find((t) => t.id === id)).filter((t): t is Task => !!t);

@@ -84,6 +84,23 @@ export function App() {
     }
     return !boot.onboarded && boot.tasks.length === 0 && !synced && !new URLSearchParams(location.search).has("h");
   });
+  // The first-run screen would flash for a returning user whose device storage was wiped while their cookie survived
+  // (Design_Direction.md §6, Loading). The cookie is HttpOnly, so the page can't see it: the first pull is what tells.
+  // Until it lands (or 2 s pass, so a slow network never holds up a new user), show placeholders, not onboarding.
+  const [pulling, setPulling] = useState(onboarding);
+  useEffect(() => {
+    if (!pulling) return;
+    announce("Loading today.");
+    const t = setTimeout(() => setPulling(false), 2000);
+    return () => clearTimeout(t);
+  }, [pulling]);
+  // Their list arriving ends the wait and the first run both.
+  useEffect(() => {
+    if (pulling && state.tasks.length) {
+      setPulling(false);
+      setOnboarding(false);
+    }
+  }, [pulling, state.tasks.length]);
   // Opened from a web push tap (public/sw.js adds the marker): Today or that task shows "Not now? Snooze" until it's used.
   const [arrival, setArrival] = useState(() => arrivalFrom(location.search));
   const nextAction = useRef<HTMLDialogElement>(null);
@@ -146,6 +163,7 @@ export function App() {
       : Promise.resolve();
     void joined
       .then(() => sync.push())
+      .finally(() => setPulling(false)) // pushed, or failed: either way the first pull has had its say
       .then(() => taskId && navigate({ name: "task", id: taskId, from: "today", pickDate }));
     const wake = () => document.visibilityState === "visible" && void sync.push();
     document.addEventListener("visibilitychange", wake);
@@ -456,6 +474,15 @@ export function App() {
             )}
           </section>
         </div>
+      ) : onboarding && pulling ? (
+        <main className="main" aria-busy="true">
+          <h1 className="sr-only">Loading today.</h1>
+          <ul className="list skeleton" aria-hidden="true">
+            <li />
+            <li />
+            <li />
+          </ul>
+        </main>
       ) : onboarding ? (
         <main className="main">
           <Onboarding
