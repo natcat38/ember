@@ -353,7 +353,7 @@ describe("replanning", () => {
   it("silences an overdue task after one message, until its deadline changes", async () => {
     const { uid, chat } = await linkedUser();
     await put(uid, [op("settings", "me", { tz: "Asia/Singapore", quiet_start: 1320, quiet_end: 480 }), taskOp("task-o", "Oz report", { size: "S", deadline: "2026-10-04", runway_start: "2026-10-01" })]);
-    const overdueTexts = () => textsTo(chat).filter((t) => t.includes("was due today"));
+    const overdueTexts = () => textsTo(chat).filter((t) => t.includes("was due "));
 
     await planAndSend(sg(DAY, "08:00:31"));
     expect(overdueTexts()).toEqual(["Oz report was due today and isn't marked done. Still relevant?"]);

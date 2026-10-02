@@ -334,7 +334,7 @@ export function buildPlan(loaded: Loaded, settings: State["settings"], now: numb
 // The message body, from the state the plan was made from. The plan is redone when that state changes, so it stays true.
 function textFor(m: PlannedMessage, s: State, today: string, things: number): string {
   const tasks = m.task_ids.map((id) => s.tasks.find((t) => t.id === id)).filter((t): t is Task => !!t);
-  const ctx: TextContext = {};
+  const ctx: TextContext = { today };
   if (m.kind === "morning") ctx.things = things;
   if (m.kind === "close" && tasks.length === 1) {
     const t = tasks[0];

@@ -219,6 +219,16 @@ describe("messageText", () => {
     expect(messageText("overdue", [t("Lab report")])).toBe("Lab report was due today and isn't marked done. Still relevant?");
     expect(messageText("light_day", [t("System design ch. 3")])).toBe("Light day. Want to get ahead on System design ch. 3?");
     expect(messageText("wrap_up", [])).toBe("Ready to wrap up?");
+    // Draft copy: a deadline before yesterday names its day (a week or more old, its date).
+    const due = (deadline: string) => [{ title: "Lab report", deadline }];
+    expect(messageText("overdue", due("2026-10-04"), { today: TODAY })).toBe("Lab report was due today and isn't marked done. Still relevant?");
+    expect(messageText("overdue", due("2026-10-02"), { today: TODAY })).toBe("Lab report was due Friday and isn't marked done. Still relevant?");
+    expect(messageText("overdue", due("2026-09-20"), { today: TODAY })).toBe("Lab report was due 20 Sept and isn't marked done. Still relevant?");
+    // Draft copy: a long batch lists three titles, each cut at about 80 characters, then "and N more".
+    const many = Array.from({ length: 8 }, (_, i) => ({ title: `${i}${"w".repeat(200)}` }));
+    const text = messageText("close", many);
+    expect(text).toContain("and 5 more");
+    expect(text.length).toBeLessThan(400);
   });
 
   test("morning names the count and the first thing", () => {
