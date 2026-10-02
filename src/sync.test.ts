@@ -187,3 +187,21 @@ test("done_at travels both ways: finishing a step sends it, a server value merge
   const merged = applyChanges(s, [{ entity: "chunks", row: { ...s.chunks[2], state: "done", done_at: 77, updated_at: 77, rev: 4 } }], []);
   expect(merged.chunks[2]).toMatchObject({ state: "done", done_at: 77 });
 });
+
+// Improvement_Audit.md #1: the first upload lives only in memory, so the re-read after the first batch finds an empty
+// outbox and marks the device uploaded. `test.fails` passes while the bug is there; flip it to `test` with the fix.
+test.fails("a first upload larger than one batch sends every op", async () => {
+  let s = emptyState();
+  for (let i = 0; i < 45; i++) s = capture(s, { title: `Task ${i}` }, i, today, id);
+  const sent: unknown[] = [];
+  const engine = createSync(s, {
+    update: () => {},
+    storage: fakeStorage(),
+    fetch: (async (_url: string, init: RequestInit) => {
+      sent.push(...JSON.parse(init.body as string).ops);
+      return reply({ cursor: sent.length, changes: [], rejected: [] });
+    }) as typeof fetch,
+  });
+  await engine.push();
+  expect(sent).toHaveLength(46); // 45 tasks + settings
+});
