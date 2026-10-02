@@ -40,7 +40,8 @@ test("several things: pick the heavy one, give it a first step, start two minute
   await expect(page.getByRole("timer")).toHaveText("2:00");
   await page.getByRole("button", { name: "Done" }).click();
 
-  // 7. Reward + reminder offer, once.
+  // 7. Reward + reminder offer, once. The unlock is offered first (slice 20); skip it.
+  await page.getByRole("button", { name: "Skip" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "That's everything for today." })).toBeVisible();
   const offer = page.getByRole("region", { name: "Reminders" });
   await expect(offer).toContainText("That's a start. Want Ember to nudge you gently while it's closed?");

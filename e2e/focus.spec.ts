@@ -70,6 +70,7 @@ test("Done early finishes the step; Stop for now puts it back", async ({ page })
   await page.clock.runFor(3 * MIN);
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Step done." })).toBeVisible(); // Reward
+  await page.getByRole("button", { name: "Skip" }).click(); // the unlock (slice 20) comes before the way on
   await page.getByRole("button", { name: "Back to Today" }).click();
   await expect(page.getByRole("checkbox", { name: "Tailor the opening" })).toBeChecked();
 

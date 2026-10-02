@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { linkTelegram } from "./Settings";
 import { Cat } from "./Cat";
+import { Unlock, UNLOCK_BUTTON } from "./Unlock";
 import { catPose } from "../core/cat";
+import type { UnlockKind } from "../core/task";
+import { parseUnlocks, pickUnlock, recordServed } from "../core/unlock";
 
 // The progress ring (Design_Direction.md §4): decorative lavender on a white track. It fills in 400 ms;
 // the day's last step gets one slower 700 ms fill, and nothing more (restraint rule 6).
@@ -45,13 +48,47 @@ interface Props {
   onToday: () => void;
   offerNudges: boolean; // the one-time reminder offer, after the first Reward on this device (UX_Flows.md §7, step 7)
   onOffered: () => void;
+  unlock: UnlockKind | null; // the Settings choice, or null when the step was not finished in Focus: no unlock card then (UX_Flows.md §3.6)
 }
 
-// Wireframes.md §5, phase-1 cut: the ring ticks, then the cat purrs in its circle, then the way on. The 90-second unlock arrives in phase 3.
-export function RewardView({ title, done, total, hasNext, onNext, onToday, offerNudges, onOffered }: Props) {
+// This device's calendar date, YYYY-MM-DD. Not Ember's day, which turns over at quiet-hours end: "on this day" and the
+// daily puzzle follow the calendar.
+const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+// Where the rotation stands lives on this device only (Tech_Scope.md §10 slice 20), outside the synced State.
+const UNLOCKS_KEY = "ember.unlock";
+const readUnlocks = () => {
+  try {
+    return parseUnlocks(localStorage.getItem(UNLOCKS_KEY));
+  } catch {
+    return parseUnlocks(null);
+  }
+};
+
+// Wireframes.md §5: the ring ticks, the cat purrs, then (after a step finished in Focus) the 90-second unlock is offered,
+// then the way on. Skip goes straight to the way on; playing shows it once the 90-second bar runs out.
+export function RewardView({ title, done, total, hasNext, onNext, onToday, offerNudges, onOffered, unlock }: Props) {
   const [shown, setShown] = useState(Math.max(done - 1, 0)); // start one short, so the ring visibly ticks
   // Decided once per visit: answering the offer marks it shown, and its follow-up line must stay on screen.
   const [offer] = useState(offerNudges);
+  // Decided once per visit too: the kind to serve, then offer → play → after. The rotation moves on when it is offered.
+  const [today] = useState(localDay);
+  const [kind] = useState(() => (unlock ? pickUnlock(unlock, readUnlocks(), today) : null));
+  const [phase, setPhase] = useState<"offer" | "play" | "after">(kind ? "offer" : "after");
+  const [elapsed, setElapsed] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!kind) return;
+    try {
+      localStorage.setItem(UNLOCKS_KEY, JSON.stringify(recordServed(readUnlocks(), kind, today)));
+    } catch {
+      // storage unavailable: the rotation just starts over next time
+    }
+  }, [kind, today]);
+  const finish = () => {
+    setPhase("after");
+    requestAnimationFrame(() => heading.current?.focus()); // the button that had focus is gone
+  };
   useEffect(() => {
     const raf = requestAnimationFrame(() => setShown(done));
     return () => cancelAnimationFrame(raf);
@@ -65,19 +102,32 @@ export function RewardView({ title, done, total, hasNext, onNext, onToday, offer
         <Cat pose={catPose({ screen: "reward" })} size={176} />
       </div>
       <section className="card reward-card" aria-labelledby="reward-title">
-        <h1 id="reward-title" className="lead" tabIndex={-1}>
-          {hasNext ? "Step done." : "That's everything for today."}
+        <h1 id="reward-title" ref={heading} className="lead" tabIndex={-1}>
+          {phase === "offer" ? "Step done. Ninety seconds, if you want it." : hasNext ? "Step done." : "That's everything for today."}
         </h1>
-        <div className="reward-actions">
-          {hasNext && (
-            <button className="button primary" onClick={onNext}>
-              Next step
+        {kind && phase === "offer" && (
+          <div className="reward-actions">
+            <button className="button primary" onClick={() => setPhase("play")}>
+              {UNLOCK_BUTTON[kind]}
             </button>
-          )}
-          <button className={hasNext ? "text-button" : "button primary"} onClick={onToday}>
-            Back to Today
-          </button>
-        </div>
+            <button className="text-button" onClick={finish}>
+              Skip
+            </button>
+          </div>
+        )}
+        {kind && phase === "play" && <Unlock kind={kind} today={today} onElapsed={() => setElapsed(true)} onClose={finish} />}
+        {(phase === "after" || (phase === "play" && elapsed)) && (
+          <div className="reward-actions">
+            {hasNext && (
+              <button className="button primary" onClick={onNext}>
+                Next step
+              </button>
+            )}
+            <button className={hasNext ? "text-button" : "button primary"} onClick={onToday}>
+              Back to Today
+            </button>
+          </div>
+        )}
       </section>
       {offer && <NudgeOffer onOffered={onOffered} />}
     </div>

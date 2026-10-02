@@ -42,11 +42,13 @@ test("the whole loop, from an empty device to a closed day", async ({ page }) =>
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Step done." })).toBeVisible();
   await expect(page.getByRole("img", { name: "1 of 2 done today" })).toBeVisible();
+  await page.getByRole("button", { name: "Skip" }).click(); // the unlock (slice 20) comes before the way on
 
   // Next step straight from Reward; the last one of the day
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Proofread" })).toBeVisible();
   await page.getByRole("button", { name: "Done" }).click();
+  await page.getByRole("button", { name: "Skip" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "That's everything for today." })).toBeVisible();
   await expect(page.getByRole("img", { name: "2 of 2 done today" })).toBeVisible();
   await page.getByRole("button", { name: "Back to Today" }).click();

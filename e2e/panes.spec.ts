@@ -82,6 +82,7 @@ test("finishing a step shows Reward on the right", async ({ page }) => {
   await right(page).getByRole("button", { name: "Done" }).click();
   await expect(right(page).getByRole("heading", { level: 1, name: "Step done." })).toBeVisible();
   await expect(left(page).getByRole("list", { name: "Today" })).toBeVisible();
+  await right(page).getByRole("button", { name: "Skip" }).click(); // the unlock (slice 20) comes before the way on
   await right(page).getByRole("button", { name: "Back to Today" }).click();
   await expect(right(page).getByRole("heading", { level: 1 })).toBeFocused();
 });

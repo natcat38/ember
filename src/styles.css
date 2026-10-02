@@ -1162,4 +1162,92 @@ select.field {
 
 .focus-actions.tight {
   margin-top: var(--space-2);
+/* Reward unlocks (UX_Flows.md §3.6). The bar is a hint, not a limit: it fills over 90 s by transform only, and under
+   reduced motion it is hidden, leaving the label. */
+.unlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  outline: none;
+}
+
+.unlock-question {
+  font-size: 18px;
+  line-height: 26px;
+}
+
+.unlock-answers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.unlock-answers .button {
+  height: auto;
+  padding-block: var(--space-2);
+  text-align: left;
+}
+
+.unlock-answers .button[aria-pressed="true"] {
+  border-color: var(--color-lavender-deep);
+  background: var(--color-nook);
+}
+
+.unlock-answers .button:disabled {
+  cursor: default;
+  color: var(--color-ink);
+}
+
+.unlock-result {
+  min-height: 24px;
+  font-weight: 600;
+}
+
+.unlock a {
+  align-self: flex-start;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-lavender-deep);
+}
+
+.unlock-puzzle {
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 400 / 444;
+  border: 0;
+  border-radius: var(--radius-button);
+  align-self: center;
+}
+
+.unlock-bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-nook);
+}
+
+.unlock-bar-fill {
+  height: 100%;
+  background: var(--color-lavender);
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .unlock-bar-fill {
+    animation: unlock-fill 90s linear forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unlock-bar {
+    display: none;
+  }
+}
+
+@keyframes unlock-fill {
+  to {
+    transform: scaleX(1);
+  }
 }
