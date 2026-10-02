@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { backToIt, BREAK_MS, breakLeft, endFocus, pauseFocus, resumeFocus, sessionsDone, skipBreak, startFocus, takeBreak, workLeft, WORK_MS } from "./focus";
+import { backToIt, BREAK_MS, breakFor, breakLeft, canSwitchMode, endFocus, pauseFocus, resumeFocus, sessionsDone, skipBreak, startFocus, stopFlow, switchMode, takeBreak, workedMs, workLeft, WORK_MS } from "./focus";
 import { emptyState, type State } from "./task";
 import type { Chunk } from "./chunk";
 
@@ -114,4 +114,114 @@ test("a starter session runs 2 minutes, is complete at 2, and Back to it returns
   expect(s.sessions[0]).toMatchObject({ ended_at: T0 + 2 * MIN, completed: true });
   s = backToIt(s, T0 + 9 * MIN);
   expect(workLeft(s.focus!, T0 + 9 * MIN)).toBe(WORK_MS);
+});
+
+// Flowtime (Tech_Scope.md §10 phase 3, slice 21): count up, the user decides when to stop, break = min(worked / 5, 15 min).
+const flow = (): State => ({ ...base(), settings: { ...base().settings, timer_mode: "flowtime" } });
+
+test("breakFor is a fifth of the time worked, in whole minutes, capped at 15", () => {
+  expect(breakFor(10 * MIN)).toBe(2 * MIN);
+  expect(breakFor(25 * MIN)).toBe(5 * MIN);
+  expect(breakFor(50 * MIN)).toBe(10 * MIN);
+  expect(breakFor(90 * MIN)).toBe(15 * MIN); // 18 minutes, capped
+  expect(breakFor(75 * MIN)).toBe(15 * MIN); // exactly at the cap
+  expect(breakFor(12 * MIN + 30_000)).toBe(3 * MIN); // 2.5 minutes rounds to 3
+  expect(breakFor(MIN)).toBe(MIN); // never a zero-length break
+});
+
+test("startFocus follows settings.timer_mode; 25/5 state carries no Flowtime fields", () => {
+  expect(startFocus(base(), "a", T0).focus).toEqual({ chunk_id: "a", started_at: T0, paused_at: null, paused_ms: 0, break_started_at: null });
+  expect(startFocus(flow(), "a", T0).focus).toMatchObject({ mode: "flowtime" });
+  expect(startFocus(flow(), "a", T0, ids(), 2 * MIN).focus!.mode).toBeUndefined(); // the onboarding starter stays a 2-minute countdown
+});
+
+test("a Flowtime session counts up from its start, pauses excluded, with no end", () => {
+  let s = startFocus(flow(), "a", T0);
+  expect(workedMs(s.focus!, T0)).toBe(0);
+  expect(workedMs(s.focus!, T0 + 30 * MIN)).toBe(30 * MIN);
+  s = pauseFocus(s, T0 + 10 * MIN);
+  expect(workedMs(s.focus!, T0 + 40 * MIN)).toBe(10 * MIN); // held while paused
+  s = resumeFocus(s, T0 + 40 * MIN);
+  expect(workedMs(s.focus!, T0 + 100 * MIN)).toBe(70 * MIN); // 10 before the pause + 60 after
+  expect(takeBreak(s, T0 + 100 * MIN, ids())).toBe(s); // nothing happens until the user stops
+  expect(skipBreak(s, T0 + 100 * MIN, ids())).toBe(s);
+});
+
+test.each([
+  [10, 2],
+  [25, 5],
+  [50, 10],
+  [90, 15],
+])("Flowtime: stopping after %i minutes offers a %i-minute break", (worked, rest) => {
+  let s = startFocus(flow(), "a", T0);
+  s = stopFlow(s, T0 + worked * MIN);
+  expect(s.focus!.stopped_at).toBe(T0 + worked * MIN);
+  expect(s.sessions).toHaveLength(0); // logged when the break starts or the step ends
+  s = takeBreak(s, T0 + (worked + 3) * MIN, ids()); // the user sat on the prompt for 3 minutes
+  expect(s.sessions).toEqual([{ id: "s1", chunk_id: "a", started_at: T0, ended_at: T0 + worked * MIN, completed: worked >= 25 }]);
+  expect(breakLeft(s.focus!, T0 + (worked + 3) * MIN)).toBe(rest * MIN);
+  expect(breakLeft(s.focus!, T0 + (worked + 3) * MIN + rest * MIN)).toBe(0);
+});
+
+test("Flowtime: a pause before stopping is not worked time, and a stop while paused ends at the pause", () => {
+  let s = startFocus(flow(), "a", T0);
+  s = pauseFocus(s, T0 + 20 * MIN);
+  s = stopFlow(s, T0 + 45 * MIN);
+  expect(workedMs(s.focus!, T0 + 60 * MIN)).toBe(20 * MIN);
+  s = takeBreak(s, T0 + 60 * MIN, ids());
+  expect(s.sessions[0]).toMatchObject({ ended_at: T0 + 20 * MIN, completed: false });
+  expect(breakLeft(s.focus!, T0 + 60 * MIN)).toBe(4 * MIN);
+});
+
+test("Flowtime: Skip break logs the session and starts another Flowtime one; Back to it does too", () => {
+  let s = stopFlow(startFocus(flow(), "a", T0), T0 + 30 * MIN);
+  const skipped = skipBreak(s, T0 + 31 * MIN, ids());
+  expect(skipped.sessions).toHaveLength(1);
+  expect(skipped.focus).toEqual({ chunk_id: "a", started_at: T0 + 31 * MIN, paused_at: null, paused_ms: 0, break_started_at: null, mode: "flowtime" });
+  s = backToIt(takeBreak(s, T0 + 30 * MIN, ids()), T0 + 36 * MIN);
+  expect(s.focus).toMatchObject({ started_at: T0 + 36 * MIN, mode: "flowtime" });
+  expect(s.focus!.stopped_at).toBeUndefined();
+  expect(s.focus!.break_ms).toBeUndefined();
+});
+
+test("Flowtime: I finished it and Stop for now log the time worked; Done mid-session logs it so far", () => {
+  const stopped = stopFlow(startFocus(flow(), "a", T0), T0 + 40 * MIN);
+  const done = endFocus(stopped, T0 + 45 * MIN, true, ids());
+  expect(done.sessions).toEqual([{ id: "s1", chunk_id: "a", started_at: T0, ended_at: T0 + 40 * MIN, completed: true }]);
+  expect(stateOf(done, "a")).toBe("done");
+  const bail = endFocus(startFocus(flow(), "a", T0), T0 + 12 * MIN, false, ids());
+  expect(bail.sessions).toEqual([{ id: "s1", chunk_id: "a", started_at: T0, ended_at: T0 + 12 * MIN, completed: false }]);
+  expect(stateOf(bail, "a")).toBe("todo");
+  const late = endFocus(takeBreak(stopped, T0 + 41 * MIN, ids()), T0 + 43 * MIN, false, ids());
+  expect(late.sessions).toHaveLength(1); // ending during the break does not log it twice
+});
+
+test("Flowtime: pause is refused once stopped; stopFlow is a no-op on 25/5, on a break, or twice", () => {
+  const p = startFocus(base(), "a", T0);
+  expect(stopFlow(p, T0 + MIN)).toBe(p);
+  const f = stopFlow(startFocus(flow(), "a", T0), T0 + 10 * MIN);
+  expect(pauseFocus(f, T0 + 11 * MIN)).toBe(f);
+  expect(stopFlow(f, T0 + 12 * MIN)).toBe(f);
+  const b = takeBreak(f, T0 + 12 * MIN, ids());
+  expect(stopFlow(b, T0 + 13 * MIN)).toBe(b);
+});
+
+test("the per-session switch changes the mode in the first minute only, leaving 25/5 state untouched", () => {
+  let s = startFocus(base(), "a", T0);
+  expect(canSwitchMode(s.focus!, T0 + 5_000)).toBe(true);
+  const flowS = switchMode(s, "flowtime", T0 + 5_000);
+  expect(flowS.focus).toMatchObject({ started_at: T0, mode: "flowtime" });
+  const back = switchMode(flowS, "pomodoro", T0 + 6_000);
+  expect(back.focus).toEqual(s.focus); // same shape as a fresh 25/5: no mode field left behind
+  expect(switchMode(s, "pomodoro", T0 + 5_000)).toBe(s); // already in that mode
+  expect(canSwitchMode(s.focus!, T0 + 2 * MIN)).toBe(false);
+  expect(switchMode(s, "flowtime", T0 + 2 * MIN)).toBe(s);
+  const starter = startFocus(base(), "a", T0, ids(), 2 * MIN);
+  expect(canSwitchMode(starter.focus!, T0 + 1_000)).toBe(false); // the onboarding starter has no switch
+  const pausedS = pauseFocus(s, T0 + 5_000);
+  expect(canSwitchMode(pausedS.focus!, T0 + 6_000)).toBe(true);
+  s = takeBreak(startFocus(base(), "a", T0), T0 + 30 * MIN, ids());
+  expect(canSwitchMode(s.focus!, T0 + 30 * MIN)).toBe(false);
+  s = pauseFocus(startFocus(base(), "a", T0), T0 + 10 * MIN); // paused 10 minutes in: worked time, not wall time, counts
+  expect(canSwitchMode(s.focus!, T0 + 90 * MIN)).toBe(false);
 });
