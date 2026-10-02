@@ -21,6 +21,14 @@ test("the app opens offline once it has been visited", async ({ page, context })
   await context.setOffline(false);
 });
 
+// The install step caches the shell's JS and CSS, so an offline open right after the first visit is not blank (audit #36).
+test("the first visit precaches the shell's JS and CSS without a second load", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  const cached = () => page.evaluate(async () => (await (await caches.open("ember-shell")).keys()).map((r) => new URL(r.url).pathname));
+  await expect.poll(async () => (await cached()).filter((p) => /^\/assets\/.*\.(js|css)$/.test(p)).length).toBeGreaterThanOrEqual(2);
+});
+
 // Hashed /assets/* are cached for good, so a new shell page must drop the ones it no longer references (public/sw.js).
 test("a fresh page load drops cached assets from older deploys and keeps the current ones", async ({ page }) => {
   const cached = () => page.evaluate(async () => (await (await caches.open("ember-shell")).keys()).map((r) => new URL(r.url).pathname).filter((p) => p.startsWith("/assets/")));
