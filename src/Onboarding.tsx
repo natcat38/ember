@@ -71,7 +71,8 @@ export function Onboarding({ state, update, today, onDone, announce }: Props) {
         <div className="step-foot">
           {tasks.length === 0 ? (
             <>
-              <button className="button" onClick={() => finish("today")}>
+              {/* A quiet text button: with nothing typed it is a way out, not an action to weigh against the field above. */}
+              <button className="text-button" onClick={() => finish("today")}>
                 Close
               </button>
               {/* ponytail: not yet approved copy. A second device needs a way past the first run to sign in (ADR-0005). */}

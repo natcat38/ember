@@ -81,7 +81,8 @@ export function Unlock({ kind, today, onClose, onElapsed }: Props) {
     return (
       <div ref={root} tabIndex={-1} className="unlock">
         <p>{FAILED}</p>
-        <button className="button primary" onClick={onClose}>
+        {/* A quiet text button, as everywhere else Skip appears: a failure doesn't promote it to the primary action. */}
+        <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={onClose}>
           Skip
         </button>
       </div>

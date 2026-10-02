@@ -549,7 +549,9 @@ export function App() {
           {/* Nothing to capture into from Settings (Wireframes.md, Global). */}
           {!wide && view.name !== "settings" && (
             <div className={`capture-bar${view.name === "focus" ? " dimmed" : ""}`}>
-              <button onClick={openCapture}>{state.draft || "What's on your mind?"}</button>
+              <button className={state.draft ? "has-draft" : undefined} onClick={openCapture}>
+                {state.draft || "What's on your mind?"}
+              </button>
             </div>
           )}
         </>

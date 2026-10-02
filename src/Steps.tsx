@@ -218,8 +218,9 @@ function AddField(props: { label: string; visibleLabel?: boolean; placeholder: s
             onChange={(e) => setText(e.target.value)}
             onBlur={() => !text.trim() && props.onBlurEmpty && collapseAfterNextPress()}
           />
-          <button className="send" aria-label={props.button}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+          {/* Outlined: Start is the Task view's one primary button (restraint rule 2). */}
+          <button className="send quiet" aria-label={props.button}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
               <path d="M12 5v14M5 12h14" />
             </svg>
           </button>

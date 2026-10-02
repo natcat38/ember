@@ -133,7 +133,8 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
             {flow && (
               // ponytail: draft copy. Flowtime has no timer to run out, so the user says when to stop for a break.
               <div className="actions focus-actions">
-                <button className="button primary" onClick={() => act(stopFlow)}>
+                {/* Outlined: the round Pause button is this view's one primary (restraint rule 2). */}
+                <button className="button" onClick={() => act(stopFlow)}>
                   Take a break
                 </button>
               </div>

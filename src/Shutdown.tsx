@@ -45,9 +45,12 @@ export function ShutdownView({ state, update, today, tomorrow, doneToday, canMak
 
   return (
     <div className="step-card">
-      <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={onClose}>
-        Close
-      </button>
+      {/* The last card ends in a Close of its own, so a second one above it would be a duplicate (Verify finding 15). */}
+      {step < 2 && (
+        <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={onClose}>
+          Close
+        </button>
+      )}
 
       {step === 0 && (
         <>
@@ -253,21 +256,28 @@ function Journal({ state, update, today, canMakeKey }: Pick<Props, "state" | "up
 
   return (
     <div className="journal">
-      <input
+      {/* Two rows tall so the whole placeholder shows at phone width; still one line of text, so Enter saves rather than wrapping. */}
+      <textarea
         className="field"
+        rows={2}
         aria-label="One line about today"
         placeholder="One line about today, whatever comes to mind."
         maxLength={MAX_LINE_CHARS}
         autoComplete="off"
+        enterKeyHint="done"
         value={line}
         onChange={(e) => {
           touched.current = true;
-          setLine(e.target.value);
+          setLine(e.target.value.replace(/\s*\n\s*/g, " "));
           clearTimeout(timer.current);
           timer.current = setTimeout(flush, 800);
         }}
         onBlur={flush}
-        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          e.currentTarget.blur();
+        }}
       />
       <fieldset className="mood">
         <legend className="sr-only">How was today?</legend>

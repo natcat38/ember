@@ -103,7 +103,7 @@ export function CaptureForm({ draft, onDraft, onSend, today, showHint, autoFocus
           />
         </label>
         <button type="submit" className="send" aria-label="Send">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M22 2L11 13" />
             <path d="M22 2l-7 20-4-9-9-4z" />
           </svg>
