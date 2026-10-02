@@ -275,6 +275,7 @@ export function createSync(initial: State, { update, storage = localStorage, fet
           update((s) => applyChanges(s, body.changes, remaining));
         }
       } while (meta.outbox.length || refetch);
+      clearTimeout(timer); // every change recorded so far went out in this push; a waiting debounce would only repeat it
       offline = false;
     } catch (e) {
       // fetch rejects (TypeError) only when the network is unreachable; an HTTP error means the server answered.

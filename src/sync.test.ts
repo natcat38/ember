@@ -307,6 +307,18 @@ test("with storage full, edits still reach the server", async () => {
   expect(sent).toEqual([expect.objectContaining({ entity: "tasks", id: "id-1", fields: { size: "M", state: "active", updated_at: 9 } })]);
 });
 
+test("a push that sent every recorded change cancels the waiting debounce, so no empty request follows", async () => {
+  vi.useFakeTimers();
+  let calls = 0;
+  const engine = createSync(sample(), { update: () => {}, storage: fakeStorage(), fetch: (async () => (calls++, ok())) as typeof fetch });
+  engine.record(triage(sample(), "id-1", { size: "M" }, 9, today));
+  await engine.push();
+  const done = calls;
+  await vi.advanceTimersByTimeAsync(3000);
+  vi.useRealTimers();
+  expect(calls).toBe(done);
+});
+
 // Improvement_Audit.md #16: the server made a new user (cookie lost, or the user deleted), so this device starts over.
 test("a response saying the server made a fresh user re-uploads everything", async () => {
   vi.useFakeTimers();
