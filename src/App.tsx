@@ -23,6 +23,14 @@ type View =
 
 const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+// The phone's back gesture (UX_Flows.md §2) does what the visible Back does. Each history entry carries the stack of
+// screens open over Today, so a reload or a jump through history still knows what is open. Today is the root and gets no
+// entry; Focus, Reward and Shutdown get none either, because they have no way back mid-flow.
+const hasEntry = (v: View) => v.name === "inbox" || v.name === "settings" || v.name === "task";
+const sameScreen = (a: View, b: View) => a.name === b.name && (a.name !== "task" || a.id === (b as typeof a).id);
+const savedStack = (): View[] => history.state?.stack ?? [];
+const topOf = (stack: View[]): View => stack.at(-1) ?? { name: "today" };
+
 const wideQuery = window.matchMedia("(min-width: 768px)");
 const useWide = () =>
   useSyncExternalStore(
@@ -46,6 +54,11 @@ export function App() {
   );
   // Reopening the app mid-session goes straight back to Focus; the timer kept running on the wall clock.
   const [view, setView] = useState<View>(() => ({ name: state.focus ? "focus" : "today" }));
+  // A reload still opens on Today, but the history entries it landed on are real, so the stack starts from them.
+  const stack = useRef<View[]>(savedStack());
+  const skipPops = useRef(0); // popstates we caused ourselves with history.go()
+  // Focus, Reward and Shutdown are left by their own buttons, never by the gesture.
+  const locked = useRef(false);
   const [askFor, setAskFor] = useState<Task | null>(null);
   // First run (UX_Flows.md §7): nothing on this device, never synced, and not arriving from a Telegram sign-in link.
   const [onboarding, setOnboarding] = useState(() => {
@@ -96,7 +109,7 @@ export function App() {
     const code = q.get("h");
     const taskId = q.get("t");
     const pickDate = q.get("pick") === "1"; // Telegram's Reschedule → Pick a date
-    if (code || taskId) history.replaceState(null, "", location.pathname);
+    if (code || taskId) history.replaceState(history.state, "", location.pathname); // keep the entry's screen stack
     const joined = code
       ? fetch("/api/handoff/redeem", {
           method: "POST",
@@ -109,7 +122,7 @@ export function App() {
       : Promise.resolve();
     void joined
       .then(() => sync.push())
-      .then(() => taskId && setView({ name: "task", id: taskId, from: "today", pickDate }));
+      .then(() => taskId && navigate({ name: "task", id: taskId, from: "today", pickDate }));
     const wake = () => document.visibilityState === "visible" && void sync.push();
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("online", wake);
@@ -150,7 +163,41 @@ export function App() {
     }, 50);
   }
 
+  // Keep the browser history in step with an in-app move: a screen with an entry is pushed; going to a screen already in
+  // the stack (the visible Back, or Today) unwinds to it, so the gesture never revisits a screen the app left.
+  function syncHistory(v: View) {
+    const open = stack.current;
+    const last = open.map((e) => sameScreen(e, v)).lastIndexOf(true);
+    if (v.name === "today" || last >= 0) {
+      const keep = v.name === "today" ? 0 : last + 1; // entries to keep
+      if (keep < open.length) {
+        skipPops.current++;
+        history.go(keep - open.length);
+        stack.current = open.slice(0, keep);
+      }
+    } else if (hasEntry(v)) {
+      stack.current = [...open, v];
+      history.pushState({ stack: stack.current }, "");
+    }
+  }
+
+  // The system back: show the screen the entry it landed on stands for. Not while a flow with no way back is running.
+  useEffect(() => {
+    const onPop = (e: PopStateEvent) => {
+      if (skipPops.current) return void skipPops.current--;
+      stack.current = e.state?.stack ?? [];
+      if (!locked.current) show(topOf(stack.current));
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
   function navigate(v: View) {
+    syncHistory(v);
+    show(v);
+  }
+
+  function show(v: View) {
     if (v.name !== "today") setWelcome(false); // the welcome back is offered once
     setView(v);
     window.scrollTo(0, 0);
@@ -190,6 +237,7 @@ export function App() {
     nextAction.current!.showModal();
   }
 
+  locked.current = onboarding || view.name === "focus" || view.name === "reward" || view.name === "shutdown";
   const task = view.name === "task" ? state.tasks.find((t) => t.id === view.id) : undefined;
   if (view.name === "task" && !task) setView({ name: view.from }); // e.g. removed from another tab
   if (view.name === "focus" && !state.focus) setView({ name: "today" }); // e.g. ended in another tab

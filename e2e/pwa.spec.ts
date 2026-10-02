@@ -21,6 +21,24 @@ test("the app opens offline once it has been visited", async ({ page, context })
   await context.setOffline(false);
 });
 
+// Hashed /assets/* are cached for good, so a new shell page must drop the ones it no longer references (public/sw.js).
+test("a fresh page load drops cached assets from older deploys and keeps the current ones", async ({ page }) => {
+  const cached = () => page.evaluate(async () => (await (await caches.open("ember-shell")).keys()).map((r) => new URL(r.url).pathname).filter((p) => p.startsWith("/assets/")));
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.reload(); // controlled now: the assets and fonts it serves get cached
+  await expect.poll(async () => (await cached()).some((p) => p.endsWith(".woff2"))).toBe(true);
+  const current = await cached();
+  const stale = ["/assets/index-OLD11111.js", "/assets/index-OLD22222.css", "/assets/karla-latin-400-normal-OLD33333.woff2"];
+  await page.evaluate(async (stale) => {
+    const c = await caches.open("ember-shell");
+    for (const p of stale) await c.put(p, new Response("old"));
+  }, stale);
+  await page.reload(); // a navigation: the SW fetches a fresh "/" and reads what it references
+  await expect.poll(async () => (await cached()).filter((p) => stale.includes(p))).toEqual([]);
+  expect(await cached()).toEqual(expect.arrayContaining(current));
+});
+
 test.describe("lapse return", () => {
   test.use({ timezoneId: "Asia/Singapore" });
 
