@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { MAX_TITLE_CHARS, type CaptureInput } from "../core/task";
+import { DateButton } from "./DateButton";
 
 const dueLabel = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 export const formatDue = (d: string) => `Due ${dueLabel.format(Date.parse(d))}`;
@@ -18,15 +19,6 @@ export function CaptureForm({ draft, onDraft, onSend, today, showHint, autoFocus
   const [deadline, setDeadline] = useState<string | null>(null);
   const [quick, setQuick] = useState(false);
   const field = useRef<HTMLInputElement>(null);
-  const date = useRef<HTMLInputElement>(null);
-
-  function openPicker() {
-    try {
-      date.current!.showPicker();
-    } catch {
-      date.current!.focus();
-    }
-  }
 
   return (
     <form
@@ -41,9 +33,9 @@ export function CaptureForm({ draft, onDraft, onSend, today, showHint, autoFocus
       }}
     >
       <div className="actions">
-        <button type="button" className="chip" aria-pressed={!!deadline} onClick={openPicker}>
+        <DateButton label="Deadline" className="chip" pressed={!!deadline} value={deadline ?? ""} min={today} onPick={(d) => setDeadline(d || null)}>
           {deadline ? formatDue(deadline) : "Deadline"}
-        </button>
+        </DateButton>
         {deadline && (
           <button type="button" className="icon-button" aria-label="Clear deadline" onClick={() => setDeadline(null)}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
@@ -51,16 +43,6 @@ export function CaptureForm({ draft, onDraft, onSend, today, showHint, autoFocus
             </svg>
           </button>
         )}
-        <input
-          ref={date}
-          type="date"
-          className="date-input"
-          tabIndex={-1}
-          aria-hidden="true"
-          min={today}
-          value={deadline ?? ""}
-          onChange={(e) => setDeadline(e.target.value || null)}
-        />
         <button type="button" className="chip" aria-pressed={quick} onClick={() => setQuick(!quick)}>
           Quick
         </button>
