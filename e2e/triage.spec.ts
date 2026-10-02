@@ -35,6 +35,7 @@ test("a triaged task shows as Active: out of Needs sorting, and ranked into Toda
   await expect(page.getByRole("region", { name: "Triage" })).toContainText("Due 14 Oct · Holding things up · M");
   await page.getByRole("button", { name: "Edit" }).click();
   await expect(page.getByRole("group", { name: "Size" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Not yet" })).toBeFocused(); // Edit went away: focus moved on, not to <body>
 });
 
 test("Remove from list asks first, then Restore brings it back", async ({ page }) => {

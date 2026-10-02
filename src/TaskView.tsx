@@ -3,6 +3,7 @@ import type { Size, State, Task, TriageAnswers } from "../core/task";
 import { formatDue } from "./Capture";
 import { DateButton } from "./DateButton";
 import { ConfirmDialog, TextDialog } from "./dialogs";
+import { refocus } from "./refocus";
 import { Steps } from "./Steps";
 
 const SIZES: Size[] = ["XS", "S", "M", "L", "XL"];
@@ -101,7 +102,13 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
         ) : (
           <section className="row" aria-label="Triage">
             <span>{summary.join(" · ")}</span>
-            <button className="text-button" onClick={() => setEditing(true)}>
+            <button
+              className="text-button"
+              onClick={() => {
+                setEditing(true);
+                refocus(() => document.querySelector<HTMLElement>("section.triage button")); // Edit is about to disappear
+              }}
+            >
               Edit
             </button>
           </section>
