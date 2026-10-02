@@ -191,10 +191,11 @@ const cut = (title: string) => (title.length > TITLE_CHARS ? `${title.slice(0, T
 
 const dueDay = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "UTC" });
 const dueDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
-// "today" for a deadline of yesterday (the message goes out the morning after); older ones name the day, as wasDueLabel does.
+// "yesterday" for the usual case (the message goes out the morning after the deadline); older ones name the day, a week or
+// more back the date, as wasDueLabel does (Natalie, 2026-10-02). "today" only when the deadline is unknown.
 function dueWhen(deadline: string | null | undefined, today: string | undefined): string {
   const ago = deadline && today ? daysBetween(deadline, today) : 0;
-  return ago < 2 ? "today" : ago < 7 ? dueDay.format(Date.parse(deadline!)) : dueDate.format(Date.parse(deadline!));
+  return ago < 1 ? "today" : ago === 1 ? "yesterday" : ago < 7 ? dueDay.format(Date.parse(deadline!)) : dueDate.format(Date.parse(deadline!));
 }
 
 // The message body. `tasks` is the message's task_ids resolved in order: the frog's task for morning, the far task for light_day.

@@ -184,7 +184,7 @@ describe("the golden day (Tech_Scope.md §4.6)", () => {
 
     expect(textsTo(chat)).toEqual([
       "Cover letter is due today.",
-      "Lab report was due today and isn't marked done. Still relevant?",
+      "Lab report was due yesterday and isn't marked done. Still relevant?",
       "4 sessions left on DSA assignment, 3 days to go. Want to start one now?",
     ]);
 
@@ -356,7 +356,7 @@ describe("replanning", () => {
     const overdueTexts = () => textsTo(chat).filter((t) => t.includes("was due "));
 
     await planAndSend(sg(DAY, "08:00:31"));
-    expect(overdueTexts()).toEqual(["Oz report was due today and isn't marked done. Still relevant?"]);
+    expect(overdueTexts()).toEqual(["Oz report was due yesterday and isn't marked done. Still relevant?"]);
 
     // The next two days: the task is still overdue, and nothing more is said about it.
     for (const day of ["2026-10-06", "2026-10-07"]) for (const t of ["08:00:31", "12:00:31", "16:00:31", "19:00:31", "21:00:31"]) await tick(sg(day, t));
