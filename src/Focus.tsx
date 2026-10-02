@@ -195,7 +195,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
         )}
       </div>
       <div className="cat-corner" aria-hidden="true">
-        <Cat pose={pose} size={pose === "stretching" ? 120 : 80} />
+        <Cat pose={pose} size={pose === "stretching" ? 88 : 80} />
       </div>
     </>
   );

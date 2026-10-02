@@ -140,8 +140,9 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
   return (
     <>
       {/* The nook (Design_Direction.md §4). Visible count is hidden from screen readers; the ring's label carries it (A4). */}
-      <section className="nook" aria-label="Progress">
-        <Cat pose={pose} size={72} />
+      <section className="nook" data-pose={pose} aria-label="Progress">
+        {/* The window scene fills the nook's height on the lapse return; the cat stands 72 px otherwise */}
+        <Cat pose={pose} size={pose === "door" ? 92 : 72} />
         <span className="lead" aria-hidden="true">
           {doneCount} of {rows.length} done
         </span>

@@ -430,7 +430,7 @@ One channel per message, never both. The user picks Telegram or web push in Sett
 | **Watching** | Today on screen, nothing else happening | Focus starts, a chunk finishes, or shutdown completes |
 | **Stretching** | A focus session is running | Pause or exit → watching; chunk done → purring |
 | **Curled up, purring** | A chunk is done (slightly bigger moment on the last chunk of the day) | Reward moment ends (unlock played or skipped) → watching |
-| **By the door** | First open after **3+ days** away (the lapse return) | First tap after the welcome-back greeting → watching |
+| **By the window** (was "by the door") | First open after **3+ days** away (the lapse return) | First tap after the welcome-back greeting → watching |
 
 ### Transitions worth spelling out
 
@@ -440,8 +440,8 @@ One channel per message, never both. The user picks Telegram or web push in Sett
 
 ### Where it appears
 
-- **Today:** small, beside the progress ring. Never covers the list.
-- **Focus:** small in a corner; the stretch plays once as the session starts, then holds a still pose (a loop lasting the whole session would fail WCAG 2.2.2; design step 6, 2026-10-02). Dims with everything else. Company while you work.
+- **Today:** small, beside the progress ring. Never covers the list. On the lapse return the window scene fills the nook's left side instead.
+- **Focus:** small in a corner; the stretch plays once as the session starts, then holds its last frame. Dims with everything else. Company while you work.
 - **Reward and shutdown moments:** briefly the centre of attention (purring; falling asleep).
 - **Nowhere else:** not in Capture, Task view, Inbox, Settings, or notifications. This is what keeps it from becoming a second job.
 
@@ -456,9 +456,9 @@ One channel per message, never both. The user picks Telegram or web push in Sett
 
 ### Accessibility
 
-With reduced motion on, still poses replace animations. The cat is decorative and hidden from screen readers (`aria-hidden`): the ring and timer carry everything it shows, so screen-reader users lose nothing.
+Every pose has a gentle idle motion (breathing, a slow loop of a few seconds) baked into its animated file. With reduced motion on, still poses replace animations; that is the off switch WCAG 2.2.2 asks for (ADR 0009, reversing the stricter reading in `Design_Direction.md` §11 A1). The cat is decorative and hidden from screen readers (`aria-hidden`): the ring and timer carry everything it shows, so screen-reader users lose nothing.
 
-**Not decided here:** the illustration style. `Product_Scope.md` §7 leaves it to the design stage.
+**Illustration:** Natalie's AI-generated five-pose pack (2026-10-03), see `Design_Direction.md` §4 and ADR 0009.
 
 ---
 
