@@ -1,5 +1,5 @@
 import { childrenOf, topLevel, type Chunk } from "./chunk";
-import { dayOf } from "./day";
+import { DEFAULT_TZ, blockSpans, dayOf, windowLen } from "./day";
 import type { Day, HardBlock, Size, State, Task } from "./task";
 
 // Tech_Scope.md §4.2–4.4. Pure: the day and the clock-derived inputs are passed in.
@@ -69,7 +69,7 @@ function leaves(s: State, taskId: string): { chunk: Chunk; parent: Chunk | null 
 
 export function buildToday(s: State, today: string, o: TodayOptions): Today {
   const sessionsDone = o.sessionsDone ?? (() => 0);
-  const tz = o.tz ?? "Asia/Singapore";
+  const tz = o.tz ?? DEFAULT_TZ;
   const slots = o.slots ?? 5;
   const deferred = new Set(s.days.find((d) => d.day === today)?.deferred ?? []);
   const doneToday = (c: Chunk) => c.state === "done" && dayOf(finishedAt(c), tz, o.quietEndMin) === today;
@@ -133,7 +133,7 @@ export const wrapUp = (s: State, today: string, now: number) =>
   withDay(s, today, (d) => (d.shutdown_at ? d : { ...d, shutdown_at: now }));
 
 // Steps and tasks finished today: zero means the shutdown's resting variant (UX_Flows.md §3.7).
-export function doneTodayCount(s: State, today: string, tz = "Asia/Singapore", quietEndMin?: number) {
+export function doneTodayCount(s: State, today: string, tz = DEFAULT_TZ, quietEndMin?: number) {
   const on = (r: { done_at?: number | null; updated_at: number }) => dayOf(finishedAt(r), tz, quietEndMin) === today;
   return s.chunks.filter((c) => !c.deleted && c.state === "done" && on(c)).length + s.tasks.filter((t) => t.state === "done" && on(t)).length;
 }
@@ -150,7 +150,7 @@ export function wasDueLabel(deadline: string, today: string) {
 export const addDays = (day: string, n: number) => new Date(Date.parse(day) + n * 86_400_000).toISOString().slice(0, 10);
 
 // Product_Scope.md §2: 3 or more days away is a lapse; one or two days opens as an ordinary day.
-export const isLapse = (lastSeenAt: number | null, now: number, tz = "Asia/Singapore", quietEndMin?: number) =>
+export const isLapse = (lastSeenAt: number | null, now: number, tz = DEFAULT_TZ, quietEndMin?: number) =>
   lastSeenAt !== null && daysBetween(dayOf(lastSeenAt, tz, quietEndMin), dayOf(now, tz, quietEndMin)) >= 3;
 
 // "Want to reset them?": the passed dates are dropped, so the "Was due" labels go and each task ranks afresh.
@@ -162,14 +162,10 @@ export function resetOverdue(s: State, today: string, now: number): State {
 
 // §4.4 step 5: free minutes = the waking window (quiet end → quiet start) minus the day's hard blocks.
 export function freeMinutes(s: State, day: string): number {
-  const { quiet_start, quiet_end } = s.settings;
-  const len = (quiet_start - quiet_end + 1440) % 1440 || 1440;
-  // Lay the window out from quiet end, so one that runs past midnight is still a straight line.
-  const at = (m: number) => (m - quiet_end + 1440) % 1440;
-  const weekday = (new Date(Date.parse(day)).getUTCDay() + 6) % 7; // 0 = Monday
-  const busy = s.hard_blocks
-    .filter((b) => !b.deleted && b.weekdays.includes(weekday))
-    .map((b) => [Math.min(at(b.start_min), len), Math.min(at(b.start_min) + b.end_min - b.start_min, len)] as const)
+  const len = windowLen(s.settings);
+  // Spans are laid out from quiet end, so a window past midnight is a straight line; clip them to the window.
+  const busy = blockSpans(s.hard_blocks, day, s.settings.quiet_end)
+    .map(([from, to]) => [Math.max(from, 0), Math.min(to, len)] as const)
     .sort((a, b) => a[0] - b[0]);
   let taken = 0;
   let reach = 0; // merge overlapping blocks so shared minutes count once

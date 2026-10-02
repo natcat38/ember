@@ -1,4 +1,4 @@
-import { dayOf } from "../core/day";
+import { DAILY_CAP, DEFAULT_TZ, dayOf } from "../core/day";
 import { sessionsDone } from "../core/focus";
 import { localToMs, messageText, planDay, type MessageKind, type PlannedMessage, type TextContext } from "../core/messages";
 import type { Chunk } from "../core/chunk";
@@ -58,8 +58,6 @@ const SEND_COST = 2 + MAX_SENDS + 2 + 3;
 const PLAN_COST = 4;
 export const MAX_PLANNED = 3; // the statements allow floor((STATEMENT_BUDGET - STALE_SCAN_COST - SEND_COST) / PLAN_COST) = 5; see the CPU note above
 
-const DAILY_CAP = 3; // Product_Scope.md §2 (planDay's own constant is not exported)
-const DEFAULT_TZ = "Asia/Singapore"; // a null tz means "the browser's"; core falls back to the same zone
 const CLAIM_TTL_MS = 5 * 60_000; // §11: a claim this old with no sent_at is a crashed tick, and the row is retried
 const CLAIM_WINDOW_MS = 30 * 60_000; // a row older than this past its due time is dropped, not sent
 const MAX_ATTEMPTS = 5; // counted at claim time, so a tick that dies mid-send still uses one

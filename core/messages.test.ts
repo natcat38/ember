@@ -74,6 +74,11 @@ describe("planDay", () => {
     ]);
   });
 
+  test("a block that starts before the window and runs into it moves S1 to the block's end", () => {
+    const early = { ...mei(), hard_blocks: [block("early", "07:00", "09:00")] }; // awake from 08:00
+    expect(plan({}, early)[0]).toMatchObject({ kind: "deadline_day", due_at: at("09:00") });
+  });
+
   test("sentToday = 2 leaves one message: the top cap priority (overdue)", () => {
     const out = plan({ sentToday: 2 });
     expect(brief(out)).toEqual([["overdue", ["C"], at("08:00")]]);

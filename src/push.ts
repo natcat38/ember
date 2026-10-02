@@ -1,4 +1,4 @@
-import { dayOf } from "../core/day";
+import { dayOf, windowLen } from "../core/day";
 import { blockSpans, clearOfBlocks, localToMs, slotOffsets } from "../core/messages";
 import { addDays } from "../core/today";
 import type { State } from "../core/task";
@@ -125,9 +125,9 @@ export function arrivalFrom(search: string): { task: string | null } | null {
  * helpers in core/messages.ts, so a snooze lands where the planner would put a message.
  */
 export function tomorrowSlot(s: State, now: number): number {
-  const { tz: zone, quiet_start, quiet_end } = s.settings;
+  const { tz: zone, quiet_end } = s.settings;
   const tz = zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const len = (quiet_start - quiet_end + 1440) % 1440 || 1440; // the waking window
+  const len = windowLen(s.settings);
   const day = addDays(dayOf(now, tz, quiet_end), 1);
   const raw = slotOffsets(len)[0];
   const cleared = clearOfBlocks(raw, blockSpans(s.hard_blocks, day, quiet_end));

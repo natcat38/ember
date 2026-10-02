@@ -1,4 +1,4 @@
-import { dayOf } from "../core/day";
+import { DEFAULT_TZ, dayOf, windowLen } from "../core/day";
 import { blockSpans, clearOfBlocks, localToMs, slotOffsets, type MessageKind } from "../core/messages";
 import { addDays } from "../core/today";
 import { newUserId } from "./identity";
@@ -46,7 +46,6 @@ export interface Keyboard {
 
 export const LOGIN_LINK_TTL_MS = 24 * 3_600_000; // §6
 export const MAX_SNOOZE_TASKS = 30; // a batched message snoozes at most this many tasks; see the budget above
-const DEFAULT_TZ = "Asia/Singapore"; // a null tz means "the browser's"; core falls back to the same zone
 
 // Confirmation copy. UX_Flows §5 gives the first three; the rest is proposed and not yet seen by Natalie.
 const COPY = {
@@ -134,7 +133,7 @@ export type SnoozeChoice = "1h" | "evening" | "tomorrow";
  */
 export function snoozeTime(choice: SnoozeChoice, now: number, shape: DayShape): number {
   const { tz, quietStart, quietEnd } = shape;
-  const len = (quietStart - quietEnd + 1440) % 1440 || 1440;
+  const len = windowLen({ quiet_start: quietStart, quiet_end: quietEnd });
   const slot = (day: string, index: 0 | 2 | 3) => {
     const raw = slotOffsets(len)[index];
     const cleared = clearOfBlocks(raw, blockSpans(shape.blocks, day, quietEnd));

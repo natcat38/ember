@@ -1,4 +1,4 @@
-import { dayOf } from "./day";
+import { DAILY_CAP, DEFAULT_TZ, blockSpans, dayOf, windowLen } from "./day";
 import { sessionsDone } from "./focus";
 import { band, buildToday, slotsFor } from "./today";
 import type { State, Task } from "./task";
@@ -24,14 +24,21 @@ export interface PlanInput {
   now?: number; // unix ms; a slot already past is not free, so a mid-day plan moves its message to the next slot
 }
 
-const DAILY_CAP = 3; // Product_Scope.md §2
 const QUIET_GAP_MS = 30 * 60_000; // no message within 30 minutes after a snooze or dismissal (UX_Flows.md §5)
-const DEFAULT_TZ = "Asia/Singapore"; // same fallback as buildToday: a null tz means "the browser's", which core cannot see
 
 // --- Local time -> unix ms ----------------------------------------------------------------------
 
-const clock = (tz: string) =>
-  new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" });
+// One formatter per zone: building one costs ~100 µs, a cached one ~1 µs, and a plan calls this a dozen times.
+const clocks = new Map<string, Intl.DateTimeFormat>();
+function clock(tz: string): Intl.DateTimeFormat {
+  let f = clocks.get(tz);
+  if (!f)
+    clocks.set(
+      tz,
+      (f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" })),
+    );
+  return f;
+}
 
 // How far the zone's wall clock is ahead of UTC at instant `ms`.
 function offsetMs(ms: number, tz: string): number {
@@ -54,20 +61,7 @@ export function localToMs(day: string, minutes: number, tz: string): number {
 // Exported with the two helpers below so a Telegram snooze (worker/buttons.ts) lands where the planner would put a message.
 export const slotOffsets = (len: number) => [0, Math.round(len / 2), Math.max(len - 180, 0), Math.max(len - 60, 0)];
 
-// Hard blocks as [from, to) offsets from the window start, laid out like freeMinutes so a window past midnight stays straight.
-export function blockSpans(
-  blocks: { weekdays: number[]; start_min: number; end_min: number; deleted?: boolean }[],
-  day: string,
-  windowStart: number,
-): (readonly [number, number])[] {
-  const weekday = (new Date(Date.parse(day)).getUTCDay() + 6) % 7; // 0 = Monday
-  return blocks
-    .filter((b) => !b.deleted && b.weekdays.includes(weekday))
-    .map((b) => {
-      const from = (b.start_min - windowStart + 1440) % 1440;
-      return [from, from + b.end_min - b.start_min] as const;
-    });
-}
+export { blockSpans }; // the span helper lives in core/day.ts, shared with freeMinutes; re-exported for the callers that import it from here
 
 // A slot inside a hard block moves to that block's end. Adjacent blocks chain, hence the loop.
 export function clearOfBlocks(offset: number, spans: (readonly [number, number])[]): number {
@@ -100,8 +94,8 @@ const ORDER: Record<MessageKind, number> = { deadline_day: 0, overdue: 1, mornin
 export function planDay(input: PlanInput): PlannedMessage[] {
   const { state: s, today } = input;
   const tz = s.settings.tz ?? DEFAULT_TZ;
-  const { quiet_start, quiet_end } = s.settings;
-  const len = (quiet_start - quiet_end + 1440) % 1440 || 1440; // waking window length, as in freeMinutes
+  const { quiet_end } = s.settings;
+  const len = windowLen(s.settings);
   const at = (offset: number) => localToMs(today, quiet_end + offset, tz);
 
   const snoozeOf = (t: Task): Snooze => {
