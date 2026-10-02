@@ -19,9 +19,9 @@ export function Cat({ pose, size }: { pose: CatPose; size: number }) {
   const file = FILE[pose];
   const [w, h] = BOX[pose];
   return (
-    <picture className="cat" data-pose={pose} style={{ width: Math.round((size * w) / h) }}>
+    <picture className="cat" data-pose={pose} aria-hidden="true" style={{ width: Math.round((size * w) / h) }}>
       <source srcSet={`/cat/${file}.webp`} type="image/webp" media="(prefers-reduced-motion: no-preference)" />
-      <img src={`/cat/${file}-still.webp`} width={w} height={h} alt="" aria-hidden="true" decoding="async" />
+      <img src={`/cat/${file}-still.webp`} width={w} height={h} alt="" decoding="async" />
     </picture>
   );
 }
