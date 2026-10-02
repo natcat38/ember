@@ -285,9 +285,27 @@ Each slice ends runnable, tested, and merged by PR. No slice starts while the pr
 
 **Cut line reached after slice 15.**
 
-### Phases 3 and 4 (sketch; sliced when phase 2 ships)
+### Phase 3: engagement (sliced 2026-10-02)
 
-- **Phase 3:** the cat's 5 states, unlocks (trivia, Lichess daily puzzle, Wikipedia "on this day"), journal + mood with client-side encryption (WebCrypto AES-GCM, PBKDF2 passphrase key), web push (VAPID, tap-to-open per ADR-0002), Flowtime (Natalie, 2026-10-02).
+Natalie chose to start phase 3 before the two-week phase-2 trial (Product_Scope §6 kill criterion), on 2026-10-02. Decisions taken at slicing (Natalie):
+
+- **Journal key: random, synced.** The device makes a random AES-GCM key and keeps it in the synced `settings` row (`journal_key`); journal text is stored as ciphertext. This keeps the text out of a dump of the journal table alone; it does not protect against someone holding the whole database, since the key sits beside it. No passphrase to forget. (Replaces the PBKDF2 passphrase sketch.)
+- **Flowtime break:** one fifth of the time worked, at most 15 minutes.
+- **Web push is built now**, switched on by the VAPID secrets; iPhone is checked with the install test.
+
+Wave A runs in parallel, then wave B (file ownership in each brief).
+
+| # | Slice | Done when | Tests |
+|---|---|---|---|
+| 17 | **The cat.** Five poses as inline SVG in the mockups' style (Design_Direction §4), `core/cat.ts` derives the pose from the triggers in UX_Flows §6. Placed in the Today nook, the Focus corner (stretch once, then hold), the Reward circle, and shutdown (asleep). Still poses under reduced motion; `aria-hidden` | Each §6 trigger shows its pose | unit: pose derivation; e2e: Today, Focus, Reward |
+| 18 | **Web push (server).** `push_subscriptions` table; subscribe/unsubscribe API; VAPID JWT (ES256) and aes128gcm payload encryption with WebCrypto, no library; the scheduler sends to `channel = 'push'` users through the same claim path; a 404/410 drops the subscription; the service worker shows the notification and opens the right screen on tap (ADR-0002) | A planned message reaches a subscribed browser | worker: encryption round-trip against a known vector, send, expired subscription |
+| 19 | **Phase-3 data.** `settings` gains `timer_mode` (`pomodoro` \| `flowtime`), `unlock` (`rotate` \| `trivia` \| `puzzle` \| `fact`), `journal_key`; a synced `journal` table (one row per user and day: ciphertext, iv, mood); client crypto helpers | A journal row syncs as ciphertext and decrypts on another device | unit: encrypt/decrypt; worker: journal row, settings fields |
+| 20 | **Unlocks.** After a step finished in Focus, Reward offers one unlock (UX_Flows §3.6 copy): Open Trivia DB (one question), the Lichess daily puzzle (its embeddable frame), Wikipedia "on this day" (one fact). Rotates, or the Settings default; the 90-second bar is a hint; offline or a failed fetch offers the next kind, then nothing | Each kind plays and is skippable | unit: rotation; e2e with stubbed APIs |
+| 21 | **Flowtime.** Settings choice and the per-session switch at Focus start; count-up timer; break = min(worked ÷ 5, 15 min) | A Flowtime session runs and gets the right break | unit: break length; e2e: switch, count-up |
+| 22 | **Settings + journal.** Settings: timer mode, unlock default, reminder channel (Telegram / web push with the subscribe flow and the §4 edge states). Shutdown: the optional journal line and mood tap after *You're done* | Each setting persists and syncs; a journal entry saves | e2e |
+
+### Phase 4 (sketch)
+
 - **Phase 4:** adaptive slot times, estimate vs actual replacing §4.2, weekly stale nudge, AI breakdown via Workers AI (ADR-0007).
 
 ## 11. ⚠️ Gotchas
