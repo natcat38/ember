@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { backToIt, breakLeft, endFocus, pauseFocus, resumeFocus, skipBreak, takeBreak, workLeft } from "../core/focus";
+import { useEffect, useRef, useState } from "react";
+import { backToIt, breakLeft, canSwitchMode, endFocus, isFlowtime, pauseFocus, resumeFocus, skipBreak, stopFlow, switchMode, takeBreak, workedMs, workLeft, workOver } from "../core/focus";
 import type { State } from "../core/task";
 import { catPose } from "../core/cat";
 import { Cat } from "./Cat";
@@ -12,12 +12,13 @@ interface Props {
   announce: (text: string) => void;
 }
 
-const clock = (ms: number) => {
-  const sec = Math.ceil(ms / 1000);
+// A countdown rounds up (0:01 left is still a second left); Flowtime counts up and rounds down (0:00 at the start).
+const clock = (ms: number, up = false) => {
+  const sec = up ? Math.floor(ms / 1000) : Math.ceil(ms / 1000);
   return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 };
-const spoken = (ms: number) => {
-  const sec = Math.ceil(ms / 1000);
+const spoken = (ms: number, up = false) => {
+  const sec = up ? Math.floor(ms / 1000) : Math.ceil(ms / 1000);
   return `${Math.floor(sec / 60)} minutes ${sec % 60} seconds`;
 };
 
@@ -39,16 +40,27 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
   const task = state.tasks.find((t) => t.id === chunk?.task_id);
   const parent = chunk?.parent_id ? state.chunks.find((c) => c.id === chunk.parent_id) : null;
   const left = workLeft(f, now);
+  const flow = isFlowtime(f);
   const onBreak = f.break_started_at !== null;
-  const phase = onBreak ? (breakLeft(f, now) > 0 ? "break" : "back") : left > 0 ? "work" : "prompt";
+  const phase = onBreak ? (breakLeft(f, now) > 0 ? "break" : "back") : workOver(f, now) ? "prompt" : "work";
+  const offer = `Take ${Math.round(breakLeft(f, now) / 60_000)}`; // "Take 5" in 25/5; Flowtime's break grows with the time worked
+  const canSwitch = canSwitchMode(f, now);
 
   useEffect(() => {
-    if (phase === "prompt") announce("Take 5?");
+    if (phase === "prompt") announce(`${offer}?`);
     if (phase === "back") announce("Back to it?");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- announce once per phase change, not per render
   }, [phase]);
 
   const act = (fn: (s: State, t: number) => State) => update((s) => fn(s, Date.now()));
+  // The switch leaves after its minute; a keyboard user standing on it would otherwise drop to the page body.
+  // Only on that change, never on mount, so opening Focus still lands on its heading.
+  const pause = useRef<HTMLButtonElement>(null);
+  const hadSwitch = useRef(canSwitch);
+  useEffect(() => {
+    if (hadSwitch.current && !canSwitch && document.activeElement === document.body) pause.current?.focus();
+    hadSwitch.current = canSwitch;
+  }, [canSwitch]);
   const finish = () => {
     act((s, t) => endFocus(s, t, true));
     onFinished(chunk?.title ?? "");
@@ -70,11 +82,28 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
 
         {phase === "work" && (
           <>
-            <div className="timer" role="timer" aria-label={`${spoken(left)} left`}>
-              {clock(left)}
-            </div>
+            {canSwitch && (
+              // ponytail: draft copy. The per-session switch (Wireframes.md §4); wording not yet approved.
+              <div className="mode-switch" role="group" aria-label="Timer for this session">
+                <button className="chip" aria-pressed={!flow} onClick={() => act((s, t) => switchMode(s, "pomodoro", t))}>
+                  25/5
+                </button>
+                <button className="chip" aria-pressed={flow} onClick={() => act((s, t) => switchMode(s, "flowtime", t))}>
+                  Flowtime
+                </button>
+              </div>
+            )}
+            {flow ? (
+              <div className="timer" role="timer" aria-label={`${spoken(workedMs(f, now), true)} worked`}>
+                {clock(workedMs(f, now), true)}
+              </div>
+            ) : (
+              <div className="timer" role="timer" aria-label={`${spoken(left)} left`}>
+                {clock(left)}
+              </div>
+            )}
             {f.paused_at === null ? (
-              <button className="pause" onClick={() => act(pauseFocus)}>
+              <button ref={pause} className="pause" onClick={() => act(pauseFocus)}>
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <rect x="6" y="5" width="4" height="14" rx="1" />
                   <rect x="14" y="5" width="4" height="14" rx="1" />
@@ -82,14 +111,22 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
                 Pause
               </button>
             ) : (
-              <button className="pause" onClick={() => act(resumeFocus)}>
+              <button ref={pause} className="pause" onClick={() => act(resumeFocus)}>
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M8 5l11 7-11 7z" />
                 </svg>
                 Resume
               </button>
             )}
-            <div className="actions focus-actions">
+            {flow && (
+              // ponytail: draft copy. Flowtime has no timer to run out, so the user says when to stop for a break.
+              <div className="actions focus-actions">
+                <button className="button primary" onClick={() => act(stopFlow)}>
+                  Take a break
+                </button>
+              </div>
+            )}
+            <div className={`actions focus-actions${flow ? " tight" : ""}`}>
               <button className="button" onClick={stop}>
                 Stop for now
               </button>
@@ -103,11 +140,11 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
         {phase === "prompt" && (
           <section className="focus-prompt" aria-labelledby="take5">
             <p id="take5" className="lead">
-              Take 5?
+              {offer}?
             </p>
             <div className="actions focus-actions">
               <button className="button primary" onClick={() => act((s, t) => takeBreak(s, t))}>
-                Take 5
+                {offer}
               </button>
               <button className="button" onClick={() => act((s, t) => skipBreak(s, t))}>
                 Skip break
