@@ -1,4 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAnnounce } from "./announce";
+import { refocus } from "./refocus";
 import { addPasskey, cancelled, passkeysSupported, signInWithPasskey } from "./passkeys";
 import { channelOf, disablePush, enablePush, type Me, type PushOutcome, type PushProblem } from "./push";
 
@@ -41,6 +43,7 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
   const blocks = state.hard_blocks.filter((b) => !b.deleted);
   const zones = Intl.supportedValuesOf?.("timeZone") ?? [browserTz];
   const [deviceNote, setDeviceNote] = useState<string | null>(null);
+  useAnnounce(deviceNote);
   // What the server knows about this identity (worker/me.ts); unknown offline, which shows the link button.
   const [me, setMe] = useState<Me | null>(null);
   const refreshMe = () =>
@@ -87,7 +90,9 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
       </section>
 
       <section className="section" aria-labelledby="h-blocks">
-        <h2 id="h-blocks">Hard blocks</h2>
+        <h2 id="h-blocks" tabIndex={-1}>
+          Hard blocks
+        </h2>
         <p className="empty">Hours you're already busy. Ember plans around them.</p>
         {blocks.length > 0 && (
           <ul className="list" aria-label="Hard blocks">
@@ -100,7 +105,12 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
                 <button
                   className="text-button"
                   aria-label={`Delete block ${b.label ?? ""} ${hhmm(b.start_min)}–${hhmm(b.end_min)}`.replace(/\s+/g, " ")}
-                  onClick={() => update((s) => ({ ...s, hard_blocks: s.hard_blocks.map((x) => (x.id === b.id ? { ...x, deleted: true, updated_at: Date.now() } : x)) }))}
+                  onClick={(e) => {
+                    const li = e.currentTarget.closest("li")!;
+                    const next = (li.nextElementSibling ?? li.previousElementSibling)?.querySelector<HTMLElement>("button");
+                    update((s) => ({ ...s, hard_blocks: s.hard_blocks.map((x) => (x.id === b.id ? { ...x, deleted: true, updated_at: Date.now() } : x)) }));
+                    refocus(() => next ?? document.getElementById("h-blocks"));
+                  }}
                 >
                   Delete
                 </button>
@@ -179,11 +189,7 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
             </button>
           </div>
         )}
-        {deviceNote && (
-          <p className="hint" role="status">
-            {deviceNote}
-          </p>
-        )}
+        {deviceNote && <p className="hint">{deviceNote}</p>}
       </section>
     </>
   );
@@ -220,21 +226,31 @@ const PUSH_COPY: Record<PushProblem, string | null> = {
 };
 
 function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me | null> }) {
-  const [note, setNote] = useState<ReactNode>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [problem, setProblem] = useState<PushProblem | null>(null);
   const [busy, setBusy] = useState(false);
+  // A second tap while a change is in flight is ignored. The radios stay enabled: disabling the focused one mid-tap drops focus.
+  const running = useRef(false);
   const channel = channelOf(me);
 
   const run = async (job: () => Promise<PushOutcome>) => {
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
-    const out = await job();
-    setProblem(out.ok ? null : out.problem);
-    setNote(null);
-    await refresh();
-    setBusy(false);
+    try {
+      const out = await job();
+      setProblem(out.ok ? null : out.problem);
+      setNote(null);
+      await refresh();
+    } finally {
+      running.current = false;
+      setBusy(false);
+    }
   };
   const linkTg = async () => setNote(await linkTelegram());
   const text = problem && PUSH_COPY[problem];
+  useAnnounce(text);
+  useAnnounce(note);
 
   return (
     <section className="section" aria-labelledby="h-nudges">
@@ -245,10 +261,9 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
             type="radio"
             name="send-to"
             checked={channel === "telegram"}
-            disabled={busy}
             onChange={() => {
               if (channel === "push") void run(disablePush); // the server hands the channel back to a linked chat
-              else void linkTg();
+              else if (!running.current) void linkTg();
             }}
           />
           <span>Telegram</span>
@@ -258,7 +273,6 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
             type="radio"
             name="send-to"
             checked={channel === "push"}
-            disabled={busy}
             // Inside the tap: the permission prompt is only shown for a gesture.
             onChange={() => void run(() => enablePush(me ? me.vapid_public_key : undefined))}
           />
@@ -284,21 +298,13 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
         </>
       )}
 
-      {text && (
-        <p className="hint" role="status">
-          {text}
-        </p>
-      )}
+      {text && <p className="hint">{text}</p>}
       {problem === "home_screen" && (
         <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={() => setProblem(null)}>
           Got it
         </button>
       )}
-      {note && (
-        <p className="hint" role="status">
-          {note}
-        </p>
-      )}
+      {note && <p className="hint">{note}</p>}
     </section>
   );
 }
@@ -310,16 +316,32 @@ function AddBlock({ onAdd }: { onAdd: (b: HardBlock) => void }) {
   const [to, setTo] = useState("12:00");
   const [label, setLabel] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
+  useAnnounce(problem);
+  const addButton = useRef<HTMLButtonElement>(null);
+  const form = useRef<HTMLFormElement>(null);
+  const close = () => {
+    setOpen(false);
+    refocus(() => addButton.current);
+  };
 
   if (!open)
     return (
-      <button className="button" style={{ alignSelf: "flex-start" }} onClick={() => setOpen(true)}>
+      <button
+        ref={addButton}
+        className="button"
+        style={{ alignSelf: "flex-start" }}
+        onClick={() => {
+          setOpen(true);
+          refocus(() => form.current?.querySelector("button"));
+        }}
+      >
         + Add a block
       </button>
     );
 
   return (
     <form
+      ref={form}
       className="question add-block"
       aria-label="Add a block"
       onSubmit={(e) => {
@@ -329,7 +351,7 @@ function AddBlock({ onAdd }: { onAdd: (b: HardBlock) => void }) {
         setProblem(p);
         if (p) return;
         onAdd({ ...b, id: crypto.randomUUID(), label: label.trim() || null, deleted: false, updated_at: Date.now() });
-        setOpen(false);
+        close();
         setWeekdays([]);
         setLabel("");
       }}
@@ -367,14 +389,10 @@ function AddBlock({ onAdd }: { onAdd: (b: HardBlock) => void }) {
         <span className="question-label">Name (optional)</span>
         <input className="field" value={label} onChange={(e) => setLabel(e.target.value)} autoComplete="off" />
       </label>
-      {problem && (
-        <p className="hint" role="status">
-          {problem}
-        </p>
-      )}
+      {problem && <p className="hint">{problem}</p>}
       <div className="actions">
         <button className="button primary">Save</button>
-        <button type="button" className="button" onClick={() => setOpen(false)}>
+        <button type="button" className="button" onClick={close}>
           Cancel
         </button>
       </div>

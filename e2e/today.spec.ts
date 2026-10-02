@@ -50,6 +50,7 @@ test("Not today: the next-ranked step fills the slot; Adjust shows it on every r
   await page.getByRole("button", { name: "More actions for C2" }).click();
   await page.locator("#row-C2").getByRole("button", { name: "Not today" }).click();
   await expect(rowTitles(page)).toHaveText(["C1", "C3", "A1", "A2"]);
+  await expect(page.locator(".row-link:focus")).toContainText("A1"); // focus moves to the next row, not the page body
 
   await page.reload();
   await expect(rowTitles(page)).toHaveText(["C1", "C3", "A1", "A2"]); // survives a reload

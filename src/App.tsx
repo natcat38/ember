@@ -15,6 +15,7 @@ import { closeOnBackdrop, TextDialog } from "./dialogs";
 import { FocusView } from "./Focus";
 import { sessionsDone, startFocus } from "../core/focus";
 import { addChunk, firstOpenLeaf } from "../core/chunk";
+import { AnnounceContext } from "./announce";
 import { ArrivalLine } from "./Arrival";
 import { arrivalFrom, snoozeTomorrow } from "./push";
 
@@ -411,7 +412,7 @@ export function App() {
       />
     );
 
-  return (
+  const app = (
     <div className={`app${twoPane ? " two-pane" : ""}`}>
       {showArrival && (
         <ArrivalLine
@@ -588,6 +589,7 @@ export function App() {
       </dialog>
     </div>
   );
+  return <AnnounceContext value={announce}>{app}</AnnounceContext>;
 }
 
 function Inbox({ tasks, waiting, onOpen, onRestore }: { tasks: Task[]; waiting: Task[]; onOpen: (t: Task) => void; onRestore: (t: Task) => void }) {

@@ -115,12 +115,15 @@ test("deleting a parent asks first; deleting the last smaller step makes it plai
   await expect(stepTitles(page)).toHaveText(["Outline", "O1", "O2"]);
 
   await stepMenu(page, "O1", "Delete step");
+  await expect(page.getByRole("checkbox", { name: "O2" })).toBeFocused(); // focus moves to the next step, not the page body
   await stepMenu(page, "O2", "Delete step");
   await expect(stepTitles(page)).toHaveText(["Outline"]);
+  await expect(page.getByRole("checkbox", { name: "Outline" })).toBeFocused(); // the last smaller step: its parent
   await page.getByRole("button", { name: "More actions for Outline" }).click();
   await expect(page.getByRole("dialog", { name: "Actions for Outline" }).getByRole("button", { name: "Break this step down" })).toBeVisible();
   await page.getByRole("button", { name: "Delete step" }).click();
   await expect(stepTitles(page)).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Steps" })).toBeFocused(); // nothing left to land on: the section heading
 });
 
 test("opening a task never steals focus from a field the user already moved to", async ({ page }) => {

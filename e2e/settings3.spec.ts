@@ -138,10 +138,10 @@ test.describe("iPhone Safari, not on the Home Screen", () => {
     await page.goto("/");
     await openSettings(page);
     await page.getByRole("radio", { name: "This device" }).click();
-    await expect(page.getByText("To get nudges on iPhone, add Ember to your Home Screen. Tap Share, then Add to Home Screen.")).toBeVisible();
+    await expect(page.getByRole("main").getByText("To get nudges on iPhone, add Ember to your Home Screen. Tap Share, then Add to Home Screen.")).toBeVisible();
     expect((await stubs(page)).asked).toBe(0);
     await page.getByRole("button", { name: "Got it" }).click();
-    await expect(page.getByText(/add Ember to your Home Screen/)).toHaveCount(0);
+    await expect(page.getByRole("main").getByText(/add Ember to your Home Screen/)).toHaveCount(0);
   });
 });
 

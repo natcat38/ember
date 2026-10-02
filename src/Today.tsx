@@ -4,6 +4,7 @@ import { band, confirmDay, isConfirmed, notToday, wasDueLabel as wasDue, type To
 import { Ring } from "./Reward";
 import { Cat } from "./Cat";
 import { catPose } from "../core/cat";
+import { refocus } from "./refocus";
 import { pin, type State, type Task } from "../core/task";
 
 interface Props {
@@ -67,7 +68,15 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
   const pose = useNookCat(today, !!state.days.find((d) => d.day === today)?.shutdown_at, firstOpen, welcome);
   const slipped = plan.ranked.some((t) => band(t, today) === "overdue");
 
-  const defer = (key: string) => update((s) => notToday(s, today, key));
+  // The row goes: focus moves to the next row (or the one above), else the heading.
+  const defer = (key: string) => {
+    const li = document.querySelector(`[data-row="${CSS.escape(key)}"]`);
+    const near = li?.nextElementSibling ?? li?.previousElementSibling;
+    update((s) => notToday(s, today, key));
+    refocus(() => near?.querySelector<HTMLElement>(".row-link") ?? document.querySelector<HTMLElement>("h1"));
+  };
+  // A card with its buttons goes: focus moves to the frog's Do this first, else the heading.
+  const cardGone = () => refocus(() => document.querySelector<HTMLElement>(".frog .primary") ?? document.querySelector<HTMLElement>("h1"));
   const rest = rows.filter((r) => r !== frog);
   const open = rest.filter((r) => !r.done);
   const done = rest.filter((r) => r.done);
@@ -95,7 +104,7 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
     // A smaller step names its parent; an overdue task shows its date (Wireframes.md §1).
     const second = r.parent?.title ?? (band(r.task, today) === "overdue" && r.task.deadline ? wasDue(r.task.deadline, today) : null);
     return (
-      <li key={r.key} className={`row today-row${r.done ? " done" : ""}${r.task.id === selectedId ? " selected" : ""}`}>
+      <li key={r.key} data-row={r.key} className={`row today-row${r.done ? " done" : ""}${r.task.id === selectedId ? " selected" : ""}`}>
         {r.chunk ? (
           <label className="check">
             <input type="checkbox" checked={r.done} aria-label={title(r)} onChange={(e) => update((s) => tick(s, r.chunk!.id, e.target.checked, Date.now()))} />
@@ -149,11 +158,18 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
                   onClick={() => {
                     onReset();
                     onWelcomeDone();
+                    cardGone();
                   }}
                 >
                   Reset them
                 </button>
-                <button className="button" onClick={onWelcomeDone}>
+                <button
+                  className="button"
+                  onClick={() => {
+                    onWelcomeDone();
+                    cardGone();
+                  }}
+                >
                   Leave them
                 </button>
               </div>
@@ -168,7 +184,13 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
           </p>
           <div className="actions card-actions">
             {/* Outlined: the frog's Do this first is the view's one primary button (restraint rule 2). */}
-            <button className="button" onClick={() => setConfirming(false)}>
+            <button
+              className="button"
+              onClick={() => {
+                setConfirming(false);
+                cardGone();
+              }}
+            >
               Let's go
             </button>
             <button
@@ -176,6 +198,7 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
               onClick={() => {
                 setConfirming(false);
                 setAdjusting(true);
+                cardGone();
               }}
             >
               Adjust

@@ -3,6 +3,7 @@ import { backToIt, breakLeft, canSwitchMode, endFocus, isFlowtime, pauseFocus, r
 import type { State } from "../core/task";
 import { catPose } from "../core/cat";
 import { Cat } from "./Cat";
+import { refocus } from "./refocus";
 
 interface Props {
   state: State;
@@ -52,6 +53,15 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps -- announce once per phase change, not per render
   }, [phase]);
 
+  // A phase change removes the button that had focus (Take 5, Skip break, Back to it, or the timer running out). Focus moves
+  // to the new phase's heading: the question, or the step's title while working or on a break. Never on mount.
+  const title = useRef<HTMLHeadingElement>(null);
+  const lastPhase = useRef(phase);
+  useEffect(() => {
+    if (lastPhase.current !== phase) refocus(() => (phase === "prompt" || phase === "back" ? document.getElementById(phase === "prompt" ? "take5" : "back") : title.current));
+    lastPhase.current = phase;
+  }, [phase]);
+
   const act = (fn: (s: State, t: number) => State) => update((s) => fn(s, Date.now()));
   // The switch leaves after its minute; a keyboard user standing on it would otherwise drop to the page body.
   // Only on that change, never on mount, so opening Focus still lands on its heading.
@@ -75,7 +85,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
   return (
     <>
       <div className="focus-card">
-        <h1 className="focus-title" tabIndex={-1}>
+        <h1 ref={title} className="focus-title" tabIndex={-1}>
           {chunk?.title}
         </h1>
         <p className="meta">{[task?.title, parent?.title].filter(Boolean).join(" · ")}</p>
@@ -139,7 +149,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
 
         {phase === "prompt" && (
           <section className="focus-prompt" aria-labelledby="take5">
-            <p id="take5" className="lead">
+            <p id="take5" className="lead" tabIndex={-1}>
               {offer}?
             </p>
             <div className="actions focus-actions">
@@ -167,7 +177,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
 
         {phase === "back" && (
           <section className="focus-prompt" aria-labelledby="back">
-            <p id="back" className="lead">
+            <p id="back" className="lead" tabIndex={-1}>
               Back to it?
             </p>
             <div className="actions focus-actions">

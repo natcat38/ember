@@ -52,6 +52,7 @@ test("the 25 ends: Take 5, a restful break, then Back to it? and Stop here logs 
   await expect(page.getByRole("button", { name: "I finished it" })).toBeVisible();
   await page.getByRole("button", { name: "Take 5", exact: true }).click();
   await expect(timer(page)).toHaveText("5:00");
+  await expect(page.getByRole("heading", { level: 1, name: "Tailor the opening" })).toBeFocused(); // the button is gone; focus is not on the body
   await page.clock.runFor(5 * MIN + 2000);
   await expect(page.getByRole("region", { name: "Back to it?" })).toBeVisible();
   await page.getByRole("button", { name: "Stop here" }).click();
@@ -127,4 +128,18 @@ test("an untriaged Inbox task can be started straight from its Task view", async
   await expect(page.getByRole("heading", { level: 1, name: "Find the book" })).toBeVisible();
   const s = await stored(page);
   expect(s.tasks.find((t: { title: string }) => t.title === "Return the library book").state).toBe("inbox"); // focusing doesn't triage it
+});
+
+test("the next-action dialog starts empty each time and will not submit blank", async ({ page }) => {
+  await seed(page);
+  await page.getByRole("button", { name: "Start Book dentist" }).click();
+  const ask = page.getByRole("dialog", { name: "What's the very next physical action?" });
+  await ask.getByRole("button", { name: "Start" }).click(); // blank: the dialog stays open, nothing starts
+  await expect(ask).toBeVisible();
+  await ask.getByRole("textbox").fill("Find the clinic's number");
+  await ask.getByRole("button", { name: "Cancel" }).click();
+  await expect(ask).toBeHidden();
+  await page.getByRole("button", { name: "Start Book dentist" }).click();
+  await expect(ask.getByRole("textbox")).toHaveValue(""); // typed text did not carry over
+  expect((await stored(page)).focus ?? null).toBeNull();
 });

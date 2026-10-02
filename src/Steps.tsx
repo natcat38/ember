@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { addChunk, childrenOf, deleteChunk, move, moveTo, renameChunk, setLeafStates, stateOf, tick, topLevel, type Chunk } from "../core/chunk";
 import type { State } from "../core/task";
 import { closeOnBackdrop, ConfirmDialog, TextDialog } from "./dialogs";
+import { refocus } from "./refocus";
 
 interface Props {
   state: State;
@@ -40,13 +41,21 @@ export function Steps({ state, update, taskId, onStart }: Props) {
     }
   }
 
+  // The step goes: focus moves to the next step's checkbox, else the one above, else its parent's, else the heading.
+  function deleteStep(c: Chunk) {
+    const li = document.querySelector(`[data-step="${CSS.escape(c.id)}"]`)?.closest("li");
+    const near = li?.nextElementSibling ?? li?.previousElementSibling ?? li?.parentElement?.closest("li");
+    act((s) => deleteChunk(s, c.id, Date.now()));
+    refocus(() => near?.querySelector<HTMLElement>("input[type=checkbox]") ?? document.getElementById("h-steps"));
+  }
+
   function fromMenu(fn: () => void) {
     menu.current!.close();
     fn();
   }
 
   const row = (c: Chunk) => (
-    <div className={`row step${stateOf(state, c) === "done" ? " done" : ""}`} onPointerDown={(e) => startDrag(e, c.id)}>
+    <div data-step={c.id} className={`row step${stateOf(state, c) === "done" ? " done" : ""}`} onPointerDown={(e) => startDrag(e, c.id)}>
       <label className="check">
         <input type="checkbox" checked={stateOf(state, c) === "done"} aria-label={c.title} onChange={(e) => onTick(c, e.target.checked)} />
       </label>
@@ -81,7 +90,9 @@ export function Steps({ state, update, taskId, onStart }: Props) {
 
   return (
     <section className="section" aria-labelledby="h-steps">
-      <h2 id="h-steps">Steps</h2>
+      <h2 id="h-steps" tabIndex={-1}>
+        Steps
+      </h2>
       {top.length > 0 && (
         <ul className="list">
           {top.map((c) => {
@@ -136,9 +147,7 @@ export function Steps({ state, update, taskId, onStart }: Props) {
             <button onClick={() => fromMenu(() => act((s) => move(s, menuFor.id, 1, Date.now())))}>Move down</button>
             <button onClick={() => fromMenu(() => renameDialog.current!.showModal())}>Rename</button>
             <button
-              onClick={() =>
-                fromMenu(() => (menuKids.length ? deleteDialog.current!.showModal() : act((s) => deleteChunk(s, menuFor.id, Date.now()))))
-              }
+              onClick={() => fromMenu(() => (menuKids.length ? deleteDialog.current!.showModal() : deleteStep(menuFor)))}
             >
               Delete step
             </button>
@@ -154,7 +163,7 @@ export function Steps({ state, update, taskId, onStart }: Props) {
         question={menuKids.length === 1 ? "Delete this step and its smaller step?" : `Delete this step and its ${menuKids.length} smaller steps?`}
         keep="Keep it"
         confirm="Delete"
-        onConfirm={() => menuFor && act((s) => deleteChunk(s, menuFor.id, Date.now()))}
+        onConfirm={() => menuFor && deleteStep(menuFor)}
       />
     </section>
   );

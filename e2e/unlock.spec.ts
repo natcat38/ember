@@ -191,7 +191,7 @@ test("a failed fetch says so once, with Skip, and does not retry", async ({ page
   await seed(page, "trivia");
   await finishInFocus(page);
   await page.getByRole("button", { name: "Answer a trivia question" }).click();
-  await expect(page.getByText("That didn't load. Skip it this time.")).toBeVisible();
+  await expect(page.getByRole("main").getByText("That didn't load. Skip it this time.")).toBeVisible();
   await expect(nextStep(page)).toHaveCount(0);
   await page.clock.runFor(100 * SEC);
   expect(asked).toBe(1);
@@ -206,5 +206,5 @@ test("an error from the feed counts as a failure too", async ({ page }) => {
   await seed(page, "fact");
   await finishInFocus(page);
   await page.getByRole("button", { name: "See what happened on this day" }).click();
-  await expect(page.getByText("That didn't load. Skip it this time.")).toBeVisible();
+  await expect(page.getByRole("main").getByText("That didn't load. Skip it this time.")).toBeVisible();
 });

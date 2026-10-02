@@ -36,7 +36,7 @@ test("a passkey made on one device signs another into the same list", async ({ p
 
   await settings(a);
   await a.getByRole("button", { name: "Use Ember on another device" }).click();
-  await expect(a.getByText(/On your other device, open Ember/)).toBeVisible();
+  await expect(a.getByRole("main").getByText(/On your other device, open Ember/)).toBeVisible();
   const { credentials } = await authA.cdp.send("WebAuthn.getCredentials", { authenticatorId: authA.id });
   expect(credentials).toHaveLength(1);
 

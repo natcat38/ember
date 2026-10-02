@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { band, wasDueLabel, type Today } from "../core/today";
 import { completeTask, remove, triage, type State, type Task } from "../core/task";
+import { useAnnounce } from "./announce";
+import { DateButton } from "./DateButton";
 import { ConfirmDialog } from "./dialogs";
+import { refocus } from "./refocus";
 import { Cat } from "./Cat";
 import { catPose } from "../core/cat";
 import { decryptLine, encryptLine, ensureKey, MAX_LINE_CHARS } from "./journal";
@@ -22,12 +25,18 @@ export function ShutdownView({ state, update, today, tomorrow, doneToday, canMak
   const [step, setStep] = useState(0);
   const [removing, setRemoving] = useState<Task | null>(null);
   const removeDialog = useRef<HTMLDialogElement>(null);
-  const dates = useRef<Record<string, HTMLInputElement | null>>({});
 
   // Due today or overdue, and not done.
   const urgent = state.tasks.filter((t) => (t.state === "active" || t.state === "overdue") && ["due_today", "overdue"].includes(band(t, today)));
   const n = tomorrow.rows.length;
   const now = () => Date.now();
+
+  // A task leaves the list: focus goes to the next row's first button (or the one above), else the heading.
+  const leaveRow = (id: string) => {
+    const li = document.getElementById(`urgent-${id}`);
+    const near = li?.nextElementSibling ?? li?.previousElementSibling;
+    refocus(() => near?.querySelector<HTMLElement>("button") ?? document.querySelector<HTMLElement>("h1"));
+  };
 
   const next = () => {
     setStep(step + 1);
@@ -48,38 +57,33 @@ export function ShutdownView({ state, update, today, tomorrow, doneToday, canMak
           {urgent.length > 0 && (
             <ul className="list" aria-label="Still open">
               {urgent.map((t) => (
-                <li key={t.id} className="row urgent-row">
+                <li key={t.id} id={`urgent-${t.id}`} className="row urgent-row">
                   <span>
                     {t.title}
                     <span className="meta">{band(t, today) === "overdue" && t.deadline ? wasDueLabel(t.deadline, today) : "Due today"}</span>
                   </span>
                   <div className="actions">
-                    <button className="button" onClick={() => update((s) => completeTask(s, t.id, now()))}>
-                      Done
-                    </button>
                     <button
                       className="button"
                       onClick={() => {
-                        try {
-                          dates.current[t.id]!.showPicker();
-                        } catch {
-                          dates.current[t.id]!.focus();
-                        }
+                        leaveRow(t.id);
+                        update((s) => completeTask(s, t.id, now()));
+                      }}
+                    >
+                      Done
+                    </button>
+                    <DateButton
+                      label={`Reschedule ${t.title}`}
+                      className="button"
+                      min={today}
+                      onPick={(d) => {
+                        if (!d) return;
+                        leaveRow(t.id);
+                        update((s) => triage(s, t.id, { deadline: d }, now(), today));
                       }}
                     >
                       Reschedule
-                    </button>
-                    <input
-                      ref={(el) => {
-                        dates.current[t.id] = el;
-                      }}
-                      type="date"
-                      className="date-input"
-                      tabIndex={-1}
-                      aria-hidden="true"
-                      min={today}
-                      onChange={(e) => e.target.value && update((s) => triage(s, t.id, { deadline: e.target.value }, now(), today))}
-                    />
+                    </DateButton>
                     <button
                       className="button"
                       onClick={() => {
@@ -131,7 +135,8 @@ export function ShutdownView({ state, update, today, tomorrow, doneToday, canMak
         <button className="button primary" onClick={step < 2 ? next : onClose}>
           {step < 2 ? "Next" : "Close"}
         </button>
-        <p className="dots" aria-label={`Step ${step + 1} of 3`}>
+        <p className="dots">
+          <span className="sr-only">{`Step ${step + 1} of 3`}</span>
           {[0, 1, 2].map((i) => (
             <span key={i} className={i === step ? "on" : ""} aria-hidden="true" />
           ))}
@@ -143,7 +148,11 @@ export function ShutdownView({ state, update, today, tomorrow, doneToday, canMak
         question={`Remove "${removing?.title ?? ""}" from your list?`}
         keep="Keep it"
         confirm="Remove"
-        onConfirm={() => removing && update((s) => remove(s, removing.id, now()))}
+        onConfirm={() => {
+          if (!removing) return;
+          leaveRow(removing.id);
+          update((s) => remove(s, removing.id, now()));
+        }}
       />
     </div>
   );
@@ -172,6 +181,7 @@ function Journal({ state, update, today, canMakeKey }: Pick<Props, "state" | "up
   const queue = useRef(Promise.resolve()); // saves run one after another, so an older one never lands last
   const latest = useRef(state);
   latest.current = state;
+  useAnnounce(held ? NEEDS_CONNECTION : null);
 
   // Today's saved line reopens decrypted. A line that won't decrypt (wrong key, no key yet) shows as nothing, never an error.
   useEffect(() => {
@@ -252,11 +262,7 @@ function Journal({ state, update, today, canMakeKey }: Pick<Props, "state" | "up
           </label>
         ))}
       </fieldset>
-      {held && (
-        <p className="hint" role="status">
-          {NEEDS_CONNECTION}
-        </p>
-      )}
+      {held && <p className="hint">{NEEDS_CONNECTION}</p>}
     </div>
   );
 }
