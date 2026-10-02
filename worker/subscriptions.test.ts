@@ -27,8 +27,11 @@ const call = (action: string, body: unknown, cookie?: string, e: SubscriptionEnv
     action,
   );
 
+// An empty pull makes no user (Improvement_Audit.md #34); a refused op does, and writes nothing else.
+const refusedOp = () => ({ op_id: crypto.randomUUID(), entity: "tasks", id: crypto.randomUUID(), fields: { title: "x" } });
+
 async function newUser(): Promise<{ cookie: string; uid: string }> {
-  const res = await exports.default.fetch(new Request("https://ember.test/api/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: '{"cursor":0,"ops":[]}' }));
+  const res = await exports.default.fetch(new Request("https://ember.test/api/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cursor: 0, ops: [refusedOp()] }) }));
   const cookie = res.headers.get("Set-Cookie")!.split(";")[0];
   return { cookie, uid: cookie.split("=")[1] };
 }
@@ -115,7 +118,7 @@ describe("POST /api/push/subscribe", () => {
     const planned = async (uid: string) => (await env.DB.prepare("SELECT planned_until FROM users WHERE id = ?").bind(uid).first<{ planned_until: number | null }>())!.planned_until;
     expect([await planned(a.uid), await planned(c.uid), await planned(b.uid)]).toEqual([null, null, null]);
     expect(await planned(d.uid)).toBe(9e15); // still on push: nothing changed for them
-  });
+  }, 20_000); // four subscribe calls, each making P-256 keys: near 5 s under a full parallel run
 
   it("answers 503 when VAPID is not configured, and stores nothing", async () => {
     const { cookie, uid } = await newUser();

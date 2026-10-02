@@ -45,6 +45,8 @@ export interface SyncResponse {
   cursor: number;
   changes: Change[];
   rejected: Rejected[];
+  /** Present (true) only when this request made a fresh user: a cookie the device lost, or a user retention deleted. */
+  created?: true;
 }
 
 // D1 allows 50 queries per invocation on the free plan and every statement in a db.batch() counts (Tech_Scope.md §11).

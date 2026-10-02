@@ -1,5 +1,6 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { allOps, applyChanges, createSync, diff } from "./sync";
+import type { Op } from "../worker/protocol";
 import { capture, emptyState, triage, type State } from "../core/task";
 import { addChunk, tick } from "../core/chunk";
 
@@ -124,6 +125,7 @@ test("a refused change: the server's version comes back on a full refetch, and t
   const server = { ...sample().tasks[0], state: "done", rev: 4 }; // another device finished it
   const bodies: { cursor: number; ops: unknown[] }[] = [];
   const responses = [
+    reply({ cursor: 0, changes: [], rejected: [] }), // what the server already has: nothing
     reply({ cursor: 3, changes: [], rejected: [] }), // first upload
     reply({ cursor: 5, changes: [], rejected: [{ op_id: "x", reason: "illegal_transition" }] }), // the refused edit
     reply({ cursor: 5, changes: [{ entity: "tasks", row: server }], rejected: [] }), // the refetch from 0
@@ -140,7 +142,7 @@ test("a refused change: the server's version comes back on a full refetch, and t
   engine.record(s);
   state = s;
   await engine.push();
-  expect(bodies.map((b) => b.cursor)).toEqual([0, 3, 0]);
+  expect(bodies.map((b) => b.cursor)).toEqual([0, 0, 3, 0]);
   expect(told).toBe(1);
   expect(state.tasks[0].state).toBe("done");
 });
@@ -165,12 +167,13 @@ test("a 503 from a lost server race is resent once after Retry-After; a second o
     await engine.push();
     return { calls, meta: JSON.parse(storage.getItem("ember.sync")!) };
   };
-  const won = await run([lost(), reply({ cursor: 3, changes: [], rejected: [] })]);
-  expect(won.calls).toBe(2);
+  const pull = () => reply({ cursor: 0, changes: [], rejected: [] }); // the first sync asks what the server has before uploading
+  const won = await run([pull(), lost(), reply({ cursor: 3, changes: [], rejected: [] })]);
+  expect(won.calls).toBe(3);
   expect(won.meta).toMatchObject({ cursor: 3, outbox: [], uploaded: true });
 
-  const lostTwice = await run([lost(), lost()]);
-  expect(lostTwice.calls).toBe(2);
+  const lostTwice = await run([pull(), lost(), lost()]);
+  expect(lostTwice.calls).toBe(3);
   expect(lostTwice.meta?.uploaded).not.toBe(true); // nothing marked sent: the next open, focus, reconnect or change uploads it
 });
 
@@ -188,9 +191,9 @@ test("done_at travels both ways: finishing a step sends it, a server value merge
   expect(merged.chunks[2]).toMatchObject({ state: "done", done_at: 77 });
 });
 
-// Improvement_Audit.md #1: the first upload lives only in memory, so the re-read after the first batch finds an empty
-// outbox and marks the device uploaded. `test.fails` passes while the bug is there; flip it to `test` with the fix.
-test.fails("a first upload larger than one batch sends every op", async () => {
+// Improvement_Audit.md #1: the first upload lived only in memory, so the re-read after the first batch found an empty
+// outbox and marked the device uploaded.
+test("a first upload larger than one batch sends every op", async () => {
   let s = emptyState();
   for (let i = 0; i < 45; i++) s = capture(s, { title: `Task ${i}` }, i, today, id);
   const sent: unknown[] = [];
@@ -204,4 +207,160 @@ test.fails("a first upload larger than one batch sends every op", async () => {
   });
   await engine.push();
   expect(sent).toHaveLength(46); // 45 tasks + settings
+});
+
+// A fake server for the first-sync tests: an empty pull answers `pull`; any other request is judged by `answer`.
+const ok = (cursor = 1, extra: object = {}) => reply({ cursor, changes: [], rejected: [], ...extra });
+const ids = (ops: Op[]) => ops.map((o) => `${o.entity}:${o.id}`);
+
+// Improvement_Audit.md #2: the first sync failed, then an edit queued; the next push sent only that edit and the server
+// refused it as incomplete_create, so everything before it never uploaded.
+test("a failed first sync followed by an edit still uploads everything", async () => {
+  vi.useFakeTimers();
+  const base = sample();
+  let online = false;
+  const sent: Op[] = [];
+  const engine = createSync(base, {
+    update: () => {},
+    storage: fakeStorage(),
+    fetch: (async (_url: string, init: RequestInit) => {
+      if (!online) throw new TypeError("Failed to fetch");
+      sent.push(...JSON.parse(init.body as string).ops);
+      return ok();
+    }) as typeof fetch,
+  });
+  await engine.push();
+  const edited = triage(base, "id-1", { size: "M" }, 9, today);
+  engine.record(edited);
+  online = true;
+  await engine.push();
+  vi.useRealTimers();
+  expect(ids(sent)).toEqual(expect.arrayContaining(["tasks:id-1", "chunks:id-2", "chunks:id-3", "chunks:id-4", "days:2026-10-05", "settings:me"]));
+  expect(sent.at(-1)).toMatchObject({ entity: "tasks", id: "id-1", fields: { size: "M" } }); // the edit goes after the upload
+});
+
+// Improvement_Audit.md #3: joining an identity uploaded this browser's default settings over the server's, which reset
+// its quiet hours and nulled the journal key.
+test("joining an identity keeps the server's settings and journal key, and uploads only what it lacks", async () => {
+  const key = "k".repeat(43);
+  const theirs = { ...sample().tasks[0], id: "srv-1", title: "From the server", rev: 3 };
+  const settings = { id: "me", tz: "Asia/Tokyo", quiet_start: 1200, quiet_end: 400, timer_mode: "flowtime", unlock: "rotate", journal_key: key, rev: 2 };
+  let state = sample();
+  const sent: Op[] = [];
+  const engine = createSync(state, {
+    update: (fn) => (state = fn(state)),
+    storage: fakeStorage(),
+    fetch: (async (_url: string, init: RequestInit) => {
+      const { ops } = JSON.parse(init.body as string) as { ops: Op[] };
+      if (!ops.length) return ok(3, { changes: [{ entity: "tasks", row: theirs }, { entity: "settings", row: settings }] });
+      sent.push(...ops);
+      return ok(4);
+    }) as typeof fetch,
+  });
+  engine.restart();
+  await engine.push();
+  expect(ids(sent)).not.toContain("settings:me");
+  expect(ids(sent)).not.toContain("tasks:srv-1");
+  expect(ids(sent)).toContain("tasks:id-1");
+  expect(state.settings).toMatchObject({ tz: "Asia/Tokyo", quiet_start: 1200, journal_key: key });
+  expect(state.tasks.map((t) => t.id)).toEqual(["id-1", "srv-1"]);
+});
+
+// Improvement_Audit.md #13: a 400 refuses the whole body for one bad op; the rest of the batch must still reach the server.
+test("a refused batch is halved until the one bad op is found, and only that op is dropped", async () => {
+  let s = emptyState();
+  for (let i = 0; i < 6; i++) s = capture(s, { title: i === 3 ? "bad" : `Task ${i}` }, i, today, id);
+  const applied: Op[] = [];
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+  const engine = createSync(s, {
+    update: () => {},
+    storage: fakeStorage(),
+    fetch: (async (_url: string, init: RequestInit) => {
+      const { ops } = JSON.parse(init.body as string) as { ops: Op[] };
+      if (ops.some((o) => o.fields.title === "bad")) return reply({ error: "bad_op" }, 400);
+      applied.push(...ops);
+      return ok();
+    }) as typeof fetch,
+  });
+  await engine.push();
+  errors.mockRestore();
+  expect(applied).toHaveLength(6); // 5 good tasks + settings
+  expect(applied.map((o) => o.fields.title)).not.toContain("bad");
+});
+
+// Improvement_Audit.md #14: with storage full, `record` and `push` re-read the outbox from storage and new ops vanished.
+test("with storage full, edits still reach the server", async () => {
+  vi.useFakeTimers();
+  const base = sample();
+  const full = { ...fakeStorage(), setItem: () => { throw new Error("QuotaExceededError"); } };
+  const sent: Op[] = [];
+  const engine = createSync(base, {
+    update: () => {},
+    storage: full,
+    fetch: (async (_url: string, init: RequestInit) => (sent.push(...JSON.parse(init.body as string).ops), ok())) as typeof fetch,
+  });
+  await engine.push(); // the first upload
+  sent.length = 0;
+  engine.record(triage(base, "id-1", { size: "M" }, 9, today));
+  await engine.push();
+  vi.useRealTimers();
+  expect(sent).toEqual([expect.objectContaining({ entity: "tasks", id: "id-1", fields: { size: "M", state: "active", updated_at: 9 } })]);
+});
+
+test("a push that sent every recorded change cancels the waiting debounce, so no empty request follows", async () => {
+  vi.useFakeTimers();
+  let calls = 0;
+  const engine = createSync(sample(), { update: () => {}, storage: fakeStorage(), fetch: (async () => (calls++, ok())) as typeof fetch });
+  engine.record(triage(sample(), "id-1", { size: "M" }, 9, today));
+  await engine.push();
+  const done = calls;
+  await vi.advanceTimersByTimeAsync(3000);
+  vi.useRealTimers();
+  expect(calls).toBe(done);
+});
+
+// Improvement_Audit.md #16: the server made a new user (cookie lost, or the user deleted), so this device starts over.
+test("a response saying the server made a fresh user re-uploads everything", async () => {
+  vi.useFakeTimers();
+  const base = sample();
+  let fresh = false;
+  const sent: Op[] = [];
+  const engine = createSync(base, {
+    update: () => {},
+    storage: fakeStorage(),
+    fetch: (async (_url: string, init: RequestInit) => {
+      const { ops } = JSON.parse(init.body as string) as { ops: Op[] };
+      if (ops.length && fresh) {
+        fresh = false; // the new user takes this request's ops and says so
+        return ok(1, { created: true });
+      }
+      sent.push(...ops);
+      return ok(5);
+    }) as typeof fetch,
+  });
+  await engine.push();
+  sent.length = 0;
+  fresh = true;
+  engine.record(triage(base, "id-1", { size: "M" }, 9, today));
+  await engine.push();
+  await vi.waitFor(() => expect(ids(sent)).toEqual(expect.arrayContaining(["tasks:id-1", "chunks:id-2", "settings:me"])));
+  vi.useRealTimers();
+});
+
+test("a device that uploaded before the pull-first fix sends, once, the rows the server is missing", async () => {
+  const s = sample();
+  const storage = fakeStorage();
+  storage.setItem("ember.sync", JSON.stringify({ cursor: 3, outbox: [], uploaded: true })); // no `seeded`: an old device
+  const server = { ...s.tasks[0], rev: 1 }; // the task arrived, its steps and the settings did not
+  const bodies: { cursor: number; ops: { entity: string; id: string }[] }[] = [];
+  const responses = [reply({ cursor: 3, changes: [{ entity: "tasks", row: server }], rejected: [] }), reply({ cursor: 7, changes: [], rejected: [] })];
+  const engine = createSync(s, {
+    update: () => {},
+    storage,
+    fetch: (async (_url: string, init: RequestInit) => (bodies.push(JSON.parse(init.body as string)), responses.shift()!)) as typeof fetch,
+  });
+  await engine.push();
+  expect(bodies[0]).toMatchObject({ cursor: 0, ops: [] });
+  expect(bodies[1].ops.map((o) => `${o.entity}:${o.id}`)).toEqual(["chunks:id-2", "chunks:id-3", "chunks:id-4", "days:2026-10-05", "settings:me"]);
+  expect(JSON.parse(storage.getItem("ember.sync")!)).toMatchObject({ uploaded: true, seeded: true, outbox: [] });
 });

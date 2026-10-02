@@ -8,6 +8,11 @@ function fakeStorage(init: Record<string, string> = {}) {
     m,
     getItem: (k: string) => m.get(k) ?? null,
     setItem: (k: string, v: string) => void m.set(k, v),
+    removeItem: (k: string) => void m.delete(k),
+    key: (i: number) => [...m.keys()][i] ?? null,
+    get length() {
+      return m.size;
+    },
   };
 }
 
@@ -33,6 +38,16 @@ test("unreadable data is backed up, not thrown away", () => {
   const st = fakeStorage({ [KEY]: "{not json" });
   expect(load(st, 42)).toEqual(emptyState());
   expect(st.m.get(`${KEY}.unreadable.42`)).toBe("{not json");
+});
+
+// Improvement_Audit.md #21: a full device made the park throw, so the app failed to boot; parked copies also piled up.
+test("an unreadable copy that cannot be parked still boots; only the latest parked copy is kept", () => {
+  const full = { ...fakeStorage({ [KEY]: "{not json" }), setItem: () => { throw new Error("QuotaExceededError"); } };
+  expect(load(full, 42)).toEqual(emptyState());
+
+  const st = fakeStorage({ [KEY]: "{not json", [`${KEY}.unreadable.1`]: "older", [`${KEY}.sync`]: "{}" });
+  load(st, 42);
+  expect([...st.m.keys()].sort()).toEqual([KEY, `${KEY}.sync`, `${KEY}.unreadable.42`]);
 });
 
 test("a failed write reports false instead of throwing", () => {

@@ -1,5 +1,5 @@
-import { cookieFor, resolveUser } from "./identity";
 import { json } from "./http";
+import { cookieFor, findUser, resolveUser, type Identity } from "./identity";
 import { MAX_BODY_CHARS, type Change, type Entity, type Op, type Rejected, type SyncResponse } from "./protocol";
 import { applyOp, checkOp, type Ctx, type Row } from "./rules";
 import { ENTITIES, ENTITY_NAMES, groupsOf5 } from "./schema";
@@ -15,11 +15,20 @@ export async function handleSync(request: Request, env: { DB: D1Database }): Pro
   if (!parsed.ok) return json({ error: parsed.error, detail: parsed.detail }, parsed.status);
 
   const now = Date.now();
-  const { uid } = await resolveUser(env.DB, request, now);
+  // A pull with no ops and no known user has nothing to return and nothing to attach to: answer it without writing a
+  // user row or a cookie (the first upload creates the user), so a cookie-less script cannot fill the users table.
+  let identity: Identity | null;
+  if (parsed.value.ops.length) identity = await resolveUser(env.DB, request, now);
+  else {
+    const found = await findUser(env.DB, request, now);
+    identity = found ? { uid: found, created: false } : null;
+  }
+  if (!identity) return json({ cursor: 0, changes: [], rejected: [] } satisfies SyncResponse);
+  const { uid, created } = identity;
   const headers = { "Set-Cookie": cookieFor(uid) };
   try {
     const result = await sync(env.DB, uid, parsed.value.cursor, parsed.value.ops, now);
-    return json(result, 200, headers);
+    return json(created ? { ...result, created: true } : result, 200, headers);
   } catch (e) {
     // Nothing was applied. The client keeps its outbox and sends the same op ids again; the ledger makes that safe.
     if (e instanceof SyncConflict) return json({ error: "conflict", detail: "another request changed your data first; try again" }, 503, { ...headers, "Retry-After": "1" });

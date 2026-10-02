@@ -34,16 +34,21 @@ export interface Identity {
   created: boolean;
 }
 
-// A valid cookie that names an existing user is reused and its last_seen_at refreshed in the same statement.
-// Anything else (no cookie, malformed, or a user the retention job already deleted) gets a fresh user: the client
-// never chooses its own id. Two first requests in flight at once would create two users; the client serialises its
-// first sync, so this does not arise in practice.
-export async function resolveUser(db: D1Database, request: Request, now: number): Promise<Identity> {
+// The existing user a valid cookie names, with its last_seen_at refreshed in the same statement; null for no cookie, a
+// malformed one, or a user the retention job already deleted. Writes nothing else.
+export async function findUser(db: D1Database, request: Request, now: number): Promise<string | null> {
   const presented = cookieValue(request);
-  if (presented && UID_RE.test(presented)) {
-    const row = await db.prepare("UPDATE users SET last_seen_at = ?1 WHERE id = ?2 RETURNING id").bind(now, presented).first<{ id: string }>();
-    if (row) return { uid: row.id, created: false };
-  }
+  if (!presented || !UID_RE.test(presented)) return null;
+  const row = await db.prepare("UPDATE users SET last_seen_at = ?1 WHERE id = ?2 RETURNING id").bind(now, presented).first<{ id: string }>();
+  return row?.id ?? null;
+}
+
+// A valid cookie that names an existing user is reused. Anything else (no cookie, malformed, or a user the retention
+// job already deleted) gets a fresh user: the client never chooses its own id. Two first requests in flight at once
+// would create two users; the client serialises its first sync, so this does not arise in practice.
+export async function resolveUser(db: D1Database, request: Request, now: number): Promise<Identity> {
+  const found = await findUser(db, request, now);
+  if (found) return { uid: found, created: false };
   const uid = newUserId();
   await db.prepare("INSERT INTO users (id, created_at, last_seen_at) VALUES (?1, ?2, ?2)").bind(uid, now).run();
   return { uid, created: true };
