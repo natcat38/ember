@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { tick } from "../core/chunk";
 import { band, confirmDay, isConfirmed, notToday, wasDueLabel as wasDue, type Today, type TodayRow } from "../core/today";
 import { Ring } from "./Reward";
+import { Cat } from "./Cat";
+import { catPose } from "../core/cat";
 import { pin, type State, type Task } from "../core/task";
 
 interface Props {
@@ -15,13 +17,45 @@ interface Props {
   onInbox: () => void;
   onCapture: () => void;
   welcome: boolean; // first open after 3+ days away
+  firstOpen: boolean; // the first open of this day: the cat starts asleep
   onWelcomeDone: () => void;
   onReset: () => void;
   backedUp: boolean;
 }
 
-// Wireframes.md §1. The cat joins the nook in phase 3.
-export function TodayView({ plan, state, update, today, selectedId, onOpenTask, onStart, onInbox, onCapture, welcome, onWelcomeDone, onReset, backedUp }: Props) {
+// How long the cat sleeps on the day's first open before it wakes and starts watching (UX_Flows.md §6).
+const WAKE_MS = 1500;
+// The day the cat last woke in this page load, so going Inbox then Today does not put it back to sleep.
+let wokeOn: string | null = null;
+
+// The cat's pose for the nook (UX_Flows.md §6). It wakes a moment after the day's first open; on the lapse return it
+// sits by the door until the first tap or key press after the welcome back.
+function useNookCat(today: string, shutdownDone: boolean, firstOpen: boolean, welcome: boolean) {
+  const [woken, setWoken] = useState(wokeOn === today);
+  const [tapped, setTapped] = useState(false);
+  useEffect(() => {
+    if (!firstOpen || woken) return;
+    const t = setTimeout(() => {
+      wokeOn = today;
+      setWoken(true);
+    }, WAKE_MS);
+    return () => clearTimeout(t);
+  }, [firstOpen, woken, today]);
+  useEffect(() => {
+    if (!welcome || tapped) return;
+    const done = () => setTapped(true);
+    document.addEventListener("pointerdown", done, { once: true });
+    document.addEventListener("keydown", done, { once: true });
+    return () => {
+      document.removeEventListener("pointerdown", done);
+      document.removeEventListener("keydown", done);
+    };
+  }, [welcome, tapped]);
+  return catPose({ screen: "today", shutdownDone, firstOpen: firstOpen && !woken, lapseReturn: welcome && !tapped });
+}
+
+// Wireframes.md §1.
+export function TodayView({ plan, state, update, today, selectedId, onOpenTask, onStart, onInbox, onCapture, welcome, firstOpen, onWelcomeDone, onReset, backedUp }: Props) {
   const { rows, frog, waiting, lightDay } = plan;
   // The morning confirm shows on the day's first visit to Today and never returns that day, answered or not.
   // On a lapse return the welcome back takes its place.
@@ -30,6 +64,7 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
   useEffect(() => {
     if (confirming || welcome) update((s) => confirmDay(s, today, Date.now()));
   }, [confirming, welcome, today, update]);
+  const pose = useNookCat(today, !!state.days.find((d) => d.day === today)?.shutdown_at, firstOpen, welcome);
   const slipped = plan.ranked.some((t) => band(t, today) === "overdue");
 
   const defer = (key: string) => update((s) => notToday(s, today, key));
@@ -96,6 +131,7 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
     <>
       {/* The nook (Design_Direction.md §4). Visible count is hidden from screen readers; the ring's label carries it (A4). */}
       <section className="nook" aria-label="Progress">
+        <Cat pose={pose} size={72} />
         <span className="lead" aria-hidden="true">
           {doneCount} of {rows.length} done
         </span>

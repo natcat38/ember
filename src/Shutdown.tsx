@@ -2,6 +2,8 @@ import { useRef, useState } from "react";
 import { band, wasDueLabel, type Today } from "../core/today";
 import { completeTask, remove, triage, type State, type Task } from "../core/task";
 import { ConfirmDialog } from "./dialogs";
+import { Cat } from "./Cat";
+import { catPose } from "../core/cat";
 
 interface Props {
   state: State;
@@ -110,9 +112,15 @@ export function ShutdownView({ state, update, today, tomorrow, doneToday, onClos
       )}
 
       {step === 2 && (
-        <h1 className="title" tabIndex={-1}>
-          {doneToday > 0 ? "That's it for today. You're done." : "Some days are for resting. Tomorrow's list is ready when you are."}
-        </h1>
+        <>
+          {/* The day is over: the cat falls asleep (UX_Flows.md §6). */}
+          <div className="cat-sleep" aria-hidden="true">
+            <Cat pose={catPose({ screen: "shutdown" })} size={112} />
+          </div>
+          <h1 className="title" tabIndex={-1}>
+            {doneToday > 0 ? "That's it for today. You're done." : "Some days are for resting. Tomorrow's list is ready when you are."}
+          </h1>
+        </>
       )}
 
       <div className="step-foot">
