@@ -325,9 +325,9 @@ export async function handleCallback(env: ButtonsEnv, tap: ButtonTap, bot: BotCa
       break;
     }
     default: {
-      // notToday: the day's deferred list, as the app's own button writes it. Already on it: nothing to write.
-      const deferred = await deferredToday(env.DB, ctx.user_id, today);
-      ops = deferred.includes(first.id) ? [] : [{ op_id: "", entity: "days", id: today, fields: { deferred: [...deferred, first.id] } }];
+      // notToday: the task joins the day's deferred list, in one statement (audit #17).
+      await deferToday(env.DB, ctx.user_id, today, first.id, opId(tap, 0), now);
+      ops = [];
       confirmation = COPY.notToday;
     }
   }
@@ -375,9 +375,25 @@ async function dayShape(db: D1Database, ctx: Context, withBlocks: boolean): Prom
   return { ...base, blocks: results.map((b) => ({ ...b, weekdays: JSON.parse(b.weekdays) as number[] })) };
 }
 
-async function deferredToday(db: D1Database, uid: string, today: string): Promise<string[]> {
-  const row = await db.prepare("SELECT deferred FROM days WHERE user_id = ?1 AND day = ?2").bind(uid, today).first<{ deferred: string }>();
-  return row ? (JSON.parse(row.deferred) as string[]) : [];
+// Appends one task id to the day's `deferred` JSON list, in the database, if it is not there yet. Read-modify-write
+// through sync() would lose a deferral another device synced between the read and the write; this cannot. It does what
+// sync's write does for the row (a rev from the user's bumped counter) and records the op id in the ledger. Not covered:
+// two devices that defer offline, which still resolve last-write-wins per field when both sync (ADR-0006), as in the app.
+// Statements: 3. The day has no state rules, so nothing here needs sync's checks.
+async function deferToday(db: D1Database, uid: string, day: string, taskId: string, opId: string, now: number): Promise<void> {
+  const listed = "EXISTS (SELECT 1 FROM json_each(days.deferred) WHERE value = ?3)";
+  await db.batch([
+    db.prepare("INSERT OR IGNORE INTO ops (user_id, op_id, applied_at) VALUES (?1, ?2, ?3)").bind(uid, opId, now),
+    // No bump when the task is already listed: nothing changes, so no one needs replanning or pulling.
+    db.prepare(`UPDATE users SET rev = rev + 1 WHERE id = ?1 AND NOT EXISTS (SELECT 1 FROM days WHERE user_id = ?1 AND day = ?2 AND ${listed})`).bind(uid, day, taskId),
+    db
+      .prepare(
+        `INSERT INTO days (user_id, day, deferred, rev) VALUES (?1, ?2, json_array(?3), (SELECT rev FROM users WHERE id = ?1))
+         ON CONFLICT (user_id, day) DO UPDATE SET deferred = json_insert(days.deferred, '$[#]', ?3), rev = excluded.rev
+         WHERE NOT ${listed}`,
+      )
+      .bind(uid, day, taskId),
+  ]);
 }
 
 // The confirmation for a callback whose change is already stored: the same words, from the stored values.
