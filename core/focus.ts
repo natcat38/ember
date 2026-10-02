@@ -1,4 +1,4 @@
-import { childrenOf } from "./chunk";
+import { childrenOf, setLeafStates } from "./chunk";
 import type { State, TimerMode } from "./task";
 
 // UX_Flows.md §3.5: 25/5, on the wall clock. Everything is computed from timestamps, so locking the phone,
@@ -48,9 +48,8 @@ export const breakFor = (worked: number) => Math.max(Math.min(Math.round(worked 
 type NewId = () => string;
 const uuid: NewId = () => crypto.randomUUID();
 
-function setChunk(s: State, id: string, state: "todo" | "focus" | "done", now: number): State {
-  return { ...s, chunks: s.chunks.map((c) => (c.id === id ? { ...c, state, updated_at: now } : c)) };
-}
+// Through chunk.ts's patch, so finishing a step stamps done_at and flips its parent like a tick does.
+const setChunk = (s: State, id: string, state: "todo" | "focus" | "done", now: number): State => setLeafStates(s, [id], state, now);
 
 // Log the work session in progress. A full 25 ends when the timer did, however late the user came back.
 // A Flowtime session ends when the user stopped it and counts as complete from 25 minutes worked, like a full 25.
