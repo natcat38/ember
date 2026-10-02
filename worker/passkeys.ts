@@ -6,6 +6,7 @@ import {
   type AuthenticationResponseJSON,
   type RegistrationResponseJSON,
 } from "@simplewebauthn/server";
+import { isRecord, json } from "./http";
 import { cookieFor, resolveUser } from "./identity";
 
 // Passkeys on the anonymous user (ADR-0005, Tech_Scope.md §8, slice 14). Four JSON routes on the app's own origin:
@@ -24,9 +25,6 @@ export interface PasskeyEnv {
 const RP_NAME = "Ember";
 const CHALLENGE_TTL_MS = 5 * 60_000;
 const MAX_BODY_CHARS = 16 * 1024; // an attestation with a certificate chain is a few KB; "none" is under 1 KB
-
-const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers } });
 
 // A 400 with a stable reason code. Thrown from anywhere below and turned into a response once, in handlePasskey.
 //   bad_request          the body is not the JSON shape the route takes
@@ -57,8 +55,6 @@ const siteOf = (request: Request): Site => {
   const url = new URL(request.url);
   return { rpID: url.hostname, origin: url.origin };
 };
-
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 async function readJson(request: Request): Promise<Record<string, unknown>> {
   if (Number(request.headers.get("Content-Length")) > MAX_BODY_CHARS * 4) throw new Refusal("bad_request");

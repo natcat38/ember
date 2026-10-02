@@ -1,5 +1,8 @@
+import { isRecord, json } from "./http";
 import { handleCallback, type ButtonTap } from "./buttons";
+import { CODE_RE } from "./handoff";
 import { cookieFor, newUserId, resolveUser } from "./identity";
+import { MAX_TITLE_CHARS } from "./schema";
 import { sync } from "./sync";
 
 // Telegram link and capture (Tech_Scope.md §6, slice 11). Three pieces: POST /api/tg/link makes a one-time code,
@@ -23,7 +26,6 @@ export interface TelegramEnv {
 }
 
 const LINK_TTL_MS = 15 * 60_000; // §6: the code lives 15 minutes
-const MAX_TITLE_CHARS = 500; // the tasks.title limit in schema.ts, also the capture sheet's (UX_Flows §3.1)
 const MAX_UPDATE_CHARS = 64 * 1024; // Telegram updates are a few KB; this only stops an oversized body being parsed
 
 // Reply copy. Natalie has not seen these yet; the capture one is UX_Flows §3.1's *Added*.
@@ -39,8 +41,6 @@ const COPY = {
 };
 
 const empty = (status: number) => new Response(null, { status });
-const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers } });
 
 // --- Bot API ---------------------------------------------------------------------------------------------------
 
@@ -121,8 +121,6 @@ export interface Incoming {
   text: string;
 }
 
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
-
 // Boundary validation. null = not a Telegram update at all (400); "ignored" = a well-formed update of a kind we do not
 // handle: edits, channel posts, groups, and messages without text. A button tap (callback_query) is always answered,
 // so it is kept whenever it has an id, even when it names no usable message.
@@ -173,7 +171,6 @@ export async function handleTgWebhook(request: Request, env: TelegramEnv, pathSe
 // /start, /start@bot, /start <code>. `(?=\s|$)` keeps /starting from matching.
 const START_RE = /^\/start(?:@\w+)?(?=\s|$)(?:\s+(\S+))?/;
 const COMMAND_RE = /^\/\w+(?:@\w+)?(?=\s|$)/;
-const CODE_RE = /^[A-Za-z0-9_-]{22}$/;
 
 async function handleMessage(env: TelegramEnv, { updateId, chatId, text: message }: Incoming): Promise<void> {
   const start = START_RE.exec(message);

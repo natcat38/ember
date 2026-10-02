@@ -1,3 +1,4 @@
+import { isRecord, json } from "./http";
 import { cookieFor, presentedUser, resolveUser } from "./identity";
 import { b64uDecode, MAX_SUBSCRIPTIONS, pushConfigured, type PushEnv, type PushSub } from "./push";
 
@@ -15,11 +16,7 @@ const MAX_ENDPOINT_CHARS = 2048;
 const P256DH_BYTES = 65; // uncompressed P-256 point
 const AUTH_BYTES = 16;
 
-const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers } });
 const badRequest = () => json({ error: "bad_request" }, 400);
-
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 // The server will POST to whatever endpoint is stored, so it is held to what the push services use: https on the default
 // port, a named host (no IP literal, no localhost), no embedded credentials. Not an allow-list of services: new ones
