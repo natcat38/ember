@@ -30,7 +30,7 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [ ] A screen-reader and keyboard pass over every screen. (Design_Direction §11)
 - [ ] The Focus break's breathing circle moves for 5 minutes: check against WCAG 2.2.2, the same finding as A1. (#11)
 - [ ] 320 / 375 / 414 / 768 px with no horizontal scroll on every screen.
-- [ ] Desktop: Today and Focus side by side (UX_Flows §2) is not built.
+- [ ] Desktop: Today and Focus side by side from 1180 px, built (#34). Use it on a real laptop: selection, Focus on the right, Inbox and Settings on the left.
 - [ ] The phone back gesture: built (#33); check it on a real iPhone and Android. A reload opens on Today, so the first back press after a reload from a deeper screen may do nothing visible.
 
 ## Review (known code gaps)
