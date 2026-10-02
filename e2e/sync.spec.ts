@@ -58,7 +58,7 @@ test("phase-1 data on the device is uploaded on the first sync", async ({ page, 
   const upload = synced(page);
   await page.goto("/");
   const req = (await upload).request().postDataJSON();
-  expect(req.ops.map((o: { entity: string; id: string }) => `${o.entity}:${o.id}`)).toEqual([`tasks:${tid}`, `chunks:${cid}`, "settings:me"]);
+  expect(req.ops.map((o: { entity: string; id: string }) => `${o.entity}:${o.id}`)).toEqual([`tasks:${tid}`, `chunks:${cid}`, "settings:me", "settings:me"]); // the whole row, then the zone this first open filled in
 
   // A fresh device with the same cookie pulls it down.
   const cookies = await context.cookies();

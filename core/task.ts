@@ -81,7 +81,15 @@ export interface State {
 
 export const defaultSettings = (): Settings => ({ tz: null, quiet_start: 1320, quiet_end: 480, timer_mode: "pomodoro", unlock: "rotate", journal_key: null });
 
+// Settings.tz holds the browser's real zone, so the server plans nudges on the same clock Today rolls over on. It is null
+// only until the first run fills it in here; a zone already chosen is kept.
+export const withZone = (s: State, zone: string): State => (s.settings.tz ? s : { ...s, settings: { ...s.settings, tz: zone } });
+
 export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], journal: [], sessions: [], focus: null, last_seen_at: null, onboarded: false, nudge_offered: false, settings: defaultSettings(), hard_blocks: [], draft: "" });
+
+// The server refuses a title over 500 characters with a 400 that costs the whole sync batch (worker/schema.ts), so core clamps.
+export const MAX_TITLE_CHARS = 500;
+export const clampTitle = (title: string) => title.trim().slice(0, MAX_TITLE_CHARS);
 
 export interface CaptureInput {
   title: string;
@@ -97,7 +105,7 @@ export function capture(
   today: string,
   newId: () => string = () => crypto.randomUUID(),
 ): State {
-  const title = input.title.trim();
+  const title = clampTitle(input.title);
   if (!title) return s;
   const deadline = input.deadline || null;
   const task: Task = {
@@ -145,7 +153,7 @@ export function triage(s: State, id: string, answers: TriageAnswers, now: number
 }
 
 export function rename(s: State, id: string, title: string, now: number): State {
-  const trimmed = title.trim();
+  const trimmed = clampTitle(title);
   return update(s, id, now, () => (trimmed ? { title: trimmed } : null));
 }
 

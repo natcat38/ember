@@ -36,6 +36,14 @@ test("a parent, a done step, or a deleted step can't be focused (rule 3)", () =>
   for (const id of ["p", "d", "x", "nope"]) expect(startFocus(s, id, T0)).toBe(s);
 });
 
+test("I finished it stamps done_at and finishes the parent, so a later rename doesn't bring the step back", () => {
+  let s = startFocus(base(), "p1", T0);
+  s = endFocus(s, T0 + 10 * MIN, true, ids());
+  const row = (id: string) => s.chunks.find((c) => c.id === id)!;
+  expect(row("p1")).toMatchObject({ state: "done", done_at: T0 + 10 * MIN });
+  expect(row("p")).toMatchObject({ done_at: T0 + 10 * MIN });
+});
+
 test("Done early logs a partial session and finishes the step", () => {
   let s = startFocus(base(), "a", T0);
   s = endFocus(s, T0 + 10 * MIN, true, ids());

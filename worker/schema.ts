@@ -1,3 +1,4 @@
+import { MAX_TITLE_CHARS } from "../core/task";
 import type { Entity } from "./protocol";
 
 // One table describes each synced entity: its D1 table, its key, and the fields a client may patch. The validator,
@@ -57,7 +58,7 @@ function field(check: (v: unknown) => boolean, nullable = false): Field {
 }
 
 /** The tasks.title limit: the capture sheet's (UX_Flows §3.1) and Telegram capture's too. */
-export const MAX_TITLE_CHARS = 500;
+export { MAX_TITLE_CHARS }; // one limit, in core: the client clamps to it before the server checks it
 const title = (max = MAX_TITLE_CHARS) => field((v) => typeof v === "string" && v.trim().length > 0 && v.length <= max);
 const enumOf = (values: string[], nullable = false) => field((v) => typeof v === "string" && values.includes(v), nullable);
 const date = (nullable = false) => field(isDate, nullable);

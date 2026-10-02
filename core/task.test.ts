@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { capture, emptyState, remove, rename, restore, triage } from "./task";
+import { capture, emptyState, remove, rename, restore, triage, withZone } from "./task";
 
 const now = 1_760_000_000_000;
 const today = "2026-10-05";
@@ -93,6 +93,20 @@ test("triage on a done or removed task is refused", () => {
     const s = one({ state });
     expect(triage(s, "id-1", { size: "S" }, later, today)).toBe(s);
   }
+});
+
+test("the first run stores the browser's zone; a zone already chosen is kept", () => {
+  const s = emptyState();
+  expect(s.settings.tz).toBeNull();
+  expect(withZone(s, "Europe/London").settings.tz).toBe("Europe/London");
+  const chosen = withZone(s, "Asia/Tokyo");
+  expect(withZone(chosen, "Europe/London")).toBe(chosen);
+});
+
+test("capture and rename clamp the title to the server's 500-character limit", () => {
+  const s = capture(emptyState(), { title: "y".repeat(600) }, now, today, ids());
+  expect(s.tasks[0].title).toHaveLength(500);
+  expect(rename(s, "id-1", "z".repeat(501), later).tasks[0].title).toHaveLength(500);
 });
 
 test("rename trims and ignores blank names", () => {

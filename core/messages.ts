@@ -1,6 +1,6 @@
-import { dayOf } from "./day";
+import { DAILY_CAP, DEFAULT_TZ, blockSpans, dayOf, windowLen } from "./day";
 import { sessionsDone } from "./focus";
-import { band, buildToday, slotsFor } from "./today";
+import { band, buildToday, daysBetween, slotsFor } from "./today";
 import type { State, Task } from "./task";
 
 // Tech_Scope.md §4.5: plan every message the day can want, keep the best 3, place them in slots.
@@ -24,14 +24,21 @@ export interface PlanInput {
   now?: number; // unix ms; a slot already past is not free, so a mid-day plan moves its message to the next slot
 }
 
-const DAILY_CAP = 3; // Product_Scope.md §2
 const QUIET_GAP_MS = 30 * 60_000; // no message within 30 minutes after a snooze or dismissal (UX_Flows.md §5)
-const DEFAULT_TZ = "Asia/Singapore"; // same fallback as buildToday: a null tz means "the browser's", which core cannot see
 
 // --- Local time -> unix ms ----------------------------------------------------------------------
 
-const clock = (tz: string) =>
-  new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" });
+// One formatter per zone: building one costs ~100 µs, a cached one ~1 µs, and a plan calls this a dozen times.
+const clocks = new Map<string, Intl.DateTimeFormat>();
+function clock(tz: string): Intl.DateTimeFormat {
+  let f = clocks.get(tz);
+  if (!f)
+    clocks.set(
+      tz,
+      (f = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric" })),
+    );
+  return f;
+}
 
 // How far the zone's wall clock is ahead of UTC at instant `ms`.
 function offsetMs(ms: number, tz: string): number {
@@ -54,20 +61,7 @@ export function localToMs(day: string, minutes: number, tz: string): number {
 // Exported with the two helpers below so a Telegram snooze (worker/buttons.ts) lands where the planner would put a message.
 export const slotOffsets = (len: number) => [0, Math.round(len / 2), Math.max(len - 180, 0), Math.max(len - 60, 0)];
 
-// Hard blocks as [from, to) offsets from the window start, laid out like freeMinutes so a window past midnight stays straight.
-export function blockSpans(
-  blocks: { weekdays: number[]; start_min: number; end_min: number; deleted?: boolean }[],
-  day: string,
-  windowStart: number,
-): (readonly [number, number])[] {
-  const weekday = (new Date(Date.parse(day)).getUTCDay() + 6) % 7; // 0 = Monday
-  return blocks
-    .filter((b) => !b.deleted && b.weekdays.includes(weekday))
-    .map((b) => {
-      const from = (b.start_min - windowStart + 1440) % 1440;
-      return [from, from + b.end_min - b.start_min] as const;
-    });
-}
+export { blockSpans }; // the span helper lives in core/day.ts, shared with freeMinutes; re-exported for the callers that import it from here
 
 // A slot inside a hard block moves to that block's end. Adjacent blocks chain, hence the loop.
 export function clearOfBlocks(offset: number, spans: (readonly [number, number])[]): number {
@@ -100,8 +94,8 @@ const ORDER: Record<MessageKind, number> = { deadline_day: 0, overdue: 1, mornin
 export function planDay(input: PlanInput): PlannedMessage[] {
   const { state: s, today } = input;
   const tz = s.settings.tz ?? DEFAULT_TZ;
-  const { quiet_start, quiet_end } = s.settings;
-  const len = (quiet_start - quiet_end + 1440) % 1440 || 1440; // waking window length, as in freeMinutes
+  const { quiet_end } = s.settings;
+  const len = windowLen(s.settings);
   const at = (offset: number) => localToMs(today, quiet_end + offset, tz);
 
   const snoozeOf = (t: Task): Snooze => {
@@ -182,6 +176,7 @@ export interface TextContext {
   things?: number; // morning: how many rows Today holds
   sessionsLeft?: number; // close, one task with steps: sessions still to go
   daysLeft?: number; // close, one task with steps
+  today?: string; // overdue: the local day, so a deadline before yesterday says which day it was
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
@@ -189,8 +184,21 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 // "X", "X and Y", "X, Y, and Z"
 const list = (names: string[]) => (names.length < 3 ? names.join(" and ") : `${names.slice(0, -1).join(", ")}, and ${names[names.length - 1]}`);
 
+// A batched message stays under Telegram's 4096 characters and push's 4079 bytes: three titles of about 80 characters each.
+const BATCH_TITLES = 3;
+const TITLE_CHARS = 80;
+const cut = (title: string) => (title.length > TITLE_CHARS ? `${title.slice(0, TITLE_CHARS - 1).trimEnd()}…` : title);
+
+const dueDay = new Intl.DateTimeFormat("en-GB", { weekday: "long", timeZone: "UTC" });
+const dueDate = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+// "today" for a deadline of yesterday (the message goes out the morning after); older ones name the day, as wasDueLabel does.
+function dueWhen(deadline: string | null | undefined, today: string | undefined): string {
+  const ago = deadline && today ? daysBetween(deadline, today) : 0;
+  return ago < 2 ? "today" : ago < 7 ? dueDay.format(Date.parse(deadline!)) : dueDate.format(Date.parse(deadline!));
+}
+
 // The message body. `tasks` is the message's task_ids resolved in order: the frog's task for morning, the far task for light_day.
-export function messageText(kind: MessageKind, tasks: Pick<Task, "title">[], ctx: TextContext = {}): string {
+export function messageText(kind: MessageKind, tasks: (Pick<Task, "title"> & Partial<Pick<Task, "deadline">>)[], ctx: TextContext = {}): string {
   const name = tasks[0]?.title ?? "";
   switch (kind) {
     case "morning": {
@@ -203,11 +211,15 @@ export function messageText(kind: MessageKind, tasks: Pick<Task, "title">[], ctx
     case "deadline_day":
       return `${name} is due today.`;
     case "overdue":
-      return `${name} was due today and isn't marked done. Still relevant?`;
+      return `${name} was due ${dueWhen(tasks[0]?.deadline, ctx.today)} and isn't marked done. Still relevant?`;
     case "wrap_up":
       return "Ready to wrap up?";
     case "close":
-      if (tasks.length > 1) return `A few deadlines are getting close: ${list(tasks.map((t) => t.title))}. Want to start with ${name}?`;
+      if (tasks.length > 1) {
+        const rest = tasks.length - BATCH_TITLES;
+        const shown = [...tasks.slice(0, BATCH_TITLES).map((t) => cut(t.title)), ...(rest > 0 ? [`${rest} more`] : [])];
+        return `A few deadlines are getting close: ${list(shown)}. Want to start with ${cut(name)}?`;
+      }
       if (ctx.sessionsLeft !== undefined && ctx.daysLeft !== undefined)
         return `${plural(ctx.sessionsLeft, "session")} left on ${name}, ${plural(ctx.daysLeft, "day")} to go. Want to start one now?`;
       return "This deadline's getting close. Want help breaking it down?"; // never chunked: the title is the task name

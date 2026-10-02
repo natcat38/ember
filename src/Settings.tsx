@@ -76,7 +76,7 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
         <h2 id="h-tz">Time zone</h2>
         <label className="question">
           <span className="sr-only">Time zone</span>
-          <select className="field" value={tz ?? browserTz} onChange={(e) => set({ tz: e.target.value === browserTz ? null : e.target.value })}>
+          <select className="field" value={tz ?? browserTz} onChange={(e) => set({ tz: e.target.value })}>
             {zones.map((z) => (
               <option key={z} value={z}>
                 {z.replaceAll("_", " ")}

@@ -78,6 +78,31 @@ test("moveTo rewrites only the moved row", () => {
   expect(titles(moveTo(s, "c1", 2, now))).toEqual(["B", "C", "A"]);
 });
 
+test("two devices that add a step at once get the same order: equal positions break ties by id", () => {
+  const row = (cid: string) => ({ id: cid, task_id: T, parent_id: null, title: cid, position: 4, state: "todo" as const, deleted: false, updated_at: now });
+  const ab = { ...emptyState(), chunks: [row("a"), row("b")] };
+  const ba = { ...emptyState(), chunks: [row("b"), row("a")] };
+  expect(topLevel(ab, T).map((c) => c.id)).toEqual(["a", "b"]);
+  expect(topLevel(ba, T).map((c) => c.id)).toEqual(["a", "b"]);
+});
+
+test("a gap under 1e-6 renumbers the siblings instead of halving it again", () => {
+  const row = (cid: string, position: number) => ({ id: cid, task_id: T, parent_id: null, title: cid, position, state: "todo" as const, deleted: false, updated_at: 1 });
+  const s = { ...emptyState(), chunks: [row("a", 1), row("b", 1 + 1e-7), row("c", 3)] };
+  const moved = moveTo(s, "c", 1, now); // between a and b
+  expect(topLevel(moved, T).map((c) => c.id)).toEqual(["a", "c", "b"]);
+  const p = topLevel(moved, T).map((c) => c.position);
+  expect(p[1] - p[0]).toBeGreaterThanOrEqual(1e-6);
+  expect(p[2] - p[1]).toBeGreaterThanOrEqual(1e-6);
+});
+
+test("steps are clamped to the server's 500-character title limit", () => {
+  const long = "x".repeat(600);
+  const s = addChunk(emptyState(), T, long, null, now, id);
+  expect(s.chunks[0].title).toHaveLength(500);
+  expect(get(renameChunk(s, s.chunks[0].id, `${long}y`, now), s.chunks[0].id).title).toHaveLength(500);
+});
+
 test("rename trims and ignores blank", () => {
   const s = sample();
   expect(get(renameChunk(s, "c1", " A2 ", now), "c1").title).toBe("A2");

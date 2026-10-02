@@ -1,4 +1,4 @@
-import type { State } from "./task";
+import { clampTitle, type State } from "./task";
 
 // "Step" on screen, "chunk" in code (Product_Scope.md §4). Shape matches the D1 `chunks` table (Tech_Scope.md §3).
 export type ChunkState = "todo" | "focus" | "done";
@@ -17,7 +17,10 @@ export interface Chunk {
   done_at?: number | null;
 }
 
-const byPosition = (a: Chunk, b: Chunk) => a.position - b.position;
+// Ties (two offline devices adding a step both get last + 1) break by id, so every device sorts them the same way.
+export const byPosition = (a: Chunk, b: Chunk) => a.position - b.position || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+const MIN_GAP = 1e-6; // a midpoint between neighbours closer than this loses precision after a few more moves
 
 const siblings = (s: State, task_id: string, parent_id: string | null) =>
   s.chunks.filter((c) => c.task_id === task_id && c.parent_id === parent_id && !c.deleted).sort(byPosition);
@@ -61,7 +64,7 @@ export function addChunk(
   now: number,
   newId: () => string = () => crypto.randomUUID(),
 ): State {
-  const t = title.trim();
+  const t = clampTitle(title);
   if (!t) return s;
   if (parentId) {
     const parent = s.chunks.find((c) => c.id === parentId);
@@ -106,6 +109,11 @@ export function moveTo(s: State, id: string, index: number, now: number): State 
   if (siblings(s, c.task_id, c.parent_id).indexOf(c) === i) return s;
   const before = others[i - 1]?.position;
   const after = others[i]?.position;
+  if (before !== undefined && after !== undefined && after - before < MIN_GAP) {
+    // No room left in this gap: number the whole sibling group 1, 2, 3 in its new order (one patch per moved row).
+    const order = new Map([...others.slice(0, i), c, ...others.slice(i)].map((x, n) => [x.id, n + 1]));
+    return { ...s, chunks: s.chunks.map((x) => (order.has(x.id) && order.get(x.id) !== x.position ? { ...x, position: order.get(x.id)!, updated_at: now } : x)) };
+  }
   const position =
     before === undefined ? (after ?? 1) - 1 : after === undefined ? before + 1 : (before + after) / 2;
   return patch(s, [id], now, { position });
@@ -120,7 +128,7 @@ export function move(s: State, id: string, delta: -1 | 1, now: number): State {
 }
 
 export function renameChunk(s: State, id: string, title: string, now: number): State {
-  const t = title.trim();
+  const t = clampTitle(title);
   return t ? patch(s, [id], now, { title: t }) : s;
 }
 
