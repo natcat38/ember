@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { linkTelegram } from "./Settings";
 
 // The progress ring (Design_Direction.md §4): decorative lavender on a white track. It fills in 400 ms;
 // the day's last step gets one slower 700 ms fill, and nothing more (restraint rule 6).
@@ -40,11 +41,15 @@ interface Props {
   hasNext: boolean;
   onNext: () => void;
   onToday: () => void;
+  offerNudges: boolean; // the one-time reminder offer, after the first Reward on this device (UX_Flows.md §7, step 7)
+  onOffered: () => void;
 }
 
 // Wireframes.md §5, phase-1 cut: the ring ticks, then the way on. The cat and the 90-second unlock arrive in phase 3.
-export function RewardView({ title, done, total, hasNext, onNext, onToday }: Props) {
+export function RewardView({ title, done, total, hasNext, onNext, onToday, offerNudges, onOffered }: Props) {
   const [shown, setShown] = useState(Math.max(done - 1, 0)); // start one short, so the ring visibly ticks
+  // Decided once per visit: answering the offer marks it shown, and its follow-up line must stay on screen.
+  const [offer] = useState(offerNudges);
   useEffect(() => {
     const raf = requestAnimationFrame(() => setShown(done));
     return () => cancelAnimationFrame(raf);
@@ -69,6 +74,60 @@ export function RewardView({ title, done, total, hasNext, onNext, onToday }: Pro
           </button>
         </div>
       </section>
+      {offer && <NudgeOffer onOffered={onOffered} />}
     </div>
+  );
+}
+
+// "That's a start. Want Ember to nudge you gently while it's closed?" Yes → where; Not now → where to find it later.
+// Telegram is the only channel until web push (phase 3), so "This device" isn't offered yet.
+function NudgeOffer({ onOffered }: { onOffered: () => void }) {
+  const [stage, setStage] = useState<"ask" | "where" | "later">("ask");
+  const [problem, setProblem] = useState<string | null>(null);
+  return (
+    <section className="card" aria-label="Reminders">
+      {stage === "ask" && (
+        <>
+          <p>That's a start. Want Ember to nudge you gently while it's closed?</p>
+          <div className="actions card-actions">
+            <button className="button" onClick={() => setStage("where")}>
+              Yes
+            </button>
+            <button
+              className="button"
+              onClick={() => {
+                setStage("later");
+                onOffered();
+              }}
+            >
+              Not now
+            </button>
+          </div>
+        </>
+      )}
+      {stage === "where" && (
+        <>
+          <p>Where should nudges go?</p>
+          <div className="actions card-actions">
+            <button
+              className="button"
+              onClick={async () => {
+                const why = await linkTelegram();
+                setProblem(why);
+                if (!why) onOffered();
+              }}
+            >
+              Telegram
+            </button>
+          </div>
+          {problem && (
+            <p className="hint" role="status">
+              {problem}
+            </p>
+          )}
+        </>
+      )}
+      {stage === "later" && <p>You can turn this on in Settings any time.</p>}
+    </section>
   );
 }

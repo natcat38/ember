@@ -10,10 +10,11 @@ interface FormProps {
   onSend: (input: CaptureInput) => void;
   today: string;
   showHint: boolean;
+  autoFocus?: boolean; // onboarding's first screen: the field is ready to type into (UX_Flows.md §7)
 }
 
 // The field, the Deadline and Quick chips, and Send. Used inside the phone sheet and inline on desktop.
-export function CaptureForm({ draft, onDraft, onSend, today, showHint }: FormProps) {
+export function CaptureForm({ draft, onDraft, onSend, today, showHint, autoFocus }: FormProps) {
   const [deadline, setDeadline] = useState<string | null>(null);
   const [quick, setQuick] = useState(false);
   const field = useRef<HTMLInputElement>(null);
@@ -71,6 +72,7 @@ export function CaptureForm({ draft, onDraft, onSend, today, showHint }: FormPro
             ref={field}
             className="field"
             placeholder="What's on your mind?"
+            autoFocus={autoFocus}
             autoComplete="off"
             enterKeyHint="send"
             value={draft}

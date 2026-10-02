@@ -105,3 +105,13 @@ test("sessionsDone counts completed sessions per task", () => {
   expect(sessionsDone(s)("t")).toBe(1);
   expect(sessionsDone(s)("other")).toBe(0);
 });
+
+test("a starter session runs 2 minutes, is complete at 2, and Back to it returns to 25", () => {
+  let s = startFocus(base(), "a", T0, ids(), 2 * MIN);
+  expect(workLeft(s.focus!, T0 + MIN)).toBe(MIN);
+  expect(workLeft(s.focus!, T0 + 3 * MIN)).toBe(0);
+  s = takeBreak(s, T0 + 3 * MIN, ids());
+  expect(s.sessions[0]).toMatchObject({ ended_at: T0 + 2 * MIN, completed: true });
+  s = backToIt(s, T0 + 9 * MIN);
+  expect(workLeft(s.focus!, T0 + 9 * MIN)).toBe(WORK_MS);
+});

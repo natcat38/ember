@@ -53,12 +53,14 @@ export interface State {
   sessions: Session[];
   focus: Focus | null; // the running focus session, if any
   last_seen_at: number | null; // users.last_seen_at: drives the lapse return
+  onboarded: boolean; // this device finished (or skipped) the first-run sequence, UX_Flows.md §7; never synced
+  nudge_offered: boolean; // the one-time reminder offer after the first Reward has been shown; never synced
   settings: Settings;
   hard_blocks: HardBlock[];
   draft: string; // unsent capture text, kept when the sheet closes (UX_Flows.md §3.1)
 }
 
-export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], sessions: [], focus: null, last_seen_at: null, settings: { tz: null, quiet_start: 1320, quiet_end: 480 }, hard_blocks: [], draft: "" });
+export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], sessions: [], focus: null, last_seen_at: null, onboarded: false, nudge_offered: false, settings: { tz: null, quiet_start: 1320, quiet_end: 480 }, hard_blocks: [], draft: "" });
 
 export interface CaptureInput {
   title: string;
@@ -140,4 +142,9 @@ export function pin(s: State, id: string, today: string, now: number): State {
 // Product_Scope.md §4: Done is reached from Active or Overdue, and nothing leaves it.
 export function completeTask(s: State, id: string, now: number): State {
   return update(s, id, now, (t) => (t.state === "active" || t.state === "overdue" ? { state: "done" } : null));
+}
+
+// Onboarding (UX_Flows.md §7): the picked task becomes the first Today directly, not ranked and not triaged.
+export function placeFirst(s: State, id: string, today: string, now: number): State {
+  return update(s, id, now, (t) => (t.state === "done" || t.state === "removed" ? null : { pinned_on: today }));
 }

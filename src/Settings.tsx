@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { addPasskey, cancelled, passkeysSupported, signInWithPasskey } from "./passkeys";
 
 // Settings → Telegram (Tech_Scope.md §6): a one-time link code from the server, opened in Telegram.
-async function linkTelegram(): Promise<string | null> {
+export async function linkTelegram(): Promise<string | null> {
   const tab = window.open("", "_blank"); // opened inside the tap, or the browser blocks it as a pop-up
   // ponytail: these three lines are not yet approved copy.
   const fail = (why: string) => (tab?.close(), why);

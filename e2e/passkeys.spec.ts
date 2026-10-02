@@ -46,7 +46,7 @@ test("a passkey made on one device signs another into the same list", async ({ p
   const authB = await authenticator(ctxB, b);
   await authB.cdp.send("WebAuthn.addCredential", { authenticatorId: authB.id, credential: credentials[0] });
   await b.goto("/");
-  await settings(b);
+  await b.getByRole("button", { name: "Already use Ember? Sign in" }).click(); // a fresh device opens on the first run
   await b.getByRole("button", { name: "Sign in with a passkey" }).click();
   await b.getByRole("button", { name: "Open menu" }).click();
   await b.getByRole("button", { name: "Inbox", exact: true }).click();
