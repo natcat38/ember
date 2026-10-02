@@ -6,11 +6,11 @@ export const closeOnBackdrop = (e: React.MouseEvent<HTMLDialogElement>) => e.tar
 // One text field with Cancel and a confirm button: renaming, and asking for the next action before a start.
 export function TextDialog({ dialog, label, value = "", placeholder, confirm = "Save", onSave }: { dialog: RefObject<HTMLDialogElement | null>; label: string; value?: string; placeholder?: string; confirm?: string; onSave: (title: string) => void }) {
   return (
-    <dialog ref={dialog} className="prompt" aria-label={label} onClick={closeOnBackdrop}>
+    <dialog ref={dialog} className="prompt" aria-label={label} onClick={closeOnBackdrop} onClose={(e) => e.currentTarget.querySelector("form")!.reset()}>
       <form method="dialog" className="capture-form prompt-body" onSubmit={(e) => onSave(new FormData(e.currentTarget).get("title") as string)}>
         <label className="capture-form">
           <span className="prompt-title">{label}</span>
-          <input name="title" className="field" defaultValue={value} key={value} placeholder={placeholder} autoComplete="off" />
+          <input name="title" className="field" defaultValue={value} key={value} required placeholder={placeholder} autoComplete="off" />
         </label>
         <div className="actions prompt-actions">
           <button type="button" className="button" onClick={() => dialog.current!.close()}>
