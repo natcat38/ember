@@ -54,6 +54,18 @@ test("Quick tags the task XS", async ({ page }) => {
   await expect(page.getByRole("main").getByRole("listitem")).toHaveText("Book dentistXS");
 });
 
+test("without a date picker, Deadline shows a visible, labelled date field and focuses it", async ({ page }) => {
+  await page.addInitScript(() => delete (HTMLInputElement.prototype as { showPicker?: unknown }).showPicker);
+  await page.goto("/");
+  await page.getByRole("button", { name: "What's on your mind?" }).click();
+  await page.getByRole("button", { name: "Deadline" }).click();
+  const field = page.getByLabel("Deadline", { exact: true });
+  await expect(field).toBeVisible();
+  await expect(field).toBeFocused();
+  await field.fill("2099-12-01");
+  await expect(page.getByRole("button", { name: "Due 1 Dec" })).toHaveAttribute("aria-pressed", "true");
+});
+
 test("Deadline shows the picked date and can be cleared", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "What's on your mind?" }).click();

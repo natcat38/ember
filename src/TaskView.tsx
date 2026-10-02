@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Size, State, Task, TriageAnswers } from "../core/task";
 import { formatDue } from "./Capture";
+import { DateButton } from "./DateButton";
 import { ConfirmDialog, TextDialog } from "./dialogs";
 import { Steps } from "./Steps";
 
@@ -35,7 +36,6 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
   const menu = useRef<HTMLDivElement>(null);
   const renameDialog = useRef<HTMLDialogElement>(null);
   const removeDialog = useRef<HTMLDialogElement>(null);
-  const date = useRef<HTMLInputElement>(null);
 
   function fromMenu(dialog: HTMLDialogElement) {
     menu.current!.hidePopover();
@@ -78,29 +78,9 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
               <Pill pressed={!task.deadline} onClick={() => onTriage({ deadline: null })}>
                 Not yet
               </Pill>
-              <Pill
-                ref={pickButton}
-                pressed={!!task.deadline}
-                onClick={() => {
-                  try {
-                    date.current!.showPicker();
-                  } catch {
-                    date.current!.focus();
-                  }
-                }}
-              >
+              <DateButton ref={pickButton} label="Pick a date" className="chip" pressed={!!task.deadline} value={task.deadline ?? ""} min={today} onPick={(d) => onTriage({ deadline: d || null })}>
                 {task.deadline ? formatDue(task.deadline) : "Pick a date"}
-              </Pill>
-              <input
-                ref={date}
-                type="date"
-                className="date-input"
-                tabIndex={-1}
-                aria-hidden="true"
-                min={today}
-                value={task.deadline ?? ""}
-                onChange={(e) => onTriage({ deadline: e.target.value || null })}
-              />
+              </DateButton>
             </Question>
             <Question label="Is this holding up anything else?">
               <Pill pressed={!task.holding_up} onClick={() => onTriage({ holding_up: false })}>

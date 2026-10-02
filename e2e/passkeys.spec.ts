@@ -36,7 +36,7 @@ test("a passkey made on one device signs another into the same list", async ({ p
 
   await settings(a);
   await a.getByRole("button", { name: "Use Ember on another device" }).click();
-  await expect(a.getByText(/On your other device, open Ember/)).toBeVisible();
+  await expect(a.getByRole("main").getByText(/On your other device, open Ember/)).toBeVisible();
   const { credentials } = await authA.cdp.send("WebAuthn.getCredentials", { authenticatorId: authA.id });
   expect(credentials).toHaveLength(1);
 
@@ -60,5 +60,5 @@ test("a failed sign-in says so plainly, and the device keeps its own list", asyn
   await page.goto("/");
   await settings(page);
   await page.getByRole("button", { name: "Sign in with a passkey" }).click();
-  await expect(page.getByText("That didn't sign you in. Try again, or keep using Ember on this device.").or(page.getByText("Ember can nudge you"))).toBeVisible();
+  await expect(page.getByRole("main").getByText("That didn't sign you in. Try again, or keep using Ember on this device.").or(page.getByText("Ember can nudge you"))).toBeVisible();
 });

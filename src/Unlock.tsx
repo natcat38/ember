@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { parseFact, parseTrivia, type Fact, type ServedKind, type Trivia } from "../core/unlock";
+import { useAnnounce } from "./announce";
 
 // The 90-second unlock on Reward (UX_Flows.md §3.6, Wireframes.md §5). Fetched from the browser when the user taps
 // the button, never ahead of time. Every string from the network goes in as text, never as HTML.
 
 export const UNLOCK_MS = 90_000;
 const FETCH_MS = 8_000;
+// ponytail: draft copy
+const FAILED = "That didn't load. Skip it this time.";
 
 // UX_Flows.md §3.6: the button names the unlock being served.
 export const UNLOCK_BUTTON: Record<ServedKind, string> = {
@@ -49,6 +52,7 @@ export function Unlock({ kind, today, onClose, onElapsed }: Props) {
   elapsed.current = onElapsed;
 
   useEffect(() => root.current?.focus(), []);
+  useAnnounce(got === null ? "Loading…" : got === "failed" ? FAILED : null);
 
   useEffect(() => {
     let live = true;
@@ -74,8 +78,7 @@ export function Unlock({ kind, today, onClose, onElapsed }: Props) {
   if (got === "failed") {
     return (
       <div ref={root} tabIndex={-1} className="unlock">
-        {/* ponytail: draft copy */}
-        <p role="status">That didn't load. Skip it this time.</p>
+        <p>{FAILED}</p>
         <button className="button primary" onClick={onClose}>
           Skip
         </button>
@@ -87,7 +90,7 @@ export function Unlock({ kind, today, onClose, onElapsed }: Props) {
   const closeLabel = got && got.kind === "trivia" && picked === null ? "Skip" : "Done";
   return (
     <div ref={root} tabIndex={-1} className="unlock">
-      {got === null && <p role="status">Loading…</p>}
+      {got === null && <p>Loading…</p>}
       {got?.kind === "trivia" && <TriviaBody trivia={got.trivia} picked={picked} onPick={setPicked} />}
       {got?.kind === "fact" && <FactBody fact={got.fact} />}
       {got?.kind === "puzzle" && <iframe className="unlock-puzzle" title="Lichess daily puzzle" src={PUZZLE_URL} />}

@@ -63,12 +63,22 @@ test("a packed day gets fewer slots, and the rest wait", async ({ page }) => {
   await expect(page.getByRole("button", { name: "4 more waiting. They'll come up when there's room." })).toBeVisible();
 });
 
+test("Add a block moves focus into the form, and Cancel moves it back", async ({ page }) => {
+  await seedMei(page);
+  await openSettings(page);
+  await page.getByRole("button", { name: "+ Add a block" }).click();
+  const form = page.getByRole("form", { name: "Add a block" });
+  await expect(form.getByRole("button").first()).toBeFocused();
+  await form.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("button", { name: "+ Add a block" })).toBeFocused();
+});
+
 test("a block needs a day; quiet hours move the day's start", async ({ page }) => {
   await seedMei(page);
   await openSettings(page);
   await page.getByRole("button", { name: "+ Add a block" }).click();
   await page.getByRole("form", { name: "Add a block" }).getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Pick at least one day.")).toBeVisible();
+  await expect(page.getByRole("main").getByText("Pick at least one day.")).toBeVisible();
 
   const quiet = page.getByRole("region", { name: "Quiet hours" });
   await quiet.getByLabel("To").fill("07:00");

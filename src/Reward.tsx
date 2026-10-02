@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useAnnounce } from "./announce";
+import { refocus } from "./refocus";
 import { linkTelegram } from "./Settings";
 import { Cat } from "./Cat";
 import { Unlock, UNLOCK_BUTTON } from "./Unlock";
@@ -139,13 +141,21 @@ export function RewardView({ title, done, total, hasNext, onNext, onToday, offer
 function NudgeOffer({ onOffered }: { onOffered: () => void }) {
   const [stage, setStage] = useState<"ask" | "where" | "later">("ask");
   const [problem, setProblem] = useState<string | null>(null);
+  useAnnounce(problem);
+  const card = useRef<HTMLElement>(null);
   return (
-    <section className="card" aria-label="Reminders">
+    <section ref={card} tabIndex={-1} className="card" aria-label="Reminders">
       {stage === "ask" && (
         <>
           <p>That's a start. Want Ember to nudge you gently while it's closed?</p>
           <div className="actions card-actions">
-            <button className="button" onClick={() => setStage("where")}>
+            <button
+              className="button"
+              onClick={() => {
+                setStage("where");
+                refocus(() => card.current?.querySelector("button"));
+              }}
+            >
               Yes
             </button>
             <button
@@ -153,6 +163,7 @@ function NudgeOffer({ onOffered }: { onOffered: () => void }) {
               onClick={() => {
                 setStage("later");
                 onOffered();
+                refocus(() => card.current);
               }}
             >
               Not now
@@ -175,11 +186,7 @@ function NudgeOffer({ onOffered }: { onOffered: () => void }) {
               Telegram
             </button>
           </div>
-          {problem && (
-            <p className="hint" role="status">
-              {problem}
-            </p>
-          )}
+          {problem && <p className="hint">{problem}</p>}
         </>
       )}
       {stage === "later" && <p>You can turn this on in Settings any time.</p>}
