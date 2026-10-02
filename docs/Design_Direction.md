@@ -21,7 +21,7 @@ Values measured on 2026-10-02 (OKLCH from the hex, contrast by WCAG 2.x relative
 | `--color-ink` | `#2E2A35` | `oklch(29.4% 0.020 302)` | Text, icons |
 | `--color-lavender` | `#8C7BC4` | `oklch(62.8% 0.109 294)` | **Decoration only:** the ring, the frog card's border. Never text, never under white text |
 | `--color-lavender-deep` | `#6B5BA8` | `oklch(52.2% 0.119 291)` | **Action:** primary buttons, selected pills, links, checkboxes, the focus ring |
-| `--color-peach` | `#E8A87C` | `oklch(78.2% 0.096 55)` | The cat. Nothing else |
+| `--color-peach` | `#E8A87C` | `oklch(78.2% 0.096 55)` | Unused since the cat became a raster pack (§4). Kept for the moment |
 
 Supporting neutrals (not accents; derived, never chosen per screen):
 
@@ -102,13 +102,13 @@ The nook is a lavender-tinted rounded panel (`--color-nook`, radius 22) where th
 
 | Screen | Nook | Cat pose |
 |---|---|---|
-| Today | A strip under the header: the cat on the left (72 px), *2 of 5 done* and the progress ring on the right | Watching (asleep before the first open of the day, by the door on a lapse return) |
+| Today | A strip under the header: the cat on the left (72 px), *2 of 5 done* and the progress ring on the right | Watching (asleep before the first open of the day; on a lapse return the window scene fills the nook's left side) |
 | Focus | A small nook in the bottom-right corner, faded with the rest of the chrome | Stretching: plays once when the session starts (under 5 s), then holds a still stretch pose (§11, finding A1) |
 | Reward | A 200 px circle in the centre of the screen, the ring beside it | Curled up, purring |
 
 Nowhere else. Not in Capture, Task view, Inbox, Settings, notifications, empty states, or error lines. The cat is decorative (`aria-hidden="true"`); the ring and its label carry the information.
 
-**Illustration style** (left open by `UX_Flows.md` §6, settled here): flat peach shapes with a thin soft-brown outline (`#5A4A3F`, 1.5 px at 64 px), darker peach tabby stripes, round dark eyes, two small blush dots. No mouth, no eyebrows, no text, no props, no accessories. One drawing per pose, as inline SVG, so the five states cost five small files. The mockups' drawings are the reference.
+**Illustration** (revised 2026-10-03, ADR 0009): Natalie's AI-generated orange tabby pack, soft flat illustration, cream chest and paws, pink inner ears, closed-eye smiles on the resting poses. One still and one animated WebP per pose in `public/cat/`; every pose breathes gently, stretching plays once. The earlier inline-SVG direction (flat peach, thin outline, no mouth) is retired.
 
 ## 5. Restraint rules
 
@@ -217,7 +217,7 @@ The canvas is a reference, not a spec; where they disagree, this file wins. Know
 
 | # | Finding | WCAG | Severity | Fix (applied) |
 |---|---|---|---|---|
-| A1 | The Focus cat "stretching in a slow loop" (`UX_Flows.md` §6) moves for the whole 25-minute session, next to the timer, with no way to stop it | 2.2.2 Pause, Stop, Hide | Major | The stretch plays once when the session starts (under 5 s), then holds a still pose (§4). `UX_Flows.md` §6 updated to match. |
+| A1 | The Focus cat "stretching in a slow loop" (`UX_Flows.md` §6) moves for the whole 25-minute session, next to the timer, with no way to stop it | 2.2.2 Pause, Stop, Hide | Major | The stretch plays once when the session starts (under 5 s), then holds a still pose (§4). `UX_Flows.md` §6 updated to match. **Revised 2026-10-03 (ADR 0009):** every pose now has a subtle breathing loop, off under `prefers-reduced-motion`; the stretch still plays once. |
 | A2 | Text fields and unselected pills and chips are outlined in `#CFC6E6` or `#DDD6CC`, about 1.3–1.5:1 against their background, so their edges cannot be seen by low-vision users | 1.4.11 Non-text contrast | Major | `--color-line-control` (`#8A8296`, 3.32–3.68:1) for every control outline (§2, §10). Selected pills fill lavender-deep, so the two states differ by fill as well as outline. |
 | A3 | The boards have no designed focus indicator, so the browser default would show, which is faint on oat and invisible on lavender-deep buttons | 2.4.7 Focus visible | Minor (spec gap, not a shipped bug) | 2 px lavender-deep ring at 2 px offset, shown instantly (§6, §8). The offset puts oat or white between the ring and a lavender-deep button. |
 | A4 | Today's nook shows *2 of 5 done* as text and the ring is labelled *"2 of 5 done today"*, so a screen reader says it twice | 1.3.1 (redundant announcement) | Minor | Visible text hidden from screen readers; the ring's label stays (§10). |

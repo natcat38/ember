@@ -3,8 +3,10 @@ import { expect, test, type Page } from "./fixtures";
 // Slice 17 (Tech_Scope.md §10): the cat's poses by trigger (UX_Flows.md §6) and where it appears (Design_Direction.md §4).
 test.use({ timezoneId: "Asia/Singapore" });
 
-const cat = (page: Page) => page.locator("svg.cat");
+const cat = (page: Page) => page.locator("picture.cat");
 const animations = (page: Page) => page.evaluate(() => document.getAnimations().length);
+// Which file the browser chose: the animated one when motion is allowed, the still under reduced motion (ADR 0009).
+const chosenFile = (page: Page) => cat(page).locator("img").evaluate((img) => new URL((img as HTMLImageElement).currentSrc).pathname);
 
 // Two steps on one task due today, so Today has a frog. `lastSeen` is the visit before this open; `shutdown` marks today's wrap-up.
 async function seed(page: Page, { lastSeen = "2026-10-05T08:30:00+08:00", shutdown = false } = {}) {
@@ -27,8 +29,11 @@ test("Today: the cat watches from the nook, decorative, beside the ring", async 
   await expect(cat(page)).toHaveCount(1);
   await expect(cat(page)).toHaveAttribute("data-pose", "watching");
   await expect(cat(page)).toHaveAttribute("aria-hidden", "true");
-  await expect(page.getByRole("region", { name: "Progress" }).locator("svg.cat")).toBeVisible();
-  expect((await cat(page).boundingBox())?.width).toBe(72);
+  await expect(page.getByRole("region", { name: "Progress" }).locator("picture.cat")).toBeVisible();
+  // Sized by height (Cat.tsx): 72 px tall, the width follows the drawing
+  const box = (await cat(page).boundingBox())!;
+  expect(box.height).toBeGreaterThanOrEqual(71);
+  expect(box.height).toBeLessThanOrEqual(74);
 });
 
 test("first open of the day: asleep, then it wakes and watches", async ({ page }) => {
@@ -69,9 +74,9 @@ test("Focus: the cat stretches once in the corner, then holds still", async ({ p
   await expect(cat(page)).toHaveCount(1);
   await expect(cat(page)).toHaveAttribute("data-pose", "stretching");
   await expect(page.locator(".cat-corner")).toHaveAttribute("aria-hidden", "true");
-  await expect(cat(page)).not.toHaveCSS("animation-name", "none");
-  // Under 5 s (Design_Direction.md §11, A1), and not a loop: the animation ends and nothing replaces it.
-  await expect.poll(() => animations(page), { timeout: 5000 }).toBe(0);
+  // The animated file plays once and holds its last frame (ADR 0009); there is no CSS animation to wait out.
+  expect(await chosenFile(page)).toBe("/cat/stretching.webp");
+  expect(await animations(page)).toBe(0);
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(cat(page)).toHaveAttribute("data-pose", "watching");
 });
@@ -120,15 +125,17 @@ test.describe("reduced motion", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await seed(page);
     await expect(cat(page)).toHaveAttribute("data-pose", "watching");
+    expect(await chosenFile(page)).toBe("/cat/watching-still.webp");
     expect(await animations(page)).toBe(0);
 
     await page.getByRole("button", { name: "Do this first" }).click();
     await expect(cat(page)).toHaveAttribute("data-pose", "stretching");
-    await expect(cat(page)).toHaveCSS("animation-name", "none");
+    expect(await chosenFile(page)).toBe("/cat/stretching-still.webp");
     expect(await animations(page)).toBe(0);
 
     await page.getByRole("button", { name: "Done" }).click();
     await expect(cat(page)).toHaveAttribute("data-pose", "purring");
+    expect(await chosenFile(page)).toBe("/cat/purring-still.webp");
     expect(await animations(page)).toBe(0);
   });
 });

@@ -1206,16 +1206,33 @@ textarea.field {
   }
 }
 
-/* The cat (UX_Flows.md §6, Design_Direction.md §4). Decorative; it never covers the list. */
+/* The cat (UX_Flows.md §6, Design_Direction.md §4, ADR 0009): a raster pack, one still and one animated WebP per pose.
+   The motion is baked into the file; Cat.tsx serves the still under reduced motion. Decorative; it never covers the list. */
 .cat {
   display: block;
   flex-shrink: 0;
+}
+
+.cat img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 /* Today: the cat sits on the left of the nook, 72 px, beside the count and the ring */
 .nook {
   gap: 14px;
   padding: 10px 18px 10px 10px;
+}
+
+/* The lapse return: the window scene fills the nook's left side edge to edge (UX_Flows.md §6) */
+.nook[data-pose="door"] {
+  padding: 0 18px 0 0;
+}
+
+.nook[data-pose="door"] .cat {
+  border-radius: 22px 0 0 22px;
+  overflow: hidden;
 }
 
 /* Focus: a small nook in the bottom-right corner, below the card */
@@ -1247,27 +1264,6 @@ textarea.field {
 .cat-sleep {
   display: flex;
   justify-content: center;
-}
-
-/* The stretch plays once as the session starts (about 2.4 s), then the pose holds still: a loop for the whole session
-   would fail WCAG 2.2.2 (Design_Direction.md §11, A1). Transform only. Reduced motion gets the still pose, no animation. */
-@media (prefers-reduced-motion: no-preference) {
-  .cat[data-pose="stretching"] {
-    transform-origin: 50% 100%;
-    animation: cat-stretch 2400ms var(--ease-out);
-  }
-}
-
-@keyframes cat-stretch {
-  0% {
-    transform: scaleX(0.9) translateY(2px);
-  }
-  55% {
-    transform: scaleX(1.04);
-  }
-  100% {
-    transform: none;
-  }
 }
 
 /* Flowtime (Wireframes.md §4): the per-session switch above the timer, and the "Take a break" row above Stop and Done */
