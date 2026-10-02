@@ -4,8 +4,8 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 
 ## Needs Natalie
 
-- [ ] **Production Telegram bot** (BotFather). Then set `TG_BOT_USERNAME` (var in `wrangler.jsonc`), the secrets `TG_BOT_TOKEN`, `TG_WEBHOOK_SECRET`, `TG_WEBHOOK_PATH` (see `.dev.vars.example`), and call `setWebhook` with `secret_token` and `allowed_updates: ["message", "callback_query"]`. Until then the scheduler plans but sends nothing.
-- [ ] **workers.dev subdomain**: rename `cron-telegram` before anyone installs the app (a rename breaks installed icons) and before the bot's link buttons go out (`APP_ORIGIN` in `wrangler.jsonc`).
+- [ ] **Production Telegram bot** (BotFather), then `powershell -ExecutionPolicy Bypass -File scripts\set-telegram.ps1` with the token on the clipboard: it does all of the following. It sets `TG_BOT_USERNAME` (var in `wrangler.jsonc`), the secrets `TG_BOT_TOKEN`, `TG_WEBHOOK_SECRET`, `TG_WEBHOOK_PATH` (see `.dev.vars.example`), and call `setWebhook` with `secret_token` and `allowed_updates: ["message", "callback_query"]`. Until then the scheduler plans but sends nothing.
+- [x] ~~workers.dev subdomain~~: Natalie keeps `cron-telegram` (2026-10-02). (Was: rename `cron-telegram` before anyone installs the app (a rename breaks installed icons) and before the bot's link buttons go out (`APP_ORIGIN` in `wrangler.jsonc`).)
 - [ ] **Slice 7 part 2: the 5-minute iPhone install test** (`Tech_Scope.md` §7), then the install nudge with the `#import=` handoff, or the agreed fallback.
 - [ ] **Slice 14 device check**: phone and laptop show the same list after *Use Ember on another device* / *Sign in with a passkey*. Also look at Worker CPU time on a real sign-in (free plan: 10 ms).
 - [x] ~~Onboarding~~: added as slice 16 and built (#29).
@@ -24,7 +24,7 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
   - Should a task complete by itself when its last step is ticked? (#12)
   - Should a Quick task rank without one triage tap? (#10)
 
-- [ ] **Web push keys:** run `powershell -ExecutionPolicy Bypass -File scripts\set-vapid.ps1` once, commit the `VAPID_PUBLIC_KEY` line it writes into `wrangler.jsonc`, then deploy. Until then web push is offered as *"Web push isn't set up yet."*
+- [x] ~~Web push keys~~: set 2026-10-02; the public key is committed and goes live with the next deploy. (Was: run `powershell -ExecutionPolicy Bypass -File scripts\set-vapid.ps1` once, commit the `VAPID_PUBLIC_KEY` line it writes into `wrangler.jsonc`, then deploy. Until then web push is offered as *"Web push isn't set up yet."*)
 - [ ] **Phase 3 calls** (#37–#42):
   - The two new cat drawings, **asleep** and **by the door**, are draft art (`src/Cat.tsx`). The day's last step has no bigger moment yet.
   - Journal: there's no screen to read past entries (none is specified). Want one? A line still held for its first sync when Shutdown closes is lost.

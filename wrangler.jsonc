@@ -15,10 +15,12 @@
   "vars": {
     // The app's own origin, for the link buttons in Telegram messages (Tech_Scope.md §6).
     "APP_ORIGIN": "https://ember-tasks.cron-telegram.workers.dev",
+    // The Telegram bot's username, without the @ (Tech_Scope.md §6). Empty = Telegram linking is off. scripts/set-telegram.ps1 fills it.
+    "TG_BOT_USERNAME": "",
     // Web push (slice 18, ADR-0002): the VAPID public key, base64url. Empty = web push is off. Not a secret: the browser needs
     // it to subscribe (GET /api/me returns it). The private half is the secret VAPID_PRIVATE_KEY and the contact is the
     // secret VAPID_SUBJECT (a mailto: URL); the three come from one key pair. See .dev.vars.example.
-    "VAPID_PUBLIC_KEY": ""
+    "VAPID_PUBLIC_KEY": "BK3XbT_B7wciHAaw6ov_3asLZneNYxCWXcLBrV4sJjWcaAYLO55MmFvn02l0pBT7bReNsI3lMGYswVyuJaKG4jQ"
   },
   "d1_databases": [
     {
