@@ -164,7 +164,7 @@ const MOODS = ["Rough", "Meh", "Okay", "Good", "Great"]; // mood 1-5 (UX_Flows.m
 const NEEDS_CONNECTION = "Your journal needs a connection the first time.";
 
 // The optional line and mood after "You're done" (UX_Flows.md §3.7). Never required: nothing here blocks Close. Each change
-// saves as it is made (a line when the field loses focus, a mood when tapped), as an upsert of today's `journal` row.
+// saves as it is made (a line shortly after typing stops or when the field loses focus, a mood when tapped), as an upsert of today's `journal` row.
 //
 // Key race: two devices that each make a journal key before either has seen the other's would fight over the one
 // `settings.journal_key` (last write wins), leaving one device's lines unreadable. So a device makes the key only when it
@@ -182,6 +182,9 @@ function Journal({ state, update, today, canMakeKey }: Pick<Props, "state" | "up
   const latest = useRef(state);
   latest.current = state;
   useAnnounce(held ? NEEDS_CONNECTION : null);
+  const input = useRef({ line: "", mood: null as number | null }); // what the fields show now, for a save from a timer
+  input.current = { line: line.trim(), mood };
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Today's saved line reopens decrypted. A line that won't decrypt (wrong key, no key yet) shows as nothing, never an error.
   useEffect(() => {
@@ -225,6 +228,23 @@ function Journal({ state, update, today, canMakeKey }: Pick<Props, "state" | "up
       .catch((e) => console.error("Ember journal: could not save the line", e instanceof Error ? e.name : e));
   };
 
+  // iOS Safari doesn't blur a field when a button is tapped, so a line can't wait for onBlur alone: it also saves 800 ms
+  // after the last keystroke, and when the page is hidden or this screen closes. A repeat of what's saved is skipped in `save`.
+  const saveNow = useRef(save);
+  saveNow.current = save;
+  const flush = () => {
+    clearTimeout(timer.current);
+    if (touched.current) saveNow.current(input.current);
+  };
+  useEffect(() => {
+    const hidden = () => document.visibilityState === "hidden" && flush();
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      document.removeEventListener("visibilitychange", hidden);
+      flush();
+    };
+  }, []);
+
   // A held line is saved as soon as there is a key to use or the device may make one.
   useEffect(() => {
     if (held && (key || canMakeKey)) save(held);
@@ -240,8 +260,13 @@ function Journal({ state, update, today, canMakeKey }: Pick<Props, "state" | "up
         maxLength={MAX_LINE_CHARS}
         autoComplete="off"
         value={line}
-        onChange={(e) => ((touched.current = true), setLine(e.target.value))}
-        onBlur={() => save({ line: line.trim(), mood })}
+        onChange={(e) => {
+          touched.current = true;
+          setLine(e.target.value);
+          clearTimeout(timer.current);
+          timer.current = setTimeout(flush, 800);
+        }}
+        onBlur={flush}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       />
       <fieldset className="mood">
