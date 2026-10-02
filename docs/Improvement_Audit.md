@@ -1,5 +1,7 @@
 # Improvement audit
 
+**Status (2026-10-02): 39 fixed, and #34 half fixed** (an empty cookie-less sync no longer writes; rate limiting the other routes is a call), in natcat38/ember#49 (core), #50 (worker), #51 (sync), #52 (accessibility) and #54 (UI, service worker, e2e). What each fix left open, the draft copy and the deploy steps (migration 0007, the rate-limiting call) are in `docs/Verify_List.md`.
+
 Written 2026-10-02 against `main` at fb903b5 (after the deploy, #46). Three read-only reviewers split the code (worker + migrations; core + client sync/store; UI + service worker + e2e), and the lead re-traced the top findings. Gaps already listed in `docs/Verify_List.md` are not repeated.
 
 **Confirmed** = the code path was traced end to end, or reproduced with a test or EXPLAIN. **Plausible** = the reasoning holds but it was not run. Findings are numbered once and ranked within each group, most severe first. Fixes are proposals; no application code changed. #1 has a `test.fails` in `src/sync.test.ts` that proves it (flip it to `test` with the fix).

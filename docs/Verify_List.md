@@ -4,6 +4,8 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 
 ## Needs Natalie
 
+- [ ] **Before the next deploy: apply migration 0007** (`npx wrangler d1 migrations apply DB --remote`). It adds the scheduler and button-lookup indexes from the improvement audit (#32, #33). A missing index only costs speed, but the daily read cap is the reason it exists.
+- [ ] **Rate limiting for `/api/*`: a call.** Audit #34: an empty cookie-less sync no longer writes, but `/api/tg/link` and passkey sign-in options still write a row per call, so a script could use up D1's free 100k writes a day. A dashboard WAF rule needs a zone, and Ember is on `workers.dev`, which has none. Options: a custom domain plus one WAF rule; Workers' rate-limiting binding in code (check it is on the free plan first); or accept it until there are real users.
 - [ ] **Production Telegram bot** (BotFather), then `powershell -ExecutionPolicy Bypass -File scripts\set-telegram.ps1` with the token on the clipboard: it does all of the following. It sets `TG_BOT_USERNAME` (var in `wrangler.jsonc`), the secrets `TG_BOT_TOKEN`, `TG_WEBHOOK_SECRET`, `TG_WEBHOOK_PATH` (see `.dev.vars.example`), and call `setWebhook` with `secret_token` and `allowed_updates: ["message", "callback_query"]`. Until then the scheduler plans but sends nothing.
 - [x] ~~workers.dev subdomain~~: Natalie keeps `cron-telegram` (2026-10-02). (Was: rename `cron-telegram` before anyone installs the app (a rename breaks installed icons) and before the bot's link buttons go out (`APP_ORIGIN` in `wrangler.jsonc`).)
 - [ ] **Slice 7 part 2: the 5-minute iPhone install test** (`Tech_Scope.md` §7), then the install nudge with the `#import=` handoff, or the agreed fallback.
@@ -20,8 +22,12 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
   - Bot replies: expired link, bare `/start`, unlinked chat, over 500 characters, capture refused, other commands (#18)
   - Messages: morning with an empty Today, *"X and Y"* for two batched tasks (#16)
   - Telegram buttons: *"Moved to Fri 10 Oct."*, *"Okay, not today."*, *"Already removed."*, *"That's changed since. Open Ember to see where it stands."*, *"Snoozed until tomorrow, 08:00."* (#27). Also: should the overdue message keep its *Open today / Start a session* links beside *Reschedule / Done / Remove*?
+  - Improvement audit fixes (#49, #54): overdue for an older deadline, *"Lab report was due Friday and isn't marked done. Still relevant?"* (2–6 days) and *"…was due 20 Sept…"* (a week or more); a batch of more than 3, *"A few deadlines are getting close: X, Y, Z, and 5 more. Want to start with X?"*, titles cut at 80 characters; the crash screen, *"Something went wrong"*, *"Your list is still on this device. Reload to carry on."*, *Reload*; the accessible name *"Reschedule <task title>"* on Shutdown's fallback date field (#52).
 - [ ] **Product questions:**
   - Should a task complete by itself when its last step is ticked? (#12)
+  - An overdue message for a deadline of *yesterday* still says *"was due today"* (it goes out the morning after). Keep it, or say *"yesterday"*? (#49)
+  - A journal line written on a fresh browser before it joins an existing list is sealed with that browser's key and won't decrypt after joining. Rare. Drop such lines, or re-seal them on join? (#51)
+  - Status text now shows twice for about 5 seconds: inline, and in the announcement line at the top (#52). Keep, or show it inline only and announce it off-screen?
   - Should a Quick task rank without one triage tap? (#10)
 
 - [x] ~~Web push keys~~: set 2026-10-02; the public key is committed and goes live with the next deploy. (Was: run `powershell -ExecutionPolicy Bypass -File scripts\set-vapid.ps1` once, commit the `VAPID_PUBLIC_KEY` line it writes into `wrangler.jsonc`, then deploy. Until then web push is offered as *"Web push isn't set up yet."*)
@@ -41,6 +47,8 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [ ] Desktop: Today and Focus side by side from 1180 px, built (#34). Use it on a real laptop: selection, Focus on the right, Inbox and Settings on the left.
 - [ ] Phase 3 on the deployed app: the Lichess frame embeds on the real origin; a web push arrives on desktop Chrome and, after the install test, on iPhone; the tap opens the right screen with *Not now? Snooze*.
 - [ ] **Web push CPU:** each push generates a P-256 key pair and runs ECDH (about 0.8 ms in Node). Check a real tick's CPU time against the free plan's 10 ms before more than a few users subscribe.
+- [ ] **iPhone on iOS 16** (the newest an iPhone 8 or X gets): the row menu and the Task view menu open through the `data-open` fallback (`src/menu.ts`), rewards load, and an error shows the Reload screen. (#54)
+- [ ] **Service worker** (#54): after one online visit, airplane mode and reopen shows the app; on a weak signal the cached shell appears within about 3 seconds.
 - [ ] The phone back gesture: built (#33); check it on a real iPhone and Android. A reload opens on Today, so the first back press after a reload from a deeper screen may do nothing visible.
 
 ## Review (known code gaps)
@@ -59,3 +67,10 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [ ] `/code-review high --fix`, `/simplify`, `web-design-guidelines` (ROADMAP Review stage).
 - [ ] **Snooze "tomorrow" is computed twice:** `src/push.ts` `tomorrowSlot` repeats `worker/buttons.ts` `snoozeTime("tomorrow")` (both on core slot helpers). Move `snoozeTime` into `core/messages.ts` and use it from both. (#42)
 - [ ] **A push without a task** (morning, wrap-up, batches) shows no *Not now? Snooze* line. (#42)
+- [ ] **Left open by the improvement-audit fixes** (#49–#54; `docs/Improvement_Audit.md`):
+  - A device whose cookie was lost learns it on its next edit, not on an empty pull (the edit's reply carries `created: true` and the device re-uploads). (#51)
+  - Two offline devices deferring different tasks the same day still resolve last-write-wins; the Telegram tap is atomic now. (#50)
+  - A reload within 500 ms of typing in the capture field can drop the last characters. (#54)
+  - A device with nothing local shows *Loading today.* for up to 2 s before first-run onboarding, because the session cookie is HttpOnly. (#54)
+  - The iOS 16 menu fallback has no tap-outside-to-close. (#54)
+  - `migrations/0001_init.sql` still says `days.deferred` holds chunk ids; task ids are stored too. An applied migration is never edited; Tech_Scope is correct. (#50)
