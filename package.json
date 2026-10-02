@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "wrangler types worker/worker-configuration.d.ts && tsc --noEmit && tsc --noEmit -p worker",
+    "typecheck": "wrangler types --strict-vars=false worker/worker-configuration.d.ts && tsc --noEmit && tsc --noEmit -p worker",
     "test": "vitest run",
     "e2e": "playwright test",
     "deploy": "vite build && wrangler deploy",
