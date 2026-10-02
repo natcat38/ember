@@ -66,6 +66,21 @@ test("back from a task opened over Inbox goes to Inbox", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
 });
 
+// The gesture closes the open dialog and nothing else (audit #11): the screen underneath stays, and the next back still works.
+test("back with a dialog open closes the dialog and stays on the screen", async ({ page }) => {
+  await seed(page);
+  await page.locator(".row-link", { hasText: "Draft the opening" }).first().click();
+  await page.getByRole("button", { name: "More actions for Cover letter" }).click();
+  await page.getByRole("button", { name: "Remove from list" }).click();
+  const prompt = page.getByRole("alertdialog", { name: 'Remove "Cover letter" from your list?' });
+  await expect(prompt).toBeVisible();
+  await page.goBack();
+  await expect(prompt).toBeHidden();
+  await expect(page.getByRole("button", { name: "Back" })).toBeVisible(); // still on the task
+  await page.goBack(); // no dialog now: this one goes back for real
+  await expect(today(page)).toBeVisible();
+});
+
 test("back during a running Focus session never abandons it", async ({ page }) => {
   await seed(page);
   await page.locator(".row-link", { hasText: "Draft the opening" }).first().click();

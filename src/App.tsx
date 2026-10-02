@@ -209,6 +209,13 @@ export function App() {
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
       if (skipPops.current) return void skipPops.current--;
+      // Back with a dialog open (the capture sheet, a confirm) closes just the dialog: put the entry back and stay put.
+      const dialog = Array.from(document.querySelectorAll("dialog[open]")).at(-1) as HTMLDialogElement | undefined;
+      if (dialog) {
+        dialog.close();
+        history.pushState({ stack: stack.current }, "");
+        return;
+      }
       stack.current = e.state?.stack ?? [];
       if (!locked.current) show(topOf(stack.current));
     };
