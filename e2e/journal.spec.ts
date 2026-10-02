@@ -11,6 +11,8 @@ async function toYoureDone(page: Page) {
   await page.getByRole("button", { name: "Wrap up the day" }).click();
   await page.getByRole("button", { name: "Next" }).click();
   await page.getByRole("button", { name: "Next" }).click();
+  // Next moves focus to the step heading a frame later; typing before that frame loses keystrokes on a slow CI runner.
+  await expect(page.locator("h1")).toBeFocused();
 }
 
 const synced = (page: Page) =>
