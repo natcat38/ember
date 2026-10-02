@@ -106,7 +106,12 @@ test("the cat is nowhere else: not the Task view, Inbox or Settings", async ({ p
   await expect(cat(page)).toHaveCount(0);
   await page.getByRole("button", { name: "Back" }).click();
   await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Inbox", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
+  await expect(cat(page)).toHaveCount(0);
+  await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
   await expect(cat(page)).toHaveCount(0);
 });
 

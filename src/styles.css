@@ -458,6 +458,13 @@ dialog::backdrop {
   gap: var(--space-2);
 }
 
+/* First load with nothing on the device: three row-shaped placeholders, no shimmer (Design_Direction.md §6, Loading) */
+.skeleton li {
+  height: 64px;
+  border-radius: var(--radius-row);
+  background: var(--color-done);
+}
+
 .row-button {
   width: 100%;
   border: 0;
@@ -501,6 +508,9 @@ dialog::backdrop {
 
 /* Task menu: a popover with plain buttons, not an ARIA menu (A5) */
 .menu {
+  /* Hidden until :popover-open shows it. A browser without popover (iOS before 17) drops that rule as invalid, so the
+     menu stays hidden instead of sitting on the page for good; src/menu.ts opens it there with data-open. */
+  display: none;
   position: fixed;
   inset: 60px max(var(--space-4), calc((100vw - 560px) / 2 + var(--space-3))) auto auto;
   margin: 0;
@@ -512,6 +522,11 @@ dialog::backdrop {
 }
 
 .menu:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu[data-open] {
   display: flex;
   flex-direction: column;
 }

@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { Size, State, Task, TriageAnswers } from "../core/task";
 import { formatDue } from "./Capture";
 import { DateButton } from "./DateButton";
+import { closeMenu, toggleMenu } from "./menu";
 import { ConfirmDialog, TextDialog } from "./dialogs";
+import { refocus } from "./refocus";
 import { Steps } from "./Steps";
 
 const SIZES: Size[] = ["XS", "S", "M", "L", "XL"];
@@ -38,7 +40,7 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
   const removeDialog = useRef<HTMLDialogElement>(null);
 
   function fromMenu(dialog: HTMLDialogElement) {
-    menu.current!.hidePopover();
+    closeMenu(menu.current);
     dialog.showModal();
   }
 
@@ -58,7 +60,7 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
         <h1 className="title task-title" tabIndex={-1}>
           {task.title}
         </h1>
-        <button className="icon-button" popoverTarget="task-menu" aria-label={`More actions for ${task.title}`}>
+        <button className="icon-button" popoverTarget="task-menu" onClick={() => toggleMenu("task-menu")} aria-label={`More actions for ${task.title}`}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <circle cx="5" cy="12" r="2" />
             <circle cx="12" cy="12" r="2" />
@@ -101,7 +103,13 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
         ) : (
           <section className="row" aria-label="Triage">
             <span>{summary.join(" · ")}</span>
-            <button className="text-button" onClick={() => setEditing(true)}>
+            <button
+              className="text-button"
+              onClick={() => {
+                setEditing(true);
+                refocus(() => document.querySelector<HTMLElement>("section.triage button")); // Edit is about to disappear
+              }}
+            >
               Edit
             </button>
           </section>

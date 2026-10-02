@@ -67,7 +67,16 @@ test("one thing: 'Not now' puts it alone in Today, untriaged", async ({ page }) 
   await expect(page.getByRole("region", { name: "Do this first" })).toContainText("Reply to recruiter");
 });
 
-test("closing at once skips the first run for good; a second device can go straight to sign-in", async ({ page }) => {
+test("Close with nothing captured skips the first run for good", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+  await expect(page.getByText("Nothing's lined up for today yet.")).toBeVisible();
+});
+
+test("'Already use Ember? Sign in' skips the first run for good and opens Settings, where sign-in is", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Already use Ember? Sign in" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();

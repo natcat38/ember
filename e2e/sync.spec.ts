@@ -67,3 +67,51 @@ test("phase-1 data on the device is uploaded on the first sync", async ({ page, 
   await page.getByRole("button", { name: "Sort a few from Inbox" }).click();
   await expect(page.getByRole("region", { name: "Waiting" })).toContainText("From phase one");
 });
+
+// Design_Direction.md §6 (Loading): a wiped device whose cookie survived shows placeholders, not the first-run screen,
+// until the first pull lands (audit #40). The cookie is HttpOnly, so the page learns of it only from that pull.
+test.describe("first run", () => {
+  test.use({ firstRun: true });
+
+  // First run through onboarding to a synced list, then wipe the device and reload with a slow server.
+  async function wipeWithSlowServer(page: Page, delayMs: number) {
+    await page.goto("/");
+    await page.getByRole("textbox", { name: "Capture a thought" }).fill("Cover letter");
+    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: "That's it for now" }).click();
+    await page.getByRole("button", { name: "Not now" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+    await page.waitForFunction(() => {
+      const m = JSON.parse(localStorage.getItem("ember.sync") ?? "{}");
+      return m.uploaded && m.outbox?.length === 0;
+    });
+    await page.waitForTimeout(300);
+    await page.route("**/api/sync", async (route) => {
+      await new Promise((r) => setTimeout(r, delayMs));
+      await route.continue();
+    });
+    await Promise.all([page.waitForEvent("load"), page.evaluate(() => (localStorage.clear(), location.reload()))]);
+  }
+  const welcome = (page: Page) => page.getByRole("heading", { name: "Welcome to Ember" });
+
+  test("a returning user sees 'Loading today.' placeholders, never onboarding, while the list comes back", async ({ page }) => {
+    await wipeWithSlowServer(page, 1000);
+    await expect(page.getByRole("heading", { level: 1, name: "Loading today." })).toBeAttached();
+    await expect(welcome(page)).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+    await expect(page.getByText("Cover letter").first()).toBeVisible();
+    await expect(welcome(page)).toHaveCount(0);
+  });
+
+  test("onboarding steps aside when a pulled list arrives while they are typing", async ({ page }) => {
+    await wipeWithSlowServer(page, 3500); // longer than the placeholders last, so onboarding shows first
+    await page.getByRole("textbox", { name: "Capture a thought" }).fill("Typed while waiting");
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText("Cover letter").first()).toBeVisible();
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await page.getByRole("button", { name: "Inbox", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Needs sorting" })).toContainText("Typed while waiting"); // what they typed stays on the list
+    await expect(welcome(page)).toHaveCount(0);
+  });
+});

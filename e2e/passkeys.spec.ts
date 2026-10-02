@@ -55,10 +55,18 @@ test("a passkey made on one device signs another into the same list", async ({ p
   await ctxB.close();
 });
 
-test("a failed sign-in says so plainly, and the device keeps its own list", async ({ page, context }) => {
-  await authenticator(context, page); // empty: no passkey to offer
+test("a failed sign-in says so plainly, and the device keeps its own list", async ({ page }) => {
+  // The server refuses. (An authenticator with no passkey is a dismissed sheet, which says nothing: see `cancelled`.)
+  await page.route("**/api/passkey/login/options", (route) => route.fulfill({ status: 500, body: "{}" }));
   await page.goto("/");
+  await page.getByRole("button", { name: "What's on your mind?" }).click();
+  await page.getByRole("textbox", { name: "Capture a thought" }).fill("Kept on this device");
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Close" }).click();
   await settings(page);
   await page.getByRole("button", { name: "Sign in with a passkey" }).click();
-  await expect(page.getByRole("main").getByText("That didn't sign you in. Try again, or keep using Ember on this device.").or(page.getByText("Ember can nudge you"))).toBeVisible();
+  await expect(page.getByRole("main").getByText("That didn't sign you in. Try again, or keep using Ember on this device.")).toBeVisible();
+  await page.getByRole("button", { name: "Open menu" }).click();
+  await page.getByRole("button", { name: "Inbox", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Needs sorting" })).toContainText("Kept on this device"); // the device keeps its own list
 });

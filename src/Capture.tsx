@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MAX_TITLE_CHARS, type CaptureInput } from "../core/task";
 import { DateButton } from "./DateButton";
 
@@ -20,13 +20,47 @@ export function CaptureForm({ draft, onDraft, onSend, today, showHint, autoFocus
   const [quick, setQuick] = useState(false);
   const field = useRef<HTMLInputElement>(null);
 
+  // The text lives here while it is typed. Handing every keystroke to the app would rebuild Today, rewrite all of
+  // localStorage and re-diff for sync each time (audit #30), so App gets it 500 ms after typing stops, on blur, when the
+  // page is hidden, and on unmount.
+  const [text, setText] = useState(draft);
+  const typed = useRef(draft); // the latest text, readable from a timer
+  const known = useRef(draft); // the text App last had
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const hand = useRef(onDraft);
+  hand.current = onDraft;
+  const flush = () => {
+    clearTimeout(timer.current);
+    if (typed.current === known.current) return;
+    known.current = typed.current;
+    hand.current(typed.current);
+  };
+  // A draft that changes under us (another tab saved, a send cleared it) replaces what is shown.
+  useEffect(() => {
+    if (draft === known.current) return;
+    clearTimeout(timer.current);
+    known.current = typed.current = draft;
+    setText(draft);
+  }, [draft]);
+  useEffect(() => {
+    const hidden = () => document.visibilityState === "hidden" && flush();
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      document.removeEventListener("visibilitychange", hidden);
+      flush();
+    };
+  }, []);
+
   return (
     <form
       className="capture-form"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!draft.trim()) return;
-        onSend({ title: draft, deadline, quick });
+        if (!text.trim()) return;
+        clearTimeout(timer.current);
+        typed.current = known.current = ""; // the send clears App's draft
+        setText("");
+        onSend({ title: text, deadline, quick });
         setDeadline(null);
         setQuick(false);
         field.current!.focus();
@@ -58,8 +92,14 @@ export function CaptureForm({ draft, onDraft, onSend, today, showHint, autoFocus
             autoComplete="off"
             maxLength={MAX_TITLE_CHARS}
             enterKeyHint="send"
-            value={draft}
-            onChange={(e) => onDraft(e.target.value)}
+            value={text}
+            onChange={(e) => {
+              typed.current = e.target.value;
+              setText(e.target.value);
+              clearTimeout(timer.current);
+              timer.current = setTimeout(flush, 500);
+            }}
+            onBlur={flush}
           />
         </label>
         <button type="submit" className="send" aria-label="Send">

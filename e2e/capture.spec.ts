@@ -40,6 +40,15 @@ test("unsent text is kept as a draft when the sheet closes, even across a reload
   await expect(page.getByRole("textbox", { name: "Capture a thought" })).toHaveValue("half a thought");
 });
 
+// Typing stays inside the form; the app's saved state only gets the text once typing pauses (audit #30).
+test("a draft reaches saved state after typing pauses, not on every keystroke", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "What's on your mind?" }).click();
+  await page.getByRole("textbox", { name: "Capture a thought" }).fill("typing away");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("ember")!).draft)).toBe("");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("ember")!).draft)).toBe("typing away");
+});
+
 test("Quick tags the task XS", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "What's on your mind?" }).click();

@@ -144,6 +144,16 @@ test("the bar fills by transform only; under reduced motion it is hidden and the
   await page.getByRole("button", { name: "See what happened on this day" }).click();
   await expect(page.locator(".unlock-bar-fill")).toHaveCSS("animation-name", "unlock-fill");
   await expect(page.locator(".unlock-bar-fill")).toHaveCSS("animation-duration", "90s");
+  // "Transform only": every property the keyframes animate is `transform` (no width, which would reflow each frame).
+  const animated = await page.evaluate(() => {
+    const props = new Set<string>();
+    for (const sheet of Array.from(document.styleSheets))
+      for (const rule of Array.from(sheet.cssRules))
+        if (rule instanceof CSSKeyframesRule && rule.name === "unlock-fill")
+          for (const frame of Array.from(rule.cssRules)) for (const p of Array.from((frame as CSSKeyframeRule).style)) props.add(p);
+    return [...props];
+  });
+  expect(animated).toEqual(["transform"]);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.locator(".unlock-bar")).toBeHidden();

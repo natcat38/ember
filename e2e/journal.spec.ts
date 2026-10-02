@@ -11,6 +11,8 @@ async function toYoureDone(page: Page) {
   await page.getByRole("button", { name: "Wrap up the day" }).click();
   await page.getByRole("button", { name: "Next" }).click();
   await page.getByRole("button", { name: "Next" }).click();
+  // Next moves focus to the step heading a frame later; typing before that frame loses keystrokes on a slow CI runner.
+  await expect(page.locator("h1")).toBeFocused();
 }
 
 const synced = (page: Page) =>
@@ -54,6 +56,26 @@ test.describe("online", () => {
     await toYoureDone(page);
     await expect(page.getByRole("textbox", { name: "One line about today" })).toHaveValue(LINE);
     await expect(page.getByRole("radio", { name: "Good" })).toBeChecked();
+  });
+
+  // iOS Safari doesn't blur a field when a button is tapped (audit #10), so neither of these may rely on a blur.
+  test("a typed line saves on its own, without leaving the field", async ({ page }) => {
+    await page.goto("/");
+    await synced(page);
+    await toYoureDone(page);
+    await page.getByRole("textbox", { name: "One line about today" }).pressSequentially(LINE);
+    await expect(page.getByRole("textbox", { name: "One line about today" })).toBeFocused();
+    await expect.poll(async () => (await stored(page)).journal.length).toBe(1);
+  });
+
+  test("closing the screen with no blur still saves the line", async ({ page }) => {
+    await page.goto("/");
+    await synced(page);
+    await toYoureDone(page);
+    await page.getByRole("textbox", { name: "One line about today" }).fill(LINE);
+    await page.evaluate(() => (document.querySelector(".step-foot .button") as HTMLElement).click()); // a script click moves no focus
+    await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+    await expect.poll(async () => (await stored(page)).journal.length).toBe(1);
   });
 
   test("a mood alone is enough, and skipping both leaves nothing behind", async ({ page }) => {

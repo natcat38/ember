@@ -4,6 +4,7 @@ import { band, confirmDay, isConfirmed, notToday, wasDueLabel as wasDue, type To
 import { Ring } from "./Reward";
 import { Cat } from "./Cat";
 import { catPose } from "../core/cat";
+import { closeMenu, toggleMenu } from "./menu";
 import { refocus } from "./refocus";
 import { pin, type State, type Task } from "../core/task";
 
@@ -274,12 +275,15 @@ function placeBelow(button: HTMLElement, id: string) {
 
 function RowMenu({ id, label, onNotToday, onOpen }: { id: string; label: string; onNotToday: () => void; onOpen: () => void }) {
   const close = (fn: () => void) => () => {
-    document.getElementById(id)?.hidePopover();
+    closeMenu(document.getElementById(id));
     fn();
   };
   return (
     <>
-      <button className="icon-button" popoverTarget={id} aria-label={`More actions for ${label}`} onClick={(e) => placeBelow(e.currentTarget, id)}>
+      <button className="icon-button" popoverTarget={id} aria-label={`More actions for ${label}`} onClick={(e) => {
+          placeBelow(e.currentTarget, id);
+          toggleMenu(id);
+        }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="5" cy="12" r="1.8" />
           <circle cx="12" cy="12" r="1.8" />
