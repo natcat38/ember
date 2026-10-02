@@ -210,7 +210,9 @@ export function createSync(initial: State, { update, storage = localStorage, fet
     busy = true;
     try {
       meta = readMeta();
-      if (!meta.seeded && !meta.uploaded) await firstPull(); // a device synced before `seeded` existed has uploaded already
+      // Also once on a device that uploaded before `seeded` existed: its first upload may have stopped after 38 ops
+      // (Improvement_Audit.md #1), and the pull-first pass sends whatever the server is still missing.
+      if (!meta.seeded) await firstPull();
       let refetch = false;
       let raced = false;
       do {

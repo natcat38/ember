@@ -346,3 +346,21 @@ test("a response saying the server made a fresh user re-uploads everything", asy
   await vi.waitFor(() => expect(ids(sent)).toEqual(expect.arrayContaining(["tasks:id-1", "chunks:id-2", "settings:me"])));
   vi.useRealTimers();
 });
+
+test("a device that uploaded before the pull-first fix sends, once, the rows the server is missing", async () => {
+  const s = sample();
+  const storage = fakeStorage();
+  storage.setItem("ember.sync", JSON.stringify({ cursor: 3, outbox: [], uploaded: true })); // no `seeded`: an old device
+  const server = { ...s.tasks[0], rev: 1 }; // the task arrived, its steps and the settings did not
+  const bodies: { cursor: number; ops: { entity: string; id: string }[] }[] = [];
+  const responses = [reply({ cursor: 3, changes: [{ entity: "tasks", row: server }], rejected: [] }), reply({ cursor: 7, changes: [], rejected: [] })];
+  const engine = createSync(s, {
+    update: () => {},
+    storage,
+    fetch: (async (_url: string, init: RequestInit) => (bodies.push(JSON.parse(init.body as string)), responses.shift()!)) as typeof fetch,
+  });
+  await engine.push();
+  expect(bodies[0]).toMatchObject({ cursor: 0, ops: [] });
+  expect(bodies[1].ops.map((o) => `${o.entity}:${o.id}`)).toEqual(["chunks:id-2", "chunks:id-3", "chunks:id-4", "days:2026-10-05", "settings:me"]);
+  expect(JSON.parse(storage.getItem("ember.sync")!)).toMatchObject({ uploaded: true, seeded: true, outbox: [] });
+});
