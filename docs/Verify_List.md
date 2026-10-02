@@ -24,6 +24,14 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
   - Should a task complete by itself when its last step is ticked? (#12)
   - Should a Quick task rank without one triage tap? (#10)
 
+- [ ] **Web push keys:** run `powershell -ExecutionPolicy Bypass -File scripts\set-vapid.ps1` once, commit the `VAPID_PUBLIC_KEY` line it writes into `wrangler.jsonc`, then deploy. Until then web push is offered as *"Web push isn't set up yet."*
+- [ ] **Phase 3 calls** (#37–#42):
+  - The two new cat drawings, **asleep** and **by the door**, are draft art (`src/Cat.tsx`). The day's last step has no bigger moment yet.
+  - Journal: there's no screen to read past entries (none is specified). Want one? A line still held for its first sync when Shutdown closes is lost.
+  - Draft copy: the Flowtime switch labels and *Take a break*; *"That didn't load. Skip it this time."*; *"Web push isn't set up yet. Try again later."*; *"Your journal needs a connection the first time."*.
+  - The first Reward shows the reminder offer and no unlock (onboarding stays as §7 says).
+  - The Flowtime switch stays for the session's first minute; a Flowtime session counts as completed from 25 minutes.
+
 ## Verify (run the real thing)
 
 - [ ] Touch drag-to-reorder on a real phone (Playwright can't long-press-drag). (#9)
@@ -31,6 +39,8 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [ ] The Focus break's breathing circle moves for 5 minutes: check against WCAG 2.2.2, the same finding as A1. (#11)
 - [ ] 320 / 375 / 414 / 768 px with no horizontal scroll on every screen.
 - [ ] Desktop: Today and Focus side by side from 1180 px, built (#34). Use it on a real laptop: selection, Focus on the right, Inbox and Settings on the left.
+- [ ] Phase 3 on the deployed app: the Lichess frame embeds on the real origin; a web push arrives on desktop Chrome and, after the install test, on iPhone; the tap opens the right screen with *Not now? Snooze*.
+- [ ] **Web push CPU:** each push generates a P-256 key pair and runs ECDH (about 0.8 ms in Node). Check a real tick's CPU time against the free plan's 10 ms before more than a few users subscribe.
 - [ ] The phone back gesture: built (#33); check it on a real iPhone and Android. A reload opens on Today, so the first back press after a reload from a deeper screen may do nothing visible.
 
 ## Review (known code gaps)
@@ -47,3 +57,5 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [ ] **The ops ledger keeps rows 30 days** (retention prunes them); check that matches real retry behaviour. (#21)
 - [ ] **`users.telegram_chat_id` scan**: the planning backlog drains 5 users a minute. (#24)
 - [ ] `/code-review high --fix`, `/simplify`, `web-design-guidelines` (ROADMAP Review stage).
+- [ ] **Snooze "tomorrow" is computed twice:** `src/push.ts` `tomorrowSlot` repeats `worker/buttons.ts` `snoozeTime("tomorrow")` (both on core slot helpers). Move `snoozeTime` into `core/messages.ts` and use it from both. (#42)
+- [ ] **A push without a task** (morning, wrap-up, batches) shows no *Not now? Snooze* line. (#42)
