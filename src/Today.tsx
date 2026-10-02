@@ -274,7 +274,7 @@ function placeBelow(button: HTMLElement, id: string) {
 
 function RowMenu({ id, label, onNotToday, onOpen }: { id: string; label: string; onNotToday: () => void; onOpen: () => void }) {
   const close = (fn: () => void) => () => {
-    document.getElementById(id)?.hidePopover();
+    document.getElementById(id)?.hidePopover?.();
     fn();
   };
   return (

@@ -38,7 +38,7 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
   const removeDialog = useRef<HTMLDialogElement>(null);
 
   function fromMenu(dialog: HTMLDialogElement) {
-    menu.current!.hidePopover();
+    menu.current?.hidePopover?.(); // absent before Safari 17
     dialog.showModal();
   }
 

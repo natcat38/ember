@@ -57,12 +57,14 @@ export function Unlock({ kind, today, onClose, onElapsed }: Props) {
   useEffect(() => {
     let live = true;
     const ctrl = new AbortController();
-    const stop = AbortSignal.any([ctrl.signal, AbortSignal.timeout(FETCH_MS)]);
-    load(kind, today, stop)
+    const timer = setTimeout(() => ctrl.abort(), FETCH_MS); // not AbortSignal.any/timeout: Safari 17.4 and 16.4
+    load(kind, today, ctrl.signal)
       .then((r) => live && setGot(r ?? "failed"))
-      .catch(() => live && setGot("failed"));
+      .catch(() => live && setGot("failed"))
+      .finally(() => clearTimeout(timer));
     return () => {
       live = false;
+      clearTimeout(timer);
       ctrl.abort();
     };
   }, [kind, today]);

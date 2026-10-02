@@ -501,6 +501,9 @@ dialog::backdrop {
 
 /* Task menu: a popover with plain buttons, not an ARIA menu (A5) */
 .menu {
+  /* Hidden until :popover-open shows it. A browser without popover (iOS before 17) drops that rule as invalid, so the
+     menu stays hidden instead of sitting on the page for good. ponytail: no fallback opener for those browsers. */
+  display: none;
   position: fixed;
   inset: 60px max(var(--space-4), calc((100vw - 560px) / 2 + var(--space-3))) auto auto;
   margin: 0;
