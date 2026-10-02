@@ -92,7 +92,8 @@ Animate `transform` and `opacity` only. No bounce, no overshoot, no confetti. Wi
 
 - **Phone (base, 375 px):** one column, 16 px gutters, a 60 px header (menu button, screen title), content, and the capture bar pinned to the bottom. Rows are white rounded strips with no border; the frog is the one card with a lavender border. Today shows the cat's nook between the header and the frog (§4).
 - **Narrow phone (320 px):** the same layout. Row action buttons stay 44 × 44; long titles wrap to two lines inside the row rather than truncate. No horizontal scroll at 320, 375, 414, or 768 px.
-- **Tablet and desktop (≥ 768 px):** the column centres at a maximum of 560 px on the oat ground. The capture bar moves to the top and is always visible (`UX_Flows.md` §3.1). Settings opens as a side drawer. Nothing becomes a multi-column dashboard; Ember stays one list.
+- **Tablet (768 to 1179 px):** the column centres at a maximum of 560 px on the oat ground. The capture bar moves to the top and is always visible (`UX_Flows.md` §3.1). Settings opens as a side drawer. Still one list.
+- **Desktop (≥ 1180 px):** two 560 px columns side by side, as `UX_Flows.md` §2 ("Desktop delta") and `Wireframes.md` §10 draw it (Natalie's decision, 2026-10-02). Left is Today; Inbox and Settings open from the drawer and replace it. Right is never empty: Focus (with its Reward and break) while a session runs, otherwise the Task view of the selected Today row, the frog by default. Choosing a row shows it on the right and adds no history entry; the right pane has no Back. Each pane scrolls on its own and is a labelled landmark. It is the same screens shown at once, not a dashboard: no new surface, no widgets, no third column.
 - **Focus:** the step and timer sit in one large white card in the middle of the screen; everything else fades to ink-soft on the done background (the dimming in `UX_Flows.md` §3.5, done with colour, not opacity, so the dimmed text still passes 4.5:1).
 
 ## 4. Signature element: the cat's nook
@@ -200,7 +201,7 @@ Build may use shadcn/ui (Radix underneath) or plain elements; either way, the pa
 | Red badges for overdue, counts of missed tasks | No red anywhere; overdue is a plain date label (*"Was due Tue"*) |
 | A mascot that talks in speech bubbles and celebrates with confetti | A cat that never speaks, sits in one nook, and only changes pose |
 | Toasts for every save | Silent success: the result itself is the feedback |
-| A dashboard on desktop | The same single column, centred |
+| A dashboard on desktop | Today and the open task or Focus side by side, two columns of the same width and nothing else |
 
 ## 10. Mockup fixes for Build
 

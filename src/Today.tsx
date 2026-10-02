@@ -9,6 +9,7 @@ interface Props {
   state: State;
   update: (fn: (s: State) => State) => void;
   today: string;
+  selectedId?: string; // desktop: the task showing on the right
   onOpenTask: (t: Task) => void;
   onStart: (r: TodayRow) => void;
   onInbox: () => void;
@@ -20,7 +21,7 @@ interface Props {
 }
 
 // Wireframes.md §1. The cat joins the nook in phase 3.
-export function TodayView({ plan, state, update, today, onOpenTask, onStart, onInbox, onCapture, welcome, onWelcomeDone, onReset, backedUp }: Props) {
+export function TodayView({ plan, state, update, today, selectedId, onOpenTask, onStart, onInbox, onCapture, welcome, onWelcomeDone, onReset, backedUp }: Props) {
   const { rows, frog, waiting, lightDay } = plan;
   // The morning confirm shows on the day's first visit to Today and never returns that day, answered or not.
   // On a lapse return the welcome back takes its place.
@@ -59,7 +60,7 @@ export function TodayView({ plan, state, update, today, onOpenTask, onStart, onI
     // A smaller step names its parent; an overdue task shows its date (Wireframes.md §1).
     const second = r.parent?.title ?? (band(r.task, today) === "overdue" && r.task.deadline ? wasDue(r.task.deadline, today) : null);
     return (
-      <li key={r.key} className={`row today-row${r.done ? " done" : ""}`}>
+      <li key={r.key} className={`row today-row${r.done ? " done" : ""}${r.task.id === selectedId ? " selected" : ""}`}>
         {r.chunk ? (
           <label className="check">
             <input type="checkbox" checked={r.done} aria-label={title(r)} onChange={(e) => update((s) => tick(s, r.chunk!.id, e.target.checked, Date.now()))} />
@@ -67,7 +68,7 @@ export function TodayView({ plan, state, update, today, onOpenTask, onStart, onI
         ) : (
           <span className="check" aria-hidden="true" />
         )}
-        <button className="row-link" onClick={() => onOpenTask(r.task)}>
+        <button className="row-link" aria-current={r.task.id === selectedId ? "true" : undefined} onClick={() => onOpenTask(r.task)}>
           <span>{title(r)}</span>
           {second && <span className="meta">{second}</span>}
         </button>
@@ -155,7 +156,7 @@ export function TodayView({ plan, state, update, today, onOpenTask, onStart, onI
             </svg>
             Do this first
           </p>
-          <button className="row-link lead" onClick={() => onOpenTask(frog.task)}>
+          <button className="row-link lead" aria-current={frog.task.id === selectedId ? "true" : undefined} onClick={() => onOpenTask(frog.task)}>
             {title(frog)}
           </button>
           {frog.chunk && <p className="meta">from: {[frog.task.title, frog.parent?.title].filter(Boolean).join(" · ")}</p>}
