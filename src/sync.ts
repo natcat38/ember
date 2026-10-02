@@ -161,6 +161,7 @@ export function createSync(initial: State, { update, storage = localStorage, fet
       meta = readMeta();
       if (!meta.uploaded && !meta.outbox.length) meta = { ...meta, outbox: allOps(baseline) };
       let refetch = false;
+      let raced = false;
       do {
         refetch = false;
         const batch = meta.outbox.slice(0, batchSize);
@@ -181,6 +182,13 @@ export function createSync(initial: State, { update, storage = localStorage, fet
           console.error("Ember sync: the server refused a malformed batch; dropping it", await res.text());
           meta = { ...readMeta(), outbox: readMeta().outbox.filter((o) => !sent.has(o.op_id)) };
           writeMeta(meta);
+          continue;
+        }
+        if (res.status === 503 && !raced) {
+          // Another of this user's requests won a race on the server, and nothing of ours was applied (worker/sync.ts,
+          // the rev guard). Send the same ops again once, after the wait it asks for; the ledger makes a resend safe.
+          raced = true;
+          await new Promise((r) => setTimeout(r, Number(res.headers.get("Retry-After") ?? 1) * 1000));
           continue;
         }
         if (!res.ok) throw new Error(`sync ${res.status}`);

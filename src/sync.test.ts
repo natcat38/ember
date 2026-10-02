@@ -130,8 +130,26 @@ test("offline means the network failed; a server error is not offline", async ()
     await engine.push();
   };
   await run(() => Promise.reject(new TypeError("Failed to fetch")));
-  await run(async () => reply({ error: "boom" }, 503));
+  await run(async () => reply({ error: "boom" }, 500));
   expect(statuses).toEqual([true, false]);
+});
+
+test("a 503 from a lost server race is resent once after Retry-After; a second one waits for the next trigger", async () => {
+  const lost = () => new Response(JSON.stringify({ error: "conflict" }), { status: 503, headers: { "Retry-After": "0" } });
+  const run = async (responses: Response[]) => {
+    const storage = fakeStorage();
+    let calls = 0;
+    const engine = createSync(sample(), { update: () => {}, storage, fetch: (async () => (calls++, responses.shift()!)) as typeof fetch });
+    await engine.push();
+    return { calls, meta: JSON.parse(storage.getItem("ember.sync")!) };
+  };
+  const won = await run([lost(), reply({ cursor: 3, changes: [], rejected: [] })]);
+  expect(won.calls).toBe(2);
+  expect(won.meta).toMatchObject({ cursor: 3, outbox: [], uploaded: true });
+
+  const lostTwice = await run([lost(), lost()]);
+  expect(lostTwice.calls).toBe(2);
+  expect(lostTwice.meta?.uploaded).not.toBe(true); // nothing marked sent: the next open, focus, reconnect or change uploads it
 });
 
 test("done_at travels both ways: finishing a step sends it, a server value merges in, a legacy row stays quiet", () => {

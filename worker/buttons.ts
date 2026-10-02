@@ -17,8 +17,9 @@ import type { BotResult } from "./telegram";
 // Budget: one webhook call is one invocation, 50 D1 statements and 50 subrequests (§11). Worst case is Snooze on a batch
 // of MAX_SNOOZE_TASKS = 30 tasks:
 //   send + user + settings (one JOIN) 1, the tasks 1, hard blocks 1,
-//   sync: ledger and row lookup 2, then one batch of rev bump 1 + ledger 1 + 30 writes + pull 2 + cursor 1 = 35,
-//   mark the send 1                                                                         = 41, under 50.
+//   sync: ledger and row lookup 2, then one batch of rev guard 1 + rev bump 1 + ledger 1 + 30 writes + pull 2 +
+//   cursor 1 = 36, mark the send 1                                                          = 42, under 50.
+// A tap that loses the sync race (SyncConflict) fails the webhook with 500, and Telegram redelivers it.
 // Subrequests: answerCallbackQuery and one edit, 2. (Reschedule's menu adds one INSERT for its sign-in code.)
 
 export interface ButtonsEnv {
