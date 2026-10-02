@@ -388,7 +388,8 @@ describe("Snooze", () => {
     // One close task, no blocks: the day plan is morning 08:00, a close nudge at 15:00 and a second at 19:00.
     const { uid, chat } = await linkedUser();
     await put(uid, [SETTINGS, taskOp("t-tax", "Tax form", { size: "M", deadline: "2026-10-08", runway_start: "2026-10-01" })]);
-    await runTick(testEnv, sg(NEXT, "08:00:31"));
+    await runTick(testEnv, sg(NEXT, "08:00:31")); // plans the day
+    await runTick(testEnv, sg(NEXT, "08:01:31")); // sends the morning message (a tick sends before it plans)
     await runTick(testEnv, sg(NEXT, "15:00:31"));
     const sent = calls.filter((c) => c.method === "sendMessage");
     expect(sent.map((c) => c.body.text)).toEqual(["Today's ready: 1 thing. First up: Tax form.", "Tax form\nThis deadline's getting close. Want help breaking it down?"]);
@@ -450,7 +451,8 @@ describe("Reschedule", () => {
     expect((await taskRow("t-over"))!.deadline).toBe(NEXT);
 
     // Wednesday 10-07: the task is overdue again (deadline 10-06).
-    await runTick(testEnv, sg("2026-10-07", "08:00:31"));
+    await runTick(testEnv, sg("2026-10-07", "08:00:31")); // plans the day
+    await runTick(testEnv, sg("2026-10-07", "08:01:31")); // sends (a tick sends before it plans)
     const sent = calls.filter((c) => c.method === "sendMessage");
     expect(sent.map((c) => c.body.text)).toContain("Lab report was due today and isn't marked done. Still relevant?");
     expect(await count("SELECT COUNT(*) AS n FROM sends WHERE user_id = ? AND kind = 'overdue' AND sent_at IS NOT NULL", uid)).toBe(2);
@@ -490,6 +492,29 @@ describe("Not today", () => {
     await tap("n", { chat, message, now: NOW });
     const day = await env.DB.prepare("SELECT deferred FROM days WHERE user_id = ? AND day = ?").bind(uid, DAY).first<{ deferred: string }>();
     expect(JSON.parse(day!.deferred)).toEqual(["other", "t-far"]);
+  });
+
+  it("loses no deferral when the phone syncs one between the tap's read and its write (audit #17)", async () => {
+    const { uid, chat, message } = await lightSetup();
+    // Another device defers a different task just before the tap writes (for the read-then-write version: after its read).
+    let raced = false;
+    const racing = new Proxy(env.DB, {
+      get(db, prop) {
+        const v = Reflect.get(db, prop);
+        if (prop !== "batch") return typeof v === "function" ? v.bind(db) : v;
+        return async (stmts: D1PreparedStatement[]) => {
+          if (!raced) {
+            raced = true;
+            await put(uid, [op("days", DAY, { deferred: ["phone"] })]);
+          }
+          return db.batch(stmts);
+        };
+      },
+    });
+    await tap("n", { chat, message, now: NOW, env: { ...testEnv, DB: racing } });
+    const day = await env.DB.prepare("SELECT deferred FROM days WHERE user_id = ? AND day = ?").bind(uid, DAY).first<{ deferred: string }>();
+    expect(raced).toBe(true);
+    expect((JSON.parse(day!.deferred) as string[]).sort()).toEqual(["phone", "t-far"]);
   });
 
   it("a stale Not today on a task finished in the app changes nothing", async () => {

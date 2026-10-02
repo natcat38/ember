@@ -27,7 +27,8 @@ async function seedUser(idleDays: number, opts: { passkey?: boolean } = {}): Pro
     env.DB.prepare("INSERT INTO journal (user_id, day, iv, text, mood, rev) VALUES (?1, '2025-01-01', 'AAAAAAAAAAAAAAAA', 'qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq', 3, 1)").bind(uid),
     // Fresh enough to survive the 30-day ops prune, so a surviving row proves the user delete, not the prune, took it.
     env.DB.prepare("INSERT INTO ops (user_id, op_id, applied_at) VALUES (?1, ?2, ?3)").bind(uid, uuid(), NOW - DAY),
-    env.DB.prepare("INSERT INTO sends (id, user_id, day, kind, due_at) VALUES (?1, ?2, '2025-01-01', 'morning', ?3)").bind(uuid(), uid, seen),
+    // Fresh like the op: the send prune (14 days) must not be what removes it.
+    env.DB.prepare("INSERT INTO sends (id, user_id, day, kind, due_at) VALUES (?1, ?2, '2025-01-01', 'morning', ?3)").bind(uuid(), uid, NOW - DAY),
     env.DB.prepare("INSERT INTO handoffs (code, user_id, purpose, expires_at) VALUES (?1, ?2, 'install', ?3)").bind(uuid(), uid, NOW + DAY),
     env.DB.prepare("INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at) VALUES (?1, ?2, 'k', 'a', ?3)").bind(uid, `https://push.example/${uuid()}`, seen),
   ];
@@ -123,6 +124,23 @@ describe("housekeeping", () => {
     expect(left).toContain("live");
     expect(left).not.toContain("long-expired");
     expect(result.handoffsPruned).toBeGreaterThanOrEqual(1);
+  });
+
+  it("prunes sends older than 14 days, but keeps an overdue send for 60 (audit #32)", async () => {
+    const uid = await seedUser(1); // its own seeded send is 1 day old
+    const send = (id: string, kind: string, ageDays: number) =>
+      env.DB.prepare("INSERT INTO sends (id, user_id, day, kind, due_at) VALUES (?1, ?2, '2026-08-01', ?3, ?4)").bind(id, uid, kind, NOW - ageDays * DAY);
+    await env.DB.batch([send("old-morning", "morning", 15), send("recent-morning", "morning", 13), send("old-overdue", "overdue", 61), send("kept-overdue", "overdue", 59)]);
+
+    const result = await runRetention(env.DB, NOW);
+
+    const left = (await env.DB.prepare("SELECT id FROM sends WHERE user_id = ?").bind(uid).all<{ id: string }>()).results.map((r) => r.id);
+    expect(left).toContain("recent-morning");
+    expect(left).toContain("kept-overdue");
+    expect(left).not.toContain("old-morning");
+    expect(left).not.toContain("old-overdue");
+    expect(left).toHaveLength(3); // plus the seeded one
+    expect(result.sendsPruned).toBeGreaterThanOrEqual(2);
   });
 });
 

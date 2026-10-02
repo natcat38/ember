@@ -56,7 +56,9 @@ function field(check: (v: unknown) => boolean, nullable = false): Field {
   return { check: (v) => (v === null ? nullable : check(v)), bind: (v) => v as string | number | null, read: passthrough };
 }
 
-const title = (max = 500) => field((v) => typeof v === "string" && v.trim().length > 0 && v.length <= max);
+/** The tasks.title limit: the capture sheet's (UX_Flows §3.1) and Telegram capture's too. */
+export const MAX_TITLE_CHARS = 500;
+const title = (max = MAX_TITLE_CHARS) => field((v) => typeof v === "string" && v.trim().length > 0 && v.length <= max);
 const enumOf = (values: string[], nullable = false) => field((v) => typeof v === "string" && values.includes(v), nullable);
 const date = (nullable = false) => field(isDate, nullable);
 const id = (nullable = false) => field(isId, nullable);

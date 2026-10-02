@@ -1,3 +1,4 @@
+import { isRecord } from "./http";
 import { MAX_BODY_CHARS, MAX_OPS, type Entity, type Op, type SyncRequest } from "./protocol";
 import { ENTITIES } from "./schema";
 
@@ -6,7 +7,6 @@ export type Parsed = { ok: true; value: SyncRequest } | { ok: false; status: 400
 const fail = (detail: string, status: 400 | 413 = 400, error = "invalid_body"): Parsed => ({ ok: false, status, error, detail });
 
 const OP_ID_RE = /^[A-Za-z0-9_:.-]{1,100}$/; // UUIDs, and Telegram's deterministic `tg:<callback id>` (Tech_Scope.md §6)
-const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 // Boundary validation for POST /api/sync. Everything the SQL later interpolates or binds has been checked here:
 // entity and field names against the whitelist in schema.ts, values by type and size. Nothing is applied on failure.

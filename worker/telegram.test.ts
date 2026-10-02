@@ -178,6 +178,13 @@ describe("/start <code>", () => {
     expect(sent).toEqual([{ chat_id: chat, text: "Linked. Ember will nudge you here." }]);
   });
 
+  it("has the next tick plan the day afresh, so what the old channel never sent does not go out in a burst (audit #15)", async () => {
+    const { code, cookie } = await startLink();
+    await env.DB.prepare("UPDATE users SET planned_until = 9e15, planned_rev = 0 WHERE id = ?").bind(uidOf(cookie)).run();
+    await hook(update(`/start ${code}`, freshChat()));
+    expect(await env.DB.prepare("SELECT planned_until FROM users WHERE id = ?").bind(uidOf(cookie)).first()).toEqual({ planned_until: null });
+  });
+
   it("refuses the same code a second time and leaves the first link alone", async () => {
     const { code, cookie } = await startLink();
     const first = freshChat();

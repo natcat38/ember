@@ -28,7 +28,7 @@ export const DAILY_RETENTION = "0 19 * * *"; // 03:00 Singapore (Tech_Scope.md �
 // --- Budget ------------------------------------------------------------------------------------------------------
 //
 // A free-plan invocation may run 50 D1 statements (each statement of a db.batch() counts) and 50 subrequests (§11); the
-// two are separate limits. One tick, worst case, with MAX_SENDS = 20:
+// two are separate limits. One tick, worst case, with MAX_SENDS = 20 (sends run first, see runTick):
 //
 //   stale-user scan ............................................... 1
 //   send phase:  claim (UPDATE ... RETURNING, chat id and browsers included) .. 1
@@ -40,8 +40,9 @@ export const DAILY_RETENTION = "0 19 * * *"; // 03:00 Singapore (Tech_Scope.md �
 //   plan phase:  per user: state load (one statement) ............. 1
 //                           plan write (one batch of 3) ........... 3
 //                                                                  = 4 each (PLAN_COST); a failed plan costs 1 + 1, still under
-//   5 users planned (MAX_PLANNED) ................................. 20
-//                                                                  total 48, under the 50 limit (STATEMENT_BUDGET keeps two spare)
+//   3 users planned (MAX_PLANNED) ................................. 12
+//                                                                  total 40, under the 50 limit. The statements would allow 5; 3 keeps the CPU of
+//                                                                  the plan phase down (one plan is a few ms) until `wrangler tail` shows a real tick's CPU time.
 //
 // Subrequests: one call per Telegram send and one per browser a web push goes to. A user keeps at most MAX_SUBSCRIPTIONS
 // (2) browsers, so 20 sends are at most 40 calls. The plan phase spends the statements the send phase does not
@@ -55,11 +56,12 @@ const STATEMENT_BUDGET = 48; // 50 less two spare
 const STALE_SCAN_COST = 1;
 const SEND_COST = 2 + MAX_SENDS + 2 + 3;
 const PLAN_COST = 4;
-export const MAX_PLANNED = Math.floor((STATEMENT_BUDGET - STALE_SCAN_COST - SEND_COST) / PLAN_COST);
+export const MAX_PLANNED = 3; // the statements allow floor((STATEMENT_BUDGET - STALE_SCAN_COST - SEND_COST) / PLAN_COST) = 5; see the CPU note above
 
 const DAILY_CAP = 3; // Product_Scope.md §2 (planDay's own constant is not exported)
 const DEFAULT_TZ = "Asia/Singapore"; // a null tz means "the browser's"; core falls back to the same zone
 const CLAIM_TTL_MS = 5 * 60_000; // §11: a claim this old with no sent_at is a crashed tick, and the row is retried
+const CLAIM_WINDOW_MS = 30 * 60_000; // a row older than this past its due time is dropped, not sent
 const MAX_ATTEMPTS = 5; // counted at claim time, so a tick that dies mid-send still uses one
 const DISMISS_AFTER_MS = 5 * 3_600_000; // UX_Flows §5: no interaction within 5 hours = dismissed
 const LATE_GRACE_MS = 5 * 60_000; // a planned message this far past due (or more) is dropped; less is just a late tick
@@ -92,10 +94,14 @@ export async function handleScheduled(controller: { cron: string; scheduledTime:
   }
 }
 
-/** Plans the stale users, then sends what is due. Plans first, so a message planned for this minute goes out this minute. */
+/**
+ * Sends what is due, then plans the stale users. Sends first: the CPU limit cannot be caught, so a plan that overruns it
+ * kills the invocation, and with plans first that user would stay first in the queue and no one would get a message. A
+ * message planned this minute goes out on the next tick.
+ */
 export async function runTick(env: SchedulerEnv, now: number): Promise<TickReport> {
-  const planned = await planStaleUsers(env.DB, now);
-  return { planned, ...(await sendDue(env, now)) };
+  const sent = await sendDue(env, now);
+  return { planned: await planStaleUsers(env.DB, now), ...sent };
 }
 
 // --- Plan phase --------------------------------------------------------------------------------------------------
@@ -112,21 +118,35 @@ interface StaleUser {
 
 // §4.5: stale = not planned for the current local day (`planned_until` has passed), or `users.rev` has moved on since
 // the plan. Only users with somewhere to send are ever planned: linked Telegram users, and web push users with a
-// subscription. Settings default as the table does when the row is missing.
+// subscription. Settings default as the table does when the row is missing. One branch per channel, each reading its
+// own partial index (users_telegram, users_push): with the two channels in one OR the planner scans every user, anonymous
+// and spam ones included, every minute. INDEXED BY is needed: left alone, the planner walks the primary key to match the
+// ORDER BY (audit #33, EXPLAIN QUERY PLAN).
 const TELEGRAM_LINKED = (u: string) => `(${u}.channel = 'telegram' AND ${u}.telegram_chat_id IS NOT NULL)`;
 const PUSH_SUBSCRIBED = (u: string) => `(${u}.channel = 'push' AND EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = ${u}.id))`;
+
+const STALE = "(planned_until IS NULL OR planned_until <= ?1 OR planned_rev < rev)";
 
 async function staleUsers(db: Db, now: number, limit: number): Promise<StaleUser[]> {
   const { results } = await db
     .prepare(
       `SELECT u.id, u.rev, u.planned_rev, u.planned_until, s.tz AS tz, COALESCE(s.quiet_start, 1320) AS quiet_start, COALESCE(s.quiet_end, 480) AS quiet_end
-       FROM users u LEFT JOIN settings s ON s.user_id = u.id AND s.id = 'me'
-       WHERE (${TELEGRAM_LINKED("u")} OR ${PUSH_SUBSCRIBED("u")}) AND (u.planned_until IS NULL OR u.planned_until <= ?1 OR u.planned_rev < u.rev)
+       FROM (
+         SELECT id, rev, planned_rev, planned_until FROM users INDEXED BY users_telegram WHERE ${TELEGRAM_LINKED("users")} AND ${STALE}
+         UNION ALL
+         SELECT id, rev, planned_rev, planned_until FROM users INDEXED BY users_push WHERE ${PUSH_SUBSCRIBED("users")} AND ${STALE}
+       ) u LEFT JOIN settings s ON s.user_id = u.id AND s.id = 'me'
        ORDER BY u.id LIMIT ?2`,
     )
     .bind(now, limit)
     .all<StaleUser>();
   return results;
+}
+
+// The user id is the ember_uid cookie value, a working session credential, so logs get 8 hex characters of its SHA-256 instead.
+async function idTag(id: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(id)));
+  return [...digest.slice(0, 4)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 async function planStaleUsers(db: Db, now: number): Promise<number> {
@@ -136,7 +156,7 @@ async function planStaleUsers(db: Db, now: number): Promise<number> {
       if (await planUser(db, user, now)) planned++;
     } catch (e) {
       // One user's bad data must not stall the queue (the scan is ordered by id): push this user's retry back.
-      console.error("plan failed", user.id, e instanceof Error ? e.message : "unknown error");
+      console.error("plan failed", await idTag(user.id), e instanceof Error ? e.message : "unknown error");
       await db.prepare("UPDATE users SET planned_until = ?1, planned_rev = rev WHERE id = ?2").bind(now + PLAN_RETRY_MS, user.id).run();
     }
   }
@@ -381,12 +401,16 @@ interface Claimed {
 // send needs no write at all, because the claim already makes the next try wait 5 minutes. After MAX_ATTEMPTS the row
 // is never claimed again. Rows of users who have nowhere to send are left alone, and so are the rows of a channel that
 // is not set up (no bot token, no VAPID keys), so a missing secret burns no attempts. The user's channel is read here,
-// at claim time: one channel per message (UX_Flows §5), whichever the user has chosen by now.
+// at claim time: one channel per message (UX_Flows §5), whichever the user has chosen by now. A row more than
+// CLAIM_WINDOW_MS past due is never claimed (audit #15): after a cron outage, or a channel that was off and is on again,
+// a stale morning message must not go out hours late in a burst. MAX_ATTEMPTS retries 5 minutes apart fit inside it. The
+// user test is a correlated EXISTS, not IN (SELECT ...): the IN scans every user each minute, and it makes the planner
+// walk sends_user_day instead of sends_pending (partial, migration 0007), which holds only the rows still to send.
 const claimSql = (telegram: boolean, push: boolean) => `UPDATE sends SET claimed_at = ?1, attempts = attempts + 1
   WHERE id IN (
     SELECT id FROM sends
-    WHERE due_at <= ?1 AND sent_at IS NULL AND cancelled = 0 AND attempts < ?3 AND (claimed_at IS NULL OR claimed_at < ?2)
-      AND user_id IN (SELECT id FROM users WHERE ${[telegram && TELEGRAM_LINKED("users"), push && PUSH_SUBSCRIBED("users")].filter(Boolean).join(" OR ")})
+    WHERE due_at <= ?1 AND due_at >= ?1 - ${CLAIM_WINDOW_MS} AND sent_at IS NULL AND cancelled = 0 AND attempts < ?3 AND (claimed_at IS NULL OR claimed_at < ?2)
+      AND EXISTS (SELECT 1 FROM users WHERE users.id = sends.user_id AND (${[telegram && TELEGRAM_LINKED("users"), push && PUSH_SUBSCRIBED("users")].filter(Boolean).join(" OR ")}))
     ORDER BY due_at LIMIT ?4)
   RETURNING id, user_id, kind, task_ids, text, attempts,
     (SELECT channel FROM users WHERE users.id = sends.user_id) AS channel,
@@ -514,7 +538,7 @@ async function dropGoneSubscriptions(db: Db, gone: Map<string, string>): Promise
     db.prepare("DELETE FROM push_subscriptions WHERE endpoint IN (SELECT value FROM json_each(?1))").bind(endpoints),
     db
       .prepare(
-        `UPDATE users SET channel = CASE WHEN telegram_chat_id IS NOT NULL THEN 'telegram' END
+        `UPDATE users SET channel = CASE WHEN telegram_chat_id IS NOT NULL THEN 'telegram' END, planned_until = NULL
          WHERE channel = 'push' AND id IN (SELECT value FROM json_each(?1)) AND NOT EXISTS (SELECT 1 FROM push_subscriptions p WHERE p.user_id = users.id)`,
       )
       .bind(users),

@@ -145,6 +145,13 @@ async function seedSends(rows: SendSeed[]) {
 const seedSend = async (s: SendSeed) => (await seedSends([s]))[0];
 
 const tick = (now: number) => runTick(testEnv, now);
+
+// A tick sends before it plans (audit #31), so a message planned this minute goes out on the next tick. Tests about what
+// the plan sends run both at one instant; the report is the second tick's, with the first tick's `planned`.
+async function planAndSend(now: number) {
+  const first = await tick(now);
+  return { ...(await tick(now)), planned: first.planned };
+}
 const sendRow = (id: string) =>
   env.DB.prepare("SELECT sent_at, claimed_at, attempts, cancelled, tg_message_id FROM sends WHERE id = ?").bind(id).first<{ sent_at: number | null; claimed_at: number | null; attempts: number; cancelled: number; tg_message_id: number | null }>();
 const count = async (sql: string, ...binds: unknown[]) => (await env.DB.prepare(sql).bind(...binds).first<{ n: number }>())!.n;
@@ -161,7 +168,7 @@ describe("the golden day (Tech_Scope.md §4.6)", () => {
     await tick(sg(DAY, "07:59:31"));
     expect(calls).toEqual([]);
 
-    await tick(sg(DAY, "08:00:31"));
+    await planAndSend(sg(DAY, "08:00:31"));
     expect(textsTo(chat)).toEqual(["Cover letter is due today."]);
 
     for (const t of ["08:01:31", "08:30:31", "12:00:31", "15:59:31"]) await tick(sg(DAY, t));
@@ -255,6 +262,30 @@ describe("planning", () => {
     expect(textsTo(chat)).toHaveLength(3);
   });
 
+  it("sends what is due before it plans, so a message planned this minute goes out on the next tick (audit #31)", async () => {
+    const { uid, chat } = await linkedUser();
+    await seedMei(uid);
+
+    expect(await tick(sg(DAY, "08:00:31"))).toMatchObject({ planned: 1, claimed: 0, sent: 0 });
+    expect(calls).toEqual([]);
+    expect(await tick(sg(DAY, "08:01:31"))).toMatchObject({ planned: 0, claimed: 1, sent: 1 });
+    expect(textsTo(chat)).toEqual(["Cover letter is due today."]);
+  });
+
+  it("logs a short hash of the user's id when a plan fails, never the id, which is a session cookie (audit #35)", async () => {
+    const { uid } = await linkedUser();
+    await seedMei(uid);
+    await env.DB.prepare("INSERT INTO days (user_id, day, deferred, rev) VALUES (?1, ?2, 'not json', 1)").bind(uid, DAY).run(); // the plan cannot read this row
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await tick(sg(DAY, "08:00:31"));
+
+    const logged = log.mock.calls.find((args) => args[0] === "plan failed");
+    expect(logged?.[1]).toMatch(/^[0-9a-f]{8}$/);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(uid);
+    expect((await env.DB.prepare("SELECT planned_until FROM users WHERE id = ?").bind(uid).first<{ planned_until: number }>())!.planned_until).toBe(sg(DAY, "08:00:31") + 5 * 60_000);
+  });
+
   it("composes a close message about a task with no steps with the task name first, and batches several", async () => {
     const { uid, chat } = await linkedUser();
     await put(uid, [
@@ -275,7 +306,7 @@ describe("planning", () => {
   it("sends the morning message with only an Open today button", async () => {
     const { uid, chat } = await linkedUser();
     await put(uid, [op("settings", "me", { tz: "Asia/Singapore", quiet_start: 1320, quiet_end: 480 }), taskOp("t-x", "Read paper", { size: "S", deadline: "2026-10-10", runway_start: "2026-10-01" })]);
-    await tick(sg("2026-10-06", "08:00:31"));
+    await planAndSend(sg("2026-10-06", "08:00:31"));
     expect(textsTo(chat)).toEqual(["Today's ready: 1 thing. First up: Read paper."]);
     expect(calls[0].reply_markup!.inline_keyboard[0].map((b) => b.text)).toEqual(["Open today"]);
   });
@@ -285,7 +316,7 @@ describe("replanning", () => {
   it("after a sync changes a task, keeps the three of the day and does not send the sent message again", async () => {
     const { uid, chat } = await linkedUser();
     await seedMei(uid);
-    await tick(sg(DAY, "08:00:31")); // Cover letter goes out
+    await planAndSend(sg(DAY, "08:00:31")); // Cover letter goes out
 
     await put(uid, [op("tasks", "task-e", { title: "Reply to the recruiter" })], sg(DAY, "10:00:00"));
     const replan = await tick(sg(DAY, "10:00:31"));
@@ -324,7 +355,7 @@ describe("replanning", () => {
     await put(uid, [op("settings", "me", { tz: "Asia/Singapore", quiet_start: 1320, quiet_end: 480 }), taskOp("task-o", "Oz report", { size: "S", deadline: "2026-10-04", runway_start: "2026-10-01" })]);
     const overdueTexts = () => textsTo(chat).filter((t) => t.includes("was due today"));
 
-    await tick(sg(DAY, "08:00:31"));
+    await planAndSend(sg(DAY, "08:00:31"));
     expect(overdueTexts()).toEqual(["Oz report was due today and isn't marked done. Still relevant?"]);
 
     // The next two days: the task is still overdue, and nothing more is said about it.
@@ -333,7 +364,7 @@ describe("replanning", () => {
 
     // Rescheduled to a date that has also passed: a new deadline, so one new overdue message.
     await put(uid, [op("tasks", "task-o", { deadline: "2026-10-06" })], sg("2026-10-08", "08:00:10"));
-    await tick(sg("2026-10-08", "08:00:31"));
+    await planAndSend(sg("2026-10-08", "08:00:31"));
     expect(overdueTexts()).toHaveLength(2);
     expect((await env.DB.prepare("SELECT deadline FROM sends WHERE user_id = ? AND kind = 'overdue' ORDER BY due_at").bind(uid).all()).results).toEqual([{ deadline: "2026-10-04" }, { deadline: "2026-10-06" }]);
 
@@ -346,7 +377,7 @@ describe("replanning", () => {
     // Close nudges for DSA assignment are due at 19:00. A snooze at 18:50 keeps anything out of [18:50, 19:20).
     const { uid, chat } = await linkedUser();
     await seedMei(uid);
-    await tick(sg(DAY, "08:00:31"));
+    await planAndSend(sg(DAY, "08:00:31"));
     await env.DB.prepare("UPDATE sends SET snoozed_at = ?1 WHERE user_id = ?2 AND kind = 'deadline_day'").bind(sg(DAY, "18:50:00"), uid).run();
     await put(uid, [op("tasks", "task-e", { title: "Reply to a recruiter" })], sg(DAY, "18:51:00"));
     await tick(sg(DAY, "18:51:31"));
@@ -382,6 +413,20 @@ describe("claiming and sending", () => {
     expect(textsTo(chat)).toEqual(Array.from({ length: 20 }, (_, i) => `m${i}`));
     const second = await tick(NOW + 60_000);
     expect(second).toMatchObject({ claimed: 5, sent: 5 });
+  });
+
+  it("drops a row more than 30 minutes past due instead of sending it late, and sends the one that is only a little late (audit #15)", async () => {
+    const { uid, chat } = await linkedUser({ planned: true });
+    const NOW = sg(DAY, "18:00:31");
+    const old = await seedSend({ uid, due_at: sg(DAY, "12:00:00"), text: "the twelve o'clock one" });
+    const late = await seedSend({ uid, due_at: NOW - 20 * 60_000, text: "a tick or two late" });
+
+    const report = await tick(NOW);
+
+    expect(report).toMatchObject({ claimed: 1, sent: 1 });
+    expect(textsTo(chat)).toEqual(["a tick or two late"]);
+    expect(await sendRow(old)).toMatchObject({ sent_at: null, claimed_at: null, attempts: 0 });
+    expect(await sendRow(late)).toMatchObject({ sent_at: NOW });
   });
 
   it("does not send a row before it is due", async () => {
@@ -576,7 +621,7 @@ describe("web push", () => {
     const { uid, endpoints } = await pushUser({ planned: false });
     await seedMei(uid);
 
-    const report = await tick(sg(DAY, "08:00:31"));
+    const report = await planAndSend(sg(DAY, "08:00:31"));
 
     expect(report.planned).toBe(1);
     expect(report.sent).toBeGreaterThanOrEqual(1);

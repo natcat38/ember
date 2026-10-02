@@ -1,11 +1,9 @@
 import { cookieFor, resolveUser } from "./identity";
+import { json } from "./http";
 import { MAX_BODY_CHARS, type Change, type Entity, type Op, type Rejected, type SyncResponse } from "./protocol";
 import { applyOp, checkOp, type Ctx, type Row } from "./rules";
 import { ENTITIES, ENTITY_NAMES, groupsOf5 } from "./schema";
 import { parseSyncBody } from "./validate";
-
-const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...headers } });
 
 // POST /api/sync { cursor, ops } -> { cursor, changes, rejected }  (Tech_Scope.md §5, ADR-0006)
 export async function handleSync(request: Request, env: { DB: D1Database }): Promise<Response> {
