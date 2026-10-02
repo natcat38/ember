@@ -12,7 +12,7 @@ async function seed(page: Page) {
     const task = (id: string, title: string, o: object) => ({ id, title, state: "active", size: "S", quick: false, holding_up: false, deadline: "2026-10-05", runway_start: "2026-10-01", pinned_on: null, snoozed_until: null, created_at: 1, updated_at: 1, ...o });
     const step = (id: string, title: string, position: number) => ({ id, task_id: "B", parent_id: null, title, position, state: "todo", deleted: false, updated_at: 1 });
     const days = [{ day: "2026-10-05", confirmed_at: 1, deferred: [] }];
-    localStorage.setItem("ember", JSON.stringify({ tasks: [task("B", "Cover letter", {}), task("N", "Book dentist", { deadline: "2026-10-06" })], chunks: [step("B1", "Tailor the opening", 1), step("B2", "Proofread", 2)], days, draft: "" }));
+    localStorage.setItem("ember", JSON.stringify({ onboarded: true, nudge_offered: true, tasks: [task("B", "Cover letter", {}), task("N", "Book dentist", { deadline: "2026-10-06" })], chunks: [step("B1", "Tailor the opening", 1), step("B2", "Proofread", 2)], days, draft: "" }));
   });
   await page.reload();
 }
@@ -70,6 +70,7 @@ test("Done early finishes the step; Stop for now puts it back", async ({ page })
   await page.clock.runFor(3 * MIN);
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Step done." })).toBeVisible(); // Reward
+  await page.getByRole("button", { name: "Skip" }).click(); // the unlock (slice 20) comes before the way on
   await page.getByRole("button", { name: "Back to Today" }).click();
   await expect(page.getByRole("checkbox", { name: "Tailor the opening" })).toBeChecked();
 

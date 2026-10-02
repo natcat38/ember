@@ -18,7 +18,7 @@ import { addChunk, firstOpenLeaf } from "../core/chunk";
 
 type View =
   | { name: "today" | "inbox" | "focus" | "shutdown" | "settings" }
-  | { name: "reward"; title: string }
+  | { name: "reward"; title: string; fromFocus: boolean } // fromFocus: the unlock card follows steps finished in Focus only (UX_Flows.md §3.6)
   | { name: "task"; id: string; from: "today" | "inbox"; pickDate?: boolean };
 
 const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -316,11 +316,13 @@ export function App() {
         onToday={() => navigate({ name: "today" })}
         offerNudges={!state.nudge_offered}
         onOffered={() => setState((s) => ({ ...s, nudge_offered: true }))}
+        // The first Reward carries the one-time reminder offer (UX_Flows.md §7, step 7), and no unlock in front of it.
+        unlock={view.fromFocus && state.nudge_offered ? state.settings.unlock : null}
       />
     ) : null;
 
   const focus = (
-    <FocusView state={state} update={setState} announce={announce} onFinished={(title) => navigate({ name: "reward", title })} onStopped={() => navigate({ name: "today" }, "right")} />
+    <FocusView state={state} update={setState} announce={announce} onFinished={(title) => navigate({ name: "reward", title, fromFocus: true })} onStopped={() => navigate({ name: "today" }, "right")} />
   );
 
   // The Task view. On the right pane there is no Back: another row replaces it.
