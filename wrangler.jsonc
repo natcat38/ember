@@ -10,7 +10,7 @@
     // Only /api/* runs the Worker first; every other path is served as a static asset, with the SPA fallback.
     "run_worker_first": ["/api/*"]
   },
-  // Every minute: plan the stale users' days, then send what is due (worker/scheduler.ts). The retention job (slice 15) adds its own entry.
+  // Every minute: send what is due, then plan the stale users' days (worker/scheduler.ts). Daily at 19:00 UTC: retention (worker/retention.ts).
   "triggers": { "crons": ["* * * * *", "0 19 * * *"] }, // the scheduler tick; daily retention (03:00 Singapore)
   "vars": {
     // The app's own origin, for the link buttons in Telegram messages (Tech_Scope.md §6).
