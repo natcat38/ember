@@ -34,6 +34,8 @@ interface Props {
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+// Times in sentences and lists follow the format of the time inputs beside them ("10:00 PM", or "22:00" on a 24-hour phone), so one screen never shows two.
+const shown = (m: number) => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 // Wireframes.md §8: reminders, quiet hours, time zone, hard blocks, the focus timer, rewards, and devices. Changes save as you make them.
@@ -60,7 +62,7 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
       <section className="section" aria-labelledby="h-quiet">
         <h2 id="h-quiet">Quiet hours</h2>
         <p className="empty">
-          No nudges between {hhmm(quiet_start)} and {hhmm(quiet_end)}.
+          No nudges between {shown(quiet_start)} and {shown(quiet_end)}.
         </p>
         <div className="time-row">
           <label className="question">
@@ -72,7 +74,7 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
             <input type="time" className="field" value={hhmm(quiet_end)} onChange={(e) => e.target.value && set({ quiet_end: mins(e.target.value) })} />
           </label>
         </div>
-        <p className="hint">Your day starts when quiet hours end, so Today is rebuilt at {hhmm(quiet_end)}.</p>
+        <p className="hint">Your day starts when quiet hours end, so Today is rebuilt at {shown(quiet_end)}.</p>
       </section>
 
       <section className="section" aria-labelledby="h-tz">
@@ -99,12 +101,12 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
             {blocks.map((b) => (
               <li key={b.id} className="row">
                 <span>
-                  {b.weekdays.map((d) => DAYS[d].slice(0, 3)).join(" ")} {hhmm(b.start_min)}–{hhmm(b.end_min)}
+                  {b.weekdays.map((d) => DAYS[d].slice(0, 3)).join(" ")} {shown(b.start_min)}–{shown(b.end_min)}
                   {b.label ? ` ${b.label}` : ""}
                 </span>
                 <button
                   className="text-button"
-                  aria-label={`Delete block ${b.label ?? ""} ${hhmm(b.start_min)}–${hhmm(b.end_min)}`.replace(/\s+/g, " ")}
+                  aria-label={`Delete block ${b.label ?? ""} ${shown(b.start_min)}–${shown(b.end_min)}`.replace(/\s+/g, " ")}
                   onClick={(e) => {
                     const li = e.currentTarget.closest("li")!;
                     const next = (li.nextElementSibling ?? li.previousElementSibling)?.querySelector<HTMLElement>("button");
@@ -156,6 +158,8 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
       <section className="section" aria-labelledby="h-data">
         <h2 id="h-data">Data</h2>
         {backedUp && <p className="empty">Your list is backed up, so it won't get lost.</p>}
+        {/* Above the buttons, not below: at the foot of the page a result lands off the screen (Verify finding 5). */}
+        {deviceNote && <p className="hint">{deviceNote}</p>}
         {/* ADR-0005: a passkey on this identity is how a second device opens the same list. */}
         {passkeysSupported() && (
           <div className="actions">
@@ -189,7 +193,6 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
             </button>
           </div>
         )}
-        {deviceNote && <p className="hint">{deviceNote}</p>}
       </section>
     </>
   );
@@ -280,6 +283,14 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
         </label>
       </div>
 
+      {/* Straight under the radios: it answers the choice just made, not the Link Telegram button below (Verify finding 6). */}
+      {text && <p className="hint">{text}</p>}
+      {problem === "home_screen" && (
+        <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={() => setProblem(null)}>
+          Got it
+        </button>
+      )}
+
       {channel === "telegram" && <p className="empty">Nudges go to Telegram.</p>}
       {channel === "push" && (
         <>
@@ -298,12 +309,6 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
         </>
       )}
 
-      {text && <p className="hint">{text}</p>}
-      {problem === "home_screen" && (
-        <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={() => setProblem(null)}>
-          Got it
-        </button>
-      )}
       {note && <p className="hint">{note}</p>}
     </section>
   );

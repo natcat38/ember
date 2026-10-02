@@ -164,7 +164,7 @@ export function App() {
     void joined
       .then(() => sync.push())
       .finally(() => setPulling(false)) // pushed, or failed: either way the first pull has had its say
-      .then(() => taskId && navigate({ name: "task", id: taskId, from: "today", pickDate }));
+      .then(() => taskId && navigate({ name: "task", id: taskId, from: "today", pickDate }, undefined, false)); // a page load, not a move: no heading focus ring
     const wake = () => document.visibilityState === "visible" && void sync.push();
     document.addEventListener("visibilitychange", wake);
     window.addEventListener("online", wake);
@@ -241,16 +241,18 @@ export function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  function navigate(v: View, pane?: Pane) {
+  function navigate(v: View, pane?: Pane, focus = true) {
     syncHistory(v);
-    show(v, pane);
+    show(v, pane, focus);
   }
 
-  function show(v: View, pane?: Pane) {
+  // `focus` is false when the app opens straight onto a screen from a link: focus moves to a heading after the user's own
+  // moves, but on a fresh load nothing has moved, and the browser would draw a focus rectangle round the title.
+  function show(v: View, pane?: Pane, focus = true) {
     if (v.name !== "today") setWelcome(false); // the welcome back is offered once
     setView(v);
     window.scrollTo(0, 0);
-    moveFocus(pane ?? paneOf(v, viewNow.current));
+    if (focus) moveFocus(pane ?? paneOf(v, viewNow.current));
   }
 
   // Move focus to the new content's heading so keyboard and screen-reader users land on it, unless they have
@@ -547,7 +549,9 @@ export function App() {
           {/* Nothing to capture into from Settings (Wireframes.md, Global). */}
           {!wide && view.name !== "settings" && (
             <div className={`capture-bar${view.name === "focus" ? " dimmed" : ""}`}>
-              <button onClick={openCapture}>{state.draft || "What's on your mind?"}</button>
+              <button className={state.draft ? "has-draft" : undefined} onClick={openCapture}>
+                {state.draft || "What's on your mind?"}
+              </button>
             </div>
           )}
         </>
@@ -556,8 +560,10 @@ export function App() {
       {/* ponytail: copy not yet in Design_Direction §6; needs Natalie's approval. */}
       {syncStatus.offline && <p className="status-line">Offline. Your changes will sync when you reconnect.</p>}
       {!saved && <p className="status-line">This device isn't saving right now. Keep Ember open so nothing is lost.</p>}
-      {/* The open sheet makes the page inert, which mutes a live region outside it, so the sheet carries its own. */}
-      <p className="status-line status" aria-live="polite">
+      {/* Success is silent on screen (Design_Direction.md §6): this region is for screen readers and takes no room, so a
+          row never moves under a second tap. Offline and save-failure above stay visible.
+          The open sheet makes the page inert, which mutes a live region outside it, so the sheet carries its own. */}
+      <p className="sr-only" aria-live="polite">
         {sheetOpen ? "" : status}
       </p>
 

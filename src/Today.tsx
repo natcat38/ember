@@ -222,7 +222,8 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
           {frog.chunk && <p className="meta">from: {[frog.task.title, frog.parent?.title].filter(Boolean).join(" · ")}</p>}
           {frog.task.deadline && band(frog.task, today) === "overdue" && <p className="meta">{wasDue(frog.task.deadline, today)}</p>}
           <div className="actions card-actions">
-            <button className="button primary icon-label" onClick={() => onStart(frog)}>
+            {/* The view's one primary, until a session is running (on desktop it sits beside Focus, whose Pause is the primary then). */}
+            <button className={`button${state.focus ? "" : " primary"} icon-label`} onClick={() => onStart(frog)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M8 5l11 7-11 7z" />
               </svg>

@@ -97,11 +97,12 @@ export function RewardView({ title, done, total, hasNext, onNext, onToday, offer
   }, [done]);
 
   return (
-    <div className="reward">
+    // While an unlock plays, the ring and the cat shrink so the card, its Skip or Done and the way on stay on the screen.
+    <div className={`reward${phase === "play" ? " playing" : ""}`}>
       <p className="meta">{title}</p>
-      <Ring done={shown} total={total} size={104} showCount />
+      <Ring done={shown} total={total} size={phase === "play" ? 64 : 104} showCount />
       <div className="cat-circle" aria-hidden="true">
-        <Cat pose={catPose({ screen: "reward" })} size={176} />
+        <Cat pose={catPose({ screen: "reward" })} size={phase === "play" ? 80 : 176} />
       </div>
       <section className="card reward-card" aria-labelledby="reward-title">
         <h1 id="reward-title" ref={heading} className="lead" tabIndex={-1}>
