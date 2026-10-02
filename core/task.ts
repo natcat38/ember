@@ -34,6 +34,23 @@ export interface Settings {
   tz: string | null; // IANA name; null = the browser's
   quiet_start: number;
   quiet_end: number; // the day starts here (§4.1)
+  // Phase 3 (Tech_Scope.md §10, slice 19). All three sync with the row; `load()` fills them in for settings saved before.
+  timer_mode: TimerMode; // the focus timer: 25/5 Pomodoro, or Flowtime (count-up, break = a fifth of the time worked)
+  unlock: UnlockKind; // the reward unlock the Reward screen offers: one kind, or `rotate` through them
+  journal_key: string | null; // base64url of the raw 256-bit AES-GCM key that seals journal lines; null until the first line
+}
+
+export type TimerMode = "pomodoro" | "flowtime";
+export type UnlockKind = "rotate" | "trivia" | "puzzle" | "fact";
+
+// The D1 `journal` table (Tech_Scope.md §3, UX_Flows.md §3.7): one line per local day, sealed on the device. The server
+// holds `iv` and `text` as base64url and never the words; `mood` is a plain 1-5 (Rough · Meh · Okay · Good · Great).
+export interface JournalEntry {
+  day: string; // local date YYYY-MM-DD
+  iv: string; // 12 random bytes, base64url
+  text: string; // AES-GCM ciphertext of the line, base64url
+  mood: number | null;
+  updated_at: number;
 }
 
 // One busy stretch on one or more weekdays (0 = Monday). Ember plans around these; steps are never clock-pinned.
@@ -51,6 +68,7 @@ export interface State {
   tasks: Task[];
   chunks: Chunk[];
   days: Day[];
+  journal: JournalEntry[];
   sessions: Session[];
   focus: Focus | null; // the running focus session, if any
   last_seen_at: number | null; // users.last_seen_at: drives the lapse return
@@ -61,7 +79,9 @@ export interface State {
   draft: string; // unsent capture text, kept when the sheet closes (UX_Flows.md §3.1)
 }
 
-export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], sessions: [], focus: null, last_seen_at: null, onboarded: false, nudge_offered: false, settings: { tz: null, quiet_start: 1320, quiet_end: 480 }, hard_blocks: [], draft: "" });
+export const defaultSettings = (): Settings => ({ tz: null, quiet_start: 1320, quiet_end: 480, timer_mode: "pomodoro", unlock: "rotate", journal_key: null });
+
+export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], journal: [], sessions: [], focus: null, last_seen_at: null, onboarded: false, nudge_offered: false, settings: defaultSettings(), hard_blocks: [], draft: "" });
 
 export interface CaptureInput {
   title: string;

@@ -14,11 +14,13 @@ const FIELDS: Record<Entity, string[]> = {
   sessions: ["chunk_id", "started_at", "ended_at", "completed"],
   days: ["confirmed_at", "shutdown_at", "deferred"],
   hard_blocks: ["weekdays", "start_min", "end_min", "label", "deleted", "updated_at"],
-  settings: ["tz", "quiet_start", "quiet_end"],
+  settings: ["tz", "quiet_start", "quiet_end", "timer_mode", "unlock", "journal_key"],
+  // Ciphertext only: the line is sealed in src/journal.ts before it reaches the state, so nothing here is readable.
+  journal: ["iv", "text", "mood", "updated_at"],
 };
 // Upload order matters for the server's rules: a task before its steps, a parent step before its smaller steps.
-const ORDER: Entity[] = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings"];
-const keyOf = (e: Entity) => (e === "days" ? "day" : "id");
+const ORDER: Entity[] = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings", "journal"];
+const keyOf = (e: Entity) => (e === "days" || e === "journal" ? "day" : "id");
 
 const rows = (s: State, e: Entity): Row[] => (e === "settings" ? [{ id: "me", ...s.settings }] : (s[e] as unknown as Row[]));
 const byKey = (s: State, e: Entity) => new Map(rows(s, e).map((r) => [String(r[keyOf(e)]), r]));
@@ -46,7 +48,7 @@ export function diff(prev: State, next: State, newId: () => string = uuid): Op[]
 // The first sync uploads everything this device has (phase-1 data included), in an order the server's rules accept.
 export function allOps(s: State, newId: () => string = uuid): Op[] {
   const parentsFirst = { ...s, chunks: [...s.chunks].sort((a, b) => Number(!!a.parent_id) - Number(!!b.parent_id)) };
-  const nothing = { ...s, tasks: [], chunks: [], sessions: [], days: [], hard_blocks: [] };
+  const nothing = { ...s, tasks: [], chunks: [], sessions: [], days: [], hard_blocks: [], journal: [] };
   const ops = diff(nothing, parentsFirst, newId);
   // Settings always exist on the device, so a diff never sees them as new; the first upload sends them whole.
   return [...ops, { op_id: newId(), entity: "settings", id: "me", fields: pick("settings", { ...s.settings }) }];
@@ -76,8 +78,8 @@ export function applyChanges(s: State, changes: Change[], pending: Op[]): State 
       if (FIELDS[e].some((f) => !same(merged[f], list[i][f]))) list[i] = merged;
     }
     if (e === "settings") {
-      const { tz, quiet_start, quiet_end } = list[0] as unknown as State["settings"];
-      next.settings = { tz, quiet_start, quiet_end };
+      // Rebuilt from the synced field list, so the row's `id` never lands in the state.
+      next.settings = Object.fromEntries(FIELDS.settings.map((f) => [f, list[0][f]])) as unknown as State["settings"];
     } else next[e] = list as never;
   }
   return next;

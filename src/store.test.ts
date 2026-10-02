@@ -51,3 +51,19 @@ test("rows finished before done_at existed take their last edit time as the fini
   expect(s.tasks[0].done_at).toBe(50);
   expect(s.chunks.map((c) => c.done_at)).toEqual([70, undefined, 60]);
 });
+
+test("settings saved before the phase-3 fields existed load with their defaults, keeping what was saved", () => {
+  const st = fakeStorage();
+  const { journal: _journal, ...old } = { ...emptyState(), settings: { tz: "Europe/London", quiet_start: 1380, quiet_end: 420 } };
+  st.setItem(KEY, JSON.stringify(old));
+  const s = load(st);
+  expect(s.settings).toEqual({ tz: "Europe/London", quiet_start: 1380, quiet_end: 420, timer_mode: "pomodoro", unlock: "rotate", journal_key: null });
+  expect(s.journal).toEqual([]);
+});
+
+test("saved phase-3 settings are not overwritten by the defaults", () => {
+  const st = fakeStorage();
+  const settings = { tz: null, quiet_start: 1320, quiet_end: 480, timer_mode: "flowtime" as const, unlock: "puzzle" as const, journal_key: "k".repeat(43) };
+  save({ ...emptyState(), settings }, st);
+  expect(load(st).settings).toEqual(settings);
+});

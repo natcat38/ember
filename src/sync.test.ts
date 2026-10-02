@@ -54,13 +54,35 @@ test("settings sync as the one row 'me', both ways", () => {
   const s = sample();
   const t = { ...s, settings: { ...s.settings, quiet_end: 420 } };
   expect(diff(s, t, () => "op")).toEqual([{ op_id: "op", entity: "settings", id: "me", fields: { quiet_end: 420 } }]);
-  const merged = applyChanges(s, [{ entity: "settings", row: { id: "me", tz: "Europe/London", quiet_start: 1380, quiet_end: 360, rev: 3 } }], []);
-  expect(merged.settings).toEqual({ tz: "Europe/London", quiet_start: 1380, quiet_end: 360 });
+  const merged = applyChanges(s, [{ entity: "settings", row: { id: "me", tz: "Europe/London", quiet_start: 1380, quiet_end: 360, timer_mode: "pomodoro", unlock: "rotate", journal_key: null, rev: 3 } }], []);
+  expect(merged.settings).toEqual({ ...s.settings, tz: "Europe/London", quiet_start: 1380, quiet_end: 360 });
+});
+
+test("the phase-3 settings travel as fields of 'me', both ways", () => {
+  const s = sample();
+  const t = { ...s, settings: { ...s.settings, timer_mode: "flowtime" as const, unlock: "trivia" as const, journal_key: "k".repeat(43) } };
+  expect(diff(s, t, () => "op")).toEqual([{ op_id: "op", entity: "settings", id: "me", fields: { timer_mode: "flowtime", unlock: "trivia", journal_key: "k".repeat(43) } }]);
+  const row = { id: "me", tz: null, quiet_start: 1320, quiet_end: 480, timer_mode: "flowtime", unlock: "puzzle", journal_key: null, rev: 4 };
+  expect(applyChanges(s, [{ entity: "settings", row }], []).settings).toEqual({ tz: null, quiet_start: 1320, quiet_end: 480, timer_mode: "flowtime", unlock: "puzzle", journal_key: null });
+});
+
+test("a journal entry is keyed by its day and syncs as ciphertext, iv, mood and updated_at", () => {
+  const s = sample();
+  const entry = { day: today, iv: "i".repeat(16), text: "c".repeat(40), mood: 4, updated_at: 7 };
+  const t = { ...s, journal: [entry] };
+  expect(diff(s, t, () => "op")).toEqual([{ op_id: "op", entity: "journal", id: today, fields: { iv: entry.iv, text: entry.text, mood: 4, updated_at: 7 } }]);
+  const u = { ...t, journal: [{ ...entry, mood: null, updated_at: 8 }] };
+  expect(diff(t, u, () => "op")).toEqual([{ op_id: "op", entity: "journal", id: today, fields: { mood: null, updated_at: 8 } }]);
+  // From another device: the row comes in under `day`, and the server's `rev` stays out.
+  const merged = applyChanges(s, [{ entity: "journal", row: { ...entry, rev: 9 } }], []);
+  expect(merged.journal).toEqual([entry]);
 });
 
 test("first upload: every row, parents before children, tasks before steps", () => {
   const ops = allOps(sample(), id);
   expect(ops.map((o) => `${o.entity}:${o.id}`)).toEqual(["tasks:id-1", "chunks:id-2", "chunks:id-3", "chunks:id-4", "days:2026-10-05", "settings:me"]);
+  const withLine = { ...sample(), journal: [{ day: today, iv: "i".repeat(16), text: "c".repeat(40), mood: null, updated_at: 7 }] };
+  expect(allOps(withLine, id).map((o) => `${o.entity}:${o.id}`)).toContain(`journal:${today}`);
   expect(ops[3].fields.parent_id).toBe("id-2");
 });
 
@@ -85,7 +107,7 @@ test("server changes merge in, except fields with a local edit still waiting to 
 
 test("applying an echo of what this device already has changes nothing", () => {
   const s = sample();
-  const echo = allOps(s, id).map((o) => ({ entity: o.entity, row: o.entity === "days" ? { day: o.id, ...o.fields, rev: 1 } : { id: o.id, ...o.fields, rev: 1 } }));
+  const echo = allOps(s, id).map((o) => ({ entity: o.entity, row: o.entity === "days" || o.entity === "journal" ? { day: o.id, ...o.fields, rev: 1 } : { id: o.id, ...o.fields, rev: 1 } }));
   const merged = applyChanges(s, echo, []);
   expect(diff(s, merged, () => "op")).toEqual([]);
 });

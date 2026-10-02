@@ -1,8 +1,8 @@
 // Wire format of POST /api/sync (Tech_Scope.md §5). The client outbox (integrated later) imports these types.
 
-export type Entity = "tasks" | "chunks" | "sessions" | "days" | "hard_blocks" | "settings";
+export type Entity = "tasks" | "chunks" | "sessions" | "days" | "hard_blocks" | "settings" | "journal";
 
-// A patch of named fields on one row. `id` is the row id; for `days` it is the local date 'YYYY-MM-DD'.
+// A patch of named fields on one row. `id` is the row id; for `days` and `journal` it is the local date 'YYYY-MM-DD'.
 // `op_id` is made once when the user acts and reused on every retry.
 export interface Op {
   op_id: string;
@@ -17,7 +17,7 @@ export interface SyncRequest {
 }
 
 // One changed row, in the client's entity shape (booleans as booleans, `days.deferred` as an array) plus `rev`.
-// For `days` the row has `day` instead of `id`.
+// For `days` and `journal` the row has `day` instead of `id`.
 export interface Change {
   entity: Entity;
   row: Record<string, unknown>;
@@ -48,8 +48,8 @@ export interface SyncResponse {
 }
 
 // D1 allows 50 queries per invocation on the free plan and every statement in a db.batch() counts (Tech_Scope.md §11).
-// D1 also caps a compound SELECT at 5 terms, and there are 6 synced tables, so the row lookup and the pull each take up
-// to 2 statements. One request costs: up to 2 (identity: a stale cookie's lookup, then the new user) + up to 3 (ledger
+// D1 also caps a compound SELECT at 5 terms, and there are 7 synced tables (8 kinds of row in the lookup, counting a
+// chunk's children), so the row lookup and the pull each take up to 2 statements; an eighth table would still fit. One request costs: up to 2 (identity: a stale cookie's lookup, then the new user) + up to 3 (ledger
 // and rev read, row lookup) + MAX_OPS + 3 (rev guard row, rev bump, ledger insert) + 3 (pull, cursor) = MAX_OPS + 11,
 // which is 49 at 38. A request with more ops is refused whole with 413, and the client sends its outbox in slices of at
 // most MAX_OPS and loops until it is empty. A request that loses a race with another of the same user's (the rev guard

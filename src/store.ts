@@ -14,7 +14,10 @@ export function load(storage: Storage = localStorage, now = Date.now()): State {
   const raw = storage.getItem(KEY);
   if (!raw) return emptyState();
   try {
-    const s: State = { ...emptyState(), ...JSON.parse(raw) };
+    // Settings merge field by field: a saved object from before phase 3 lacks timer_mode, unlock and journal_key.
+    const saved = JSON.parse(raw);
+    const defaults = emptyState();
+    const s: State = { ...defaults, ...saved, settings: { ...defaults.settings, ...saved.settings } };
     return { ...s, tasks: s.tasks.map(stampDone), chunks: s.chunks.map(stampDone) };
   } catch {
     // Never overwrite what we can't read: park it beside the live key so it can be recovered by hand.

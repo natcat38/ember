@@ -68,6 +68,7 @@ const LOOKUP_COLUMNS: Record<Entity, string> = {
   days: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
   hard_blocks: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
   settings: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
+  journal: "NULL AS state, NULL AS task_id, NULL AS parent_id, 0 AS deleted",
 };
 
 /** What the lookup loads: the rows of an entity by id, or (`children`) the live chunks under the given parent ids. */
@@ -75,7 +76,7 @@ type Wanted = Entity | "children";
 
 // The row ids this request needs the stored state of. The tables keyed by id alone (tasks, chunks, sessions,
 // hard_blocks) are always loaded for every op: the state rules judge them, a complete op may be an upsert of a row that
-// exists, and the id may be another user's row (foreign_id). The per-user tables (days, settings) are loaded only for a
+// exists, and the id may be another user's row (foreign_id). The per-user tables (days, settings, journal) are loaded only for a
 // partial patch, to know whether the row exists. Rows an op refers to are loaded too: a chunk's task and parent, and a
 // session's chunk. A chunk op that sets a parent also loads the live children of that chunk (Rule 6: a chunk with
 // children of its own cannot take a parent).
@@ -111,7 +112,7 @@ function lookupTerm(kind: Wanted, param: number): string {
 //
 // Statements: the ledger query carries the rev as one more UNION term, so it is 1. D1 allows at most 5 terms in a
 // compound SELECT, so the row query is separate, one term per kind needed (the four id-keyed tables and `children`
-// make 5 today; days and settings would add a sixth, hence the groups of 5): 1 or 2 more. All in one batch, which D1
+// make 5; days, settings and journal add up to three more, hence the groups of 5): 1 or 2 more. All in one batch, which D1
 // runs as one transaction, so the rev and the rows are from the same moment.
 export async function lookup(db: D1Database, uid: string, ops: Op[]) {
   const applied = new Set<string>();

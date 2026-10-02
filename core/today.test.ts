@@ -200,7 +200,7 @@ test("capacity: a packed day gets fewer slots; overlaps count once; blocks outsi
 });
 
 test("capacity follows quiet hours, including a window that runs past midnight", () => {
-  const late = { ...mei(), settings: { tz: null, quiet_start: 120, quiet_end: 600 } }; // awake 10:00 → 02:00
+  const late = { ...mei(), settings: { ...emptyState().settings, quiet_start: 120, quiet_end: 600 } }; // awake 10:00 → 02:00
   expect(freeMinutes(late, TODAY)).toBe(960);
   expect(freeMinutes({ ...late, hard_blocks: [block([0], "23:00", "23:59")] }, TODAY)).toBe(960 - 59);
 });

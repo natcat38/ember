@@ -15,9 +15,9 @@ export interface Field {
 
 export interface EntityDef {
   table: string;
-  /** Column holding the row id from the op: `id`, or `day` for the days table. */
+  /** Column holding the row id from the op: `id`, or `day` for the days and journal tables. */
   key: "id" | "day";
-  /** The key is unique per user only (days, settings), so the primary key is (user_id, key) and no guard is needed. */
+  /** The key is unique per user only (days, settings, journal), so the primary key is (user_id, key) and no guard is needed. */
   perUser?: boolean;
   /** Fields a client may patch. */
   fields: Record<string, Field>;
@@ -30,7 +30,13 @@ export interface EntityDef {
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-const isDate = (v: unknown): v is string => typeof v === "string" && DATE_RE.test(v) && new Date(`${v}T00:00:00Z`).toISOString().startsWith(v);
+// A real calendar day. toISOString throws on an invalid Date (month 13, day 40), so the NaN check comes first: a bad date
+// is a 400, not a 500. A date that rolls over (February 30) parses, then fails the round trip.
+const isDate = (v: unknown): v is string => {
+  if (typeof v !== "string" || !DATE_RE.test(v)) return false;
+  const t = new Date(`${v}T00:00:00Z`).getTime();
+  return !Number.isNaN(t) && new Date(t).toISOString().startsWith(v);
+};
 // An IANA time zone the runtime knows; null means "the browser's", resolved on the device.
 const isZone = (v: string) => {
   try {
@@ -63,6 +69,10 @@ const bool = (): Field => ({
   bind: (v) => (v ? 1 : 0),
   read: (v) => v === 1 || v === true,
 });
+
+// Base64url without padding, between `min` and `max` characters. The journal's iv, ciphertext and key are all this shape;
+// the server checks the shape and the size, never the content, which it cannot read.
+const base64url = (min: number, max: number, nullable = false) => field((v) => typeof v === "string" && v.length >= min && v.length <= max && /^[A-Za-z0-9_-]+$/.test(v), nullable);
 
 // `hard_blocks.weekdays` is a JSON array of distinct weekdays (0 = Monday) in TEXT.
 const weekdays = (): Field => ({
@@ -165,11 +175,31 @@ export const ENTITIES: Record<Entity, EntityDef> = {
       tz: field((v) => typeof v === "string" && v.length <= 64 && isZone(v), true),
       quiet_start: int(0, 1439),
       quiet_end: int(0, 1439),
+      // Phase 3 (§10, slice 19). The key is 32 bytes: 43 base64url characters.
+      timer_mode: enumOf(["pomodoro", "flowtime"]),
+      unlock: enumOf(["rotate", "trivia", "puzzle", "fact"]),
+      journal_key: base64url(43, 43, true),
+    },
+  },
+  // One sealed line per user and day (§10, slice 19; UX_Flows.md §3.7). Keyed by the local date, like days. `iv` is 12
+  // bytes (16 characters); `text` is the AES-GCM ciphertext of a line of at most 500 characters, which is 22 characters
+  // for an empty one (the 16-byte tag) up to about 2700, so 4096 leaves room. `mood` is a plain 1-5.
+  journal: {
+    table: "journal",
+    key: "day",
+    perUser: true,
+    required: ["iv", "text"],
+    checkId: isDate,
+    fields: {
+      iv: base64url(16, 16),
+      text: base64url(22, 4096),
+      mood: int(1, 5, true),
+      updated_at: int(),
     },
   },
 };
 
 export const ENTITY_NAMES = Object.keys(ENTITIES) as Entity[];
 
-// D1 refuses a compound SELECT of more than 5 terms; with 6 tables, per-table queries go out in groups of 5.
+// D1 refuses a compound SELECT of more than 5 terms; with 7 tables, per-table queries go out in groups of 5.
 export const groupsOf5 = <T>(xs: T[]): T[][] => Array.from({ length: Math.ceil(xs.length / 5) }, (_, i) => xs.slice(i * 5, i * 5 + 5));

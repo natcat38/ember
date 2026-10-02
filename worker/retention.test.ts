@@ -10,7 +10,7 @@ const DAY = 86_400_000;
 const NOW = Date.UTC(2026, 9, 2, 19, 0, 0); // the cron's own time, 2026-10-02 19:00 UTC
 const uuid = () => crypto.randomUUID();
 
-const OWNED_TABLES = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings", "ops", "sends", "handoffs"] as const;
+const OWNED_TABLES = ["tasks", "chunks", "sessions", "days", "hard_blocks", "settings", "journal", "ops", "sends", "handoffs"] as const;
 
 // A user last seen `idleDays` ago, with one row in every table that carries user_id.
 async function seedUser(idleDays: number, opts: { passkey?: boolean } = {}): Promise<string> {
@@ -24,6 +24,7 @@ async function seedUser(idleDays: number, opts: { passkey?: boolean } = {}): Pro
     env.DB.prepare("INSERT INTO days (user_id, day, rev) VALUES (?1, '2025-01-01', 1)").bind(uid),
     env.DB.prepare("INSERT INTO hard_blocks (id, user_id, weekdays, start_min, end_min, rev) VALUES (?1, ?2, '[0]', 540, 600, 1)").bind(uuid(), uid),
     env.DB.prepare("INSERT INTO settings (user_id, id, rev) VALUES (?1, 'me', 1)").bind(uid),
+    env.DB.prepare("INSERT INTO journal (user_id, day, iv, text, mood, rev) VALUES (?1, '2025-01-01', 'AAAAAAAAAAAAAAAA', 'qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq', 3, 1)").bind(uid),
     // Fresh enough to survive the 30-day ops prune, so a surviving row proves the user delete, not the prune, took it.
     env.DB.prepare("INSERT INTO ops (user_id, op_id, applied_at) VALUES (?1, ?2, ?3)").bind(uid, uuid(), NOW - DAY),
     env.DB.prepare("INSERT INTO sends (id, user_id, day, kind, due_at) VALUES (?1, ?2, '2025-01-01', 'morning', ?3)").bind(uuid(), uid, seen),
