@@ -19,7 +19,7 @@ const block = (id: string, start: string, end: string): HardBlock => ({ id, week
 function mei(): State {
   return {
     ...emptyState(),
-    settings: { tz: TZ, quiet_start: 1320, quiet_end: 480 },
+    settings: { ...emptyState().settings, tz: TZ },
     hard_blocks: [block("lecture", "09:00", "12:00"), block("lab", "14:00", "16:00")],
     tasks: [
       task("A", { title: "DSA assignment", size: "M", deadline: "2026-10-08", runway_start: "2026-09-28" }),
@@ -133,7 +133,7 @@ describe("planDay", () => {
   test("a snoozed task leaves its close batch and gets a message of its own", () => {
     const s: State = {
       ...emptyState(),
-      settings: { tz: TZ, quiet_start: 1320, quiet_end: 480 },
+      settings: { ...emptyState().settings, tz: TZ },
       tasks: [task("X", { title: "X", deadline: "2026-10-07", runway_start: "2026-10-01", snoozed_until: at("20:30") }), task("Y", { title: "Y", deadline: "2026-10-08", runway_start: "2026-10-01" })],
     };
     expect(brief(plan({}, s))).toEqual([
@@ -152,7 +152,7 @@ describe("planDay", () => {
   });
 
   test("a light day replaces the morning message", () => {
-    const s: State = { ...emptyState(), settings: { tz: TZ, quiet_start: 1320, quiet_end: 480 }, tasks: [task("D", { title: "System design ch. 3" })], chunks: steps("D", 2) };
+    const s: State = { ...emptyState(), settings: { ...emptyState().settings, tz: TZ }, tasks: [task("D", { title: "System design ch. 3" })], chunks: steps("D", 2) };
     const out = plan({}, s);
     expect(brief(out)).toEqual([
       ["light_day", ["D"], at("08:00")],
@@ -162,7 +162,7 @@ describe("planDay", () => {
   });
 
   test("no tasks at all: morning and wrap-up only", () => {
-    const s: State = { ...emptyState(), settings: { tz: TZ, quiet_start: 1320, quiet_end: 480 } };
+    const s: State = { ...emptyState(), settings: { ...emptyState().settings, tz: TZ } };
     expect(brief(plan({}, s))).toEqual([
       ["morning", [], at("08:00")],
       ["wrap_up", [], at("21:00")],
@@ -172,7 +172,7 @@ describe("planDay", () => {
   test("two getting-close tasks share one batched message, plus a second nudge when the cap allows", () => {
     const s: State = {
       ...emptyState(),
-      settings: { tz: TZ, quiet_start: 1320, quiet_end: 480 },
+      settings: { ...emptyState().settings, tz: TZ },
       tasks: [task("X", { title: "X", deadline: "2026-10-08", runway_start: "2026-10-01" }), task("Y", { title: "Y", deadline: "2026-10-07", runway_start: "2026-10-01" })],
       chunks: [...steps("X", 1), ...steps("Y", 1)],
     };
@@ -197,7 +197,7 @@ describe("planDay", () => {
   });
 
   test("slots follow the user's window, not 08:00-22:00 (a late riser, 10:00-24:00 in New York)", () => {
-    const s: State = { ...emptyState(), settings: { tz: "America/New_York", quiet_start: 0, quiet_end: 600 } };
+    const s: State = { ...emptyState(), settings: { ...emptyState().settings, tz: "America/New_York", quiet_start: 0, quiet_end: 600 } };
     const out = planDay({ state: s, today: "2026-03-08", sentToday: 0, lastQuietAt: null, overdueSentFor: [] });
     expect(brief(out)).toEqual([
       ["morning", [], localToMs("2026-03-08", 600, "America/New_York")],

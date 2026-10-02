@@ -2,7 +2,9 @@ import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import worker from "./index";
 import { MAX_OPS, type Op, type SyncResponse } from "./protocol";
-import { commit, lookup, planOps, SyncConflict } from "./sync";
+import { commit, lookup, planOps, sync as syncDb, SyncConflict } from "./sync";
+import { emptyState } from "../core/task";
+import { decryptLine, encryptLine, ensureKey } from "../src/journal";
 
 const URL_SYNC = "https://ember.test/api/sync";
 const uuid = () => crypto.randomUUID();
@@ -14,6 +16,12 @@ const task = (id: string, fields: Record<string, unknown> = {}): Op => ({
   fields: { title: "Write cover letter", state: "inbox", ...fields },
 });
 const patch = (id: string, fields: Record<string, unknown>): Op => ({ op_id: uuid(), entity: "tasks", id, fields });
+
+// Shapes the server checks: a 12-byte iv and a ciphertext as base64url, a 256-bit key as 43 characters of it.
+const IV = "AAAAAAAAAAAAAAAA";
+const CIPHERTEXT = "q".repeat(30);
+const KEY = "k".repeat(43);
+const journalOp = (day: string, fields: Record<string, unknown> = {}): Op => ({ op_id: uuid(), entity: "journal", id: day, fields: { iv: IV, text: CIPHERTEXT, mood: null, updated_at: 1, ...fields } });
 
 function request(body: unknown, cookie?: string): Request {
   return new Request(URL_SYNC, {
@@ -199,15 +207,17 @@ describe("pull and cursor", () => {
       { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { confirmed_at: 5, deferred: [c] } },
       { op_id: uuid(), entity: "hard_blocks", id: h, fields: { weekdays: [0, 2], start_min: 540, end_min: 720, label: "Classes" } },
       { op_id: uuid(), entity: "settings", id: "me", fields: { tz: "Europe/London", quiet_start: 1380, quiet_end: 420 } },
+      { op_id: uuid(), entity: "journal", id: "2026-10-05", fields: { iv: IV, text: CIPHERTEXT, mood: 4, updated_at: 7 } },
     ];
     const { body } = await sync({ cursor: 0, ops }, cookie);
 
-    // Six tables: the pull runs as two statements (D1's 5-term cap) and the rows are still oldest change first.
-    expect(body.changes.map((x) => x.entity)).toEqual(["tasks", "chunks", "sessions", "days", "hard_blocks", "settings"]);
-    expect(body.changes.map((x) => x.row.rev)).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(body.cursor).toBe(6);
-    const [tr, cr, sr, dr, hr, st] = body.changes.map((x) => x.row);
-    expect(st).toEqual({ id: "me", tz: "Europe/London", quiet_start: 1380, quiet_end: 420, rev: 6 });
+    // Seven tables: the pull runs as two statements (D1's 5-term cap) and the rows are still oldest change first.
+    expect(body.changes.map((x) => x.entity)).toEqual(["tasks", "chunks", "sessions", "days", "hard_blocks", "settings", "journal"]);
+    expect(body.changes.map((x) => x.row.rev)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(body.cursor).toBe(7);
+    const [tr, cr, sr, dr, hr, st, jr] = body.changes.map((x) => x.row);
+    expect(st).toEqual({ id: "me", tz: "Europe/London", quiet_start: 1380, quiet_end: 420, timer_mode: "pomodoro", unlock: "rotate", journal_key: null, rev: 6 });
+    expect(jr).toEqual({ day: "2026-10-05", iv: IV, text: CIPHERTEXT, mood: 4, updated_at: 7, rev: 7 });
     expect(tr).toMatchObject({ id: t, title: "Write cover letter", quick: true, holding_up: false, size: "XS", deadline: "2026-10-09", pinned_on: null });
     expect(tr).not.toHaveProperty("user_id");
     expect(cr).toMatchObject({ id: c, task_id: t, parent_id: null, position: 1.5, deleted: false });
@@ -354,7 +364,7 @@ describe("settings", () => {
     expect((await bad({ quiet_end: 420 }, "you")).res.status).toBe(400);
   });
 
-  it("patches rows of all six tables in one request", async () => {
+  it("patches rows of all seven tables in one request", async () => {
     const cookie = await newUser();
     const [t, c, s, h] = [uuid(), uuid(), uuid(), uuid()];
     await sync({ cursor: 0, ops: [
@@ -364,6 +374,7 @@ describe("settings", () => {
       { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { confirmed_at: 1 } },
       { op_id: uuid(), entity: "hard_blocks", id: h, fields: { weekdays: [1], start_min: 60, end_min: 120 } },
       { op_id: uuid(), entity: "settings", id: "me", fields: { quiet_end: 420 } },
+      { op_id: uuid(), entity: "journal", id: "2026-10-05", fields: { iv: IV, text: CIPHERTEXT } },
     ] }, cookie);
     // Partial patches of every table: each needs its row found.
     const { res, body } = await sync({ cursor: 0, ops: [
@@ -373,10 +384,163 @@ describe("settings", () => {
       { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { shutdown_at: 9 } },
       { op_id: uuid(), entity: "hard_blocks", id: h, fields: { label: "Gym" } },
       { op_id: uuid(), entity: "settings", id: "me", fields: { quiet_start: 1260 } },
+      { op_id: uuid(), entity: "journal", id: "2026-10-05", fields: { mood: 5 } },
     ] }, cookie);
     expect(res.status).toBe(200);
     expect(body.rejected).toEqual([]);
     expect(await count("SELECT COUNT(*) AS n FROM settings WHERE user_id = ? AND quiet_start = 1260 AND quiet_end = 420", uidOf(cookie))).toBe(1);
+  });
+});
+
+describe("phase-3 settings", () => {
+  const set = (cookie: string, fields: Record<string, unknown>) => sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "settings", id: "me", fields }] }, cookie);
+  const stored = (cookie: string) => env.DB.prepare("SELECT timer_mode, unlock, journal_key FROM settings WHERE user_id = ?").bind(uidOf(cookie)).first();
+
+  it("start at their defaults, round-trip, and merge per field with the older three", async () => {
+    const [a, b] = [await newUser(), await newUser()];
+    await set(a, { quiet_end: 420 }); // a row created by a phase-2 style op: the new columns take their defaults
+    expect(await stored(a)).toEqual({ timer_mode: "pomodoro", unlock: "rotate", journal_key: null });
+
+    await set(a, { timer_mode: "flowtime", unlock: "puzzle", journal_key: KEY });
+    await set(a, { unlock: "fact" });
+    expect(await stored(a)).toEqual({ timer_mode: "flowtime", unlock: "fact", journal_key: KEY });
+    expect(await stored(b)).toBeNull();
+
+    const { body } = await sync({ cursor: 0, ops: [] }, a);
+    expect(body.changes.find((c) => c.entity === "settings")!.row).toMatchObject({ id: "me", quiet_end: 420, timer_mode: "flowtime", unlock: "fact", journal_key: KEY });
+  });
+
+  it("refuses a timer mode or unlock kind it does not know, and a journal key that is not 256 bits", async () => {
+    const cookie = await newUser();
+    for (const fields of [{ timer_mode: "stopwatch" }, { timer_mode: null }, { unlock: "chess" }, { unlock: null }, { journal_key: "short" }, { journal_key: "k".repeat(44) }, { journal_key: `${"k".repeat(42)}=` }, { journal_key: 5 }]) {
+      expect((await set(cookie, fields)).res.status, JSON.stringify(fields)).toBe(400);
+    }
+    expect(await stored(cookie)).toBeNull();
+    expect((await set(cookie, { journal_key: null })).res.status).toBe(200);
+  });
+});
+
+describe("journal", () => {
+  const stored = (cookie: string, day: string) => env.DB.prepare("SELECT iv, text, mood, updated_at FROM journal WHERE user_id = ? AND day = ?").bind(uidOf(cookie), day).first<Record<string, unknown>>();
+
+  it("syncs as ciphertext: the stored row never holds the plaintext, and another device decrypts it", async () => {
+    const cookie = await newUser();
+    const line = "Sent the application. Walked to the park after.";
+    const key = ensureKey(emptyState()).settings.journal_key!;
+    const { iv, text } = await encryptLine(key, line);
+    const { res, body } = await sync({ cursor: 0, ops: [journalOp("2026-10-05", { iv, text, mood: 5 })] }, cookie);
+    expect(res.status).toBe(200);
+    expect(body.rejected).toEqual([]);
+
+    // What D1 holds is the ciphertext, byte for byte what the device sent, and no column carries the line.
+    const row = (await stored(cookie, "2026-10-05"))!;
+    expect(row).toEqual({ iv, text, mood: 5, updated_at: 1 });
+    expect(JSON.stringify(row)).not.toContain("application");
+    expect(JSON.stringify(row)).not.toContain("park");
+
+    // A second device with the same user (and the key, which travels in settings) reads it back.
+    const pulled = (await sync({ cursor: 0, ops: [] }, cookie)).body.changes.find((c) => c.entity === "journal")!.row as { iv: string; text: string };
+    expect(await decryptLine(key, pulled)).toBe(line);
+    expect(await decryptLine(ensureKey(emptyState()).settings.journal_key, pulled)).toBeNull();
+  });
+
+  it("is one row per user and day: a patch changes the mood alone, and another user's same day is separate", async () => {
+    const [a, b] = [await newUser(), await newUser()];
+    await sync({ cursor: 0, ops: [journalOp("2026-10-05", { mood: 2 })] }, a);
+    await sync({ cursor: 0, ops: [journalOp("2026-10-05", { text: "B".repeat(30) }), journalOp("2026-10-05", { text: "C".repeat(30) })] }, b); // two creates of one day: the later wins
+    await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "journal", id: "2026-10-05", fields: { mood: 4 } }] }, a);
+    await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "journal", id: "2026-10-05", fields: { mood: null } }] }, b);
+    expect(await stored(a, "2026-10-05")).toEqual({ iv: IV, text: CIPHERTEXT, mood: 4, updated_at: 1 });
+    expect(await stored(b, "2026-10-05")).toEqual({ iv: IV, text: "C".repeat(30), mood: null, updated_at: 1 });
+    expect(await count("SELECT COUNT(*) AS n FROM journal WHERE user_id IN (?, ?)", uidOf(a), uidOf(b))).toBe(2);
+  });
+
+  it("refuses a patch of a day that has no entry, and a create without iv and text", async () => {
+    const cookie = await newUser();
+    const { body } = await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "journal", id: "2026-10-06", fields: { mood: 3 } }, { op_id: uuid(), entity: "journal", id: "2026-10-06", fields: { iv: IV, mood: 3 } }] }, cookie);
+    expect(body.rejected.map((r) => r.reason)).toEqual(["incomplete_create", "incomplete_create"]);
+    expect(await stored(cookie, "2026-10-06")).toBeNull();
+  });
+
+  it("validates the day, the iv, the ciphertext and the mood", async () => {
+    const cookie = await newUser();
+    const bad = (day: string, fields: Record<string, unknown>) => sync({ cursor: 0, ops: [journalOp(day, fields)] }, cookie);
+    expect((await bad("2026-13-40", {})).res.status).toBe(400);
+    expect((await bad("yesterday", {})).res.status).toBe(400);
+    expect((await bad("2026-02-30", {})).res.status).toBe(400);
+    const badDay = await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "days", id: "2026-13-40", fields: { confirmed_at: 1 } }] }, cookie);
+    expect(badDay.res.status).toBe(400); // the same check guards days, which used to answer 500 here
+    expect((await bad("2026-10-05", { iv: "short" })).res.status).toBe(400);
+    expect((await bad("2026-10-05", { iv: "+".repeat(16) })).res.status).toBe(400);
+    expect((await bad("2026-10-05", { text: "a line of plain text, with spaces" })).res.status).toBe(400);
+    expect((await bad("2026-10-05", { text: "A".repeat(4097) })).res.status).toBe(400);
+    expect((await bad("2026-10-05", { text: null })).res.status).toBe(400);
+    for (const mood of [0, 6, 2.5, "3"]) expect((await bad("2026-10-05", { mood })).res.status, String(mood)).toBe(400);
+    expect((await bad("2026-10-05", { text: "A".repeat(4096), mood: 1 })).res.status).toBe(200);
+    expect(await count("SELECT COUNT(*) AS n FROM journal WHERE user_id = ?", uidOf(cookie))).toBe(1);
+  });
+});
+
+describe("statement budget (Tech_Scope.md §11: 50 D1 statements per invocation)", () => {
+  // Counts statements the way the platform does: each query is one, and each statement of a batch is one.
+  function counting(db: D1Database) {
+    let n = 0;
+    const targets = new WeakMap<object, D1PreparedStatement>();
+    const wrap = (st: D1PreparedStatement): D1PreparedStatement => {
+      const proxy: D1PreparedStatement = new Proxy(st, {
+        get: (target, prop) => (prop === "bind" ? (...args: unknown[]) => wrap(target.bind(...args)) : Reflect.get(target, prop)),
+      });
+      targets.set(proxy, st);
+      return proxy;
+    };
+    const counted = new Proxy(db, {
+      get(target, prop) {
+        if (prop === "prepare") return (sql: string) => wrap(target.prepare(sql));
+        if (prop === "batch") {
+          return (stmts: D1PreparedStatement[]) => {
+            n += stmts.length;
+            return target.batch(stmts.map((s) => targets.get(s) ?? s));
+          };
+        }
+        return Reflect.get(target, prop);
+      },
+    });
+    return { db: counted as D1Database, statements: () => n };
+  }
+
+  it(`${MAX_OPS} partial patches across all seven tables cost MAX_OPS + 9 statements, so a request is MAX_OPS + 11 with identity: under 50`, async () => {
+    const cookie = await newUser();
+    const uid = uidOf(cookie);
+    const [t, c, s, h] = [uuid(), uuid(), uuid(), uuid()];
+    await sync({ cursor: 0, ops: [
+      task(t),
+      { op_id: uuid(), entity: "chunks", id: c, fields: { task_id: t, parent_id: null, title: "Draft", position: 1, state: "todo" } },
+      { op_id: uuid(), entity: "sessions", id: s, fields: { chunk_id: c, started_at: 1, ended_at: 2 } },
+      { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { confirmed_at: 1 } },
+      { op_id: uuid(), entity: "hard_blocks", id: h, fields: { weekdays: [1], start_min: 60, end_min: 120 } },
+      { op_id: uuid(), entity: "settings", id: "me", fields: { quiet_end: 420 } },
+      journalOp("2026-10-05"),
+    ] }, cookie);
+
+    // The widest lookup: every kind is wanted (the four id-keyed tables, a chunk's children, and the three per-user
+    // tables, which a partial patch loads), which is 8 terms and so two statements; the pull is two as well.
+    const sub = uuid();
+    const ops: Op[] = [
+      patch(t, { title: "Renamed" }),
+      { op_id: uuid(), entity: "chunks", id: c, fields: { title: "Redrafted", parent_id: sub } },
+      { op_id: uuid(), entity: "sessions", id: s, fields: { completed: true } },
+      { op_id: uuid(), entity: "days", id: "2026-10-05", fields: { shutdown_at: 9 } },
+      { op_id: uuid(), entity: "hard_blocks", id: h, fields: { label: "Gym" } },
+      { op_id: uuid(), entity: "settings", id: "me", fields: { unlock: "trivia" } },
+      { op_id: uuid(), entity: "journal", id: "2026-10-05", fields: { mood: 3 } },
+    ];
+    while (ops.length < MAX_OPS) ops.push(patch(t, { title: `Rename ${ops.length}` }));
+    const counter = counting(env.DB);
+    const result = await syncDb(counter.db, uid, 0, ops, Date.now());
+    expect(result.rejected.map((r) => r.reason)).toEqual(["bad_parent"]); // only the chunk op, whose parent does not exist
+    // 1 ledger + 2 lookup + 3 (rev guard, bump, ledger) + 37 writes + 2 pull + 1 cursor = 46; identity adds at most 2.
+    expect(counter.statements()).toBeLessThanOrEqual(MAX_OPS + 9);
+    expect(counter.statements() + 2).toBeLessThan(50);
   });
 });
 

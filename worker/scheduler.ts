@@ -235,6 +235,7 @@ export function buildPlan(loaded: Loaded, settings: State["settings"], now: numb
     tasks: loaded.tasks,
     chunks: loaded.chunks,
     days: loaded.days,
+    journal: [], // never read server-side: the words are sealed
     sessions: loaded.sessions,
     focus: null,
     last_seen_at: null,
@@ -343,7 +344,7 @@ async function writePlan(db: Db, user: StaleUser, plan: Plan): Promise<boolean> 
 }
 
 async function planUser(db: Db, user: StaleUser, now: number): Promise<boolean> {
-  const settings = { tz: user.tz, quiet_start: user.quiet_start, quiet_end: user.quiet_end };
+  const settings: State["settings"] = { tz: user.tz, quiet_start: user.quiet_start, quiet_end: user.quiet_end, timer_mode: "pomodoro", unlock: "rotate", journal_key: null }; // the plan reads only the first three
   const today = dayOf(now, settings.tz ?? DEFAULT_TZ, settings.quiet_end);
   return writePlan(db, user, buildPlan(await load(db, user.id, today), settings, now));
 }
