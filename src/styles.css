@@ -1045,3 +1045,46 @@ select.field {
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-line);
 }
+
+/* Two panes (Design_Direction.md §3, UX_Flows.md §2 "Desktop delta"): Today on the left, Focus or the selected task on the
+   right, each a 560 px column. 2 × 560 plus a little air is the 1180 px breakpoint; App.tsx's twoPaneQuery repeats it. Each
+   pane scrolls on its own, so a long Today never carries the right pane away. */
+@media (min-width: 1180px) {
+  .app.two-pane {
+    max-width: none;
+    height: 100dvh;
+  }
+
+  .panes {
+    flex: 1 1 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 560px));
+    justify-content: center;
+  }
+
+  .pane {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .pane-right {
+    border-left: 1px solid var(--color-line);
+  }
+
+  /* No Back button here, so the title lines up with the content below it. */
+  .pane-right .header {
+    padding-left: var(--space-4);
+  }
+
+  /* The task menu opens under the right pane's own menu button. */
+  .two-pane .menu:not(.row-menu) {
+    inset: 60px max(var(--space-4), calc((100vw - 1120px) / 2 + var(--space-3))) auto auto;
+  }
+
+  .today-row.selected {
+    background: var(--color-nook);
+  }
+}

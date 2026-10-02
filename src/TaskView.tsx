@@ -16,6 +16,7 @@ interface Props {
   onPin: () => void;
   onStart: () => void;
   onStartStep: (chunkId: string) => void;
+  inPane?: boolean; // desktop right pane: no Back (another row replaces this view), and the page's main landmark is the left pane
   onBack: () => void;
   onTriage: (answers: TriageAnswers) => void;
   onRename: (title: string) => void;
@@ -23,7 +24,7 @@ interface Props {
 }
 
 // Wireframes.md §6. Start and Pin to today arrive in slices 4–5.
-export function TaskView({ task, pickDate, state, update, today, inToday, onPin, onStart, onStartStep, onBack, onTriage, onRename, onRemove }: Props) {
+export function TaskView({ task, pickDate, inPane, state, update, today, inToday, onPin, onStart, onStartStep, onBack, onTriage, onRename, onRemove }: Props) {
   // Triage sits open until answered; an already-triaged task opens on the one-line summary.
   const [editing, setEditing] = useState(task.state === "inbox" || !!pickDate);
   // Browsers open a date picker only from a real tap, so the button is focused and the user's next tap opens it.
@@ -41,16 +42,19 @@ export function TaskView({ task, pickDate, state, update, today, inToday, onPin,
     dialog.showModal();
   }
 
+  const Body = inPane ? "div" : "main";
   const summary = [task.deadline && formatDue(task.deadline), task.holding_up && "Holding things up", task.size].filter(Boolean);
 
   return (
     <>
       <header className="header">
-        <button className="icon-button" aria-label="Back" onClick={onBack}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M15 5l-7 7 7 7" />
-          </svg>
-        </button>
+        {!inPane && (
+          <button className="icon-button" aria-label="Back" onClick={onBack}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M15 5l-7 7 7 7" />
+            </svg>
+          </button>
+        )}
         <h1 className="title task-title" tabIndex={-1}>
           {task.title}
         </h1>
@@ -67,7 +71,7 @@ export function TaskView({ task, pickDate, state, update, today, inToday, onPin,
         </div>
       </header>
 
-      <main className="main">
+      <Body className="main">
         {editing ? (
           <section className="section triage" aria-label="Triage">
             <Question label="Has a deadline?">
@@ -124,7 +128,7 @@ export function TaskView({ task, pickDate, state, update, today, inToday, onPin,
         )}
         <hr className="divider" />
         <Steps state={state} update={update} taskId={task.id} onStart={onStartStep} />
-      </main>
+      </Body>
 
       {/* Start begins the first unfinished step, or asks for one. It works on an untriaged Inbox task too: Today is an offer,
           not a gate (UX_Flows.md §3.4), and Focus runs on a step whatever the task's state. Pin to today needs a rankable task. */}

@@ -31,12 +31,22 @@ const sameScreen = (a: View, b: View) => a.name === b.name && (a.name !== "task"
 const savedStack = (): View[] => history.state?.stack ?? [];
 const topOf = (stack: View[]): View => stack.at(-1) ?? { name: "today" };
 
-const wideQuery = window.matchMedia("(min-width: 768px)");
-const useWide = () =>
+const useMedia = (query: MediaQueryList) =>
   useSyncExternalStore(
-    (cb) => (wideQuery.addEventListener("change", cb), () => wideQuery.removeEventListener("change", cb)),
-    () => wideQuery.matches,
+    (cb) => (query.addEventListener("change", cb), () => query.removeEventListener("change", cb)),
+    () => query.matches,
   );
+const wideQuery = window.matchMedia("(min-width: 768px)");
+// Two 560 px columns (Design_Direction.md §3). The same width is in styles.css, in the one media query that lays the panes out.
+const twoPaneQuery = window.matchMedia("(min-width: 1180px)");
+
+type Pane = "left" | "right";
+type Screen = "today" | "inbox" | "settings";
+const titleOf: Record<Screen, string> = { today: "Today", inbox: "Inbox", settings: "Settings" };
+const isScreen = (v: View): v is { name: Screen } => v.name === "today" || v.name === "inbox" || v.name === "settings";
+// The pane whose content a move changes, on two panes. Focus, Reward and Task live on the right; ending a session or
+// leaving Reward lands on Today, which changes the right pane (the left one was already Today).
+const paneOf = (to: View, from: View): Pane => (to.name === "today" ? (from.name === "focus" || from.name === "reward" || from.name === "task" ? "right" : "left") : isScreen(to) ? "left" : "right");
 
 export function App() {
   // Stamp this visit as part of loading, so opening the app saves once; the lapse check reads the visit before it.
@@ -77,7 +87,13 @@ export function App() {
   const statusTimer = useRef(0);
   const sheet = useRef<HTMLDialogElement>(null);
   const drawer = useRef<HTMLDialogElement>(null);
-  const wide = useWide();
+  const wide = useMedia(wideQuery);
+  // Today and Focus side by side (UX_Flows.md §2 "Desktop delta", Wireframes.md §10). Onboarding and the evening close
+  // stay one centred column. Below the breakpoint nothing here applies.
+  const [selected, setSelected] = useState<string | null>(null); // the right pane's task; null follows the frog
+  const leftScreen = useRef<Screen>("today"); // the left pane keeps its screen while Focus, Reward or a task fill the right
+  const paneNow = useRef(false);
+  const viewNow = useRef(view);
   // The user's time zone and quiet hours set the day boundary (§4.1); hard blocks set the day's capacity (§4.4).
   const tz = state.settings.tz ?? browserTz;
   const quietEndMin = state.settings.quiet_end;
@@ -192,22 +208,40 @@ export function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  function navigate(v: View) {
+  function navigate(v: View, pane?: Pane) {
     syncHistory(v);
-    show(v);
+    show(v, pane);
   }
 
-  function show(v: View) {
+  function show(v: View, pane?: Pane) {
     if (v.name !== "today") setWelcome(false); // the welcome back is offered once
     setView(v);
     window.scrollTo(0, 0);
-    // Move focus to the new screen's heading so keyboard and screen-reader users land on it, unless they have
-    // already moved on (say, started typing in a field) before the frame came round: never steal focus.
+    moveFocus(pane ?? paneOf(v, viewNow.current));
+  }
+
+  // Move focus to the new content's heading so keyboard and screen-reader users land on it, unless they have
+  // already moved on (say, started typing in a field) before the frame came round: never steal focus. On two panes the
+  // heading is the changed pane's, and that pane scrolls back to its top.
+  function moveFocus(pane: Pane) {
     const before = document.activeElement;
     requestAnimationFrame(() => {
+      const el = paneNow.current ? document.querySelector<HTMLElement>(`[data-pane="${pane}"]`) : null;
+      el?.scrollTo(0, 0);
       const now = document.activeElement;
-      if (!now || now === before || now === document.body) document.querySelector<HTMLElement>("h1")?.focus();
+      if (!now || now === before || now === document.body) (el ?? document).querySelector<HTMLElement>("h1")?.focus();
     });
+  }
+
+  // Desktop: a Today row shows its task on the right instead of navigating away, so it needs no history entry. A task
+  // opened by a link or kept across a resize is a View; leave it, so the left pane and the stack are in step again.
+  function select(t: Task) {
+    setSelected(t.id);
+    if (view.name === "task") {
+      syncHistory({ name: view.from });
+      setView({ name: view.from });
+    }
+    moveFocus("right");
   }
 
   function send(input: CaptureInput) {
@@ -243,6 +277,16 @@ export function App() {
   if (view.name === "focus" && !state.focus) setView({ name: "today" }); // e.g. ended in another tab
   const focusChunk = state.focus && state.chunks.find((c) => c.id === state.focus!.chunk_id);
 
+  const twoPane = useMedia(twoPaneQuery) && !onboarding && view.name !== "shutdown";
+  paneNow.current = twoPane;
+  viewNow.current = view;
+  if (isScreen(view)) leftScreen.current = view.name;
+  else if (view.name === "task") leftScreen.current = view.from;
+  if (twoPane && view.name === "task" && selected !== view.id) setSelected(view.id);
+  // Right pane, never empty: the running session (or its Reward), else the chosen task, else the frog's.
+  const rightTask = state.tasks.find((t) => t.id === selected && t.state !== "removed") ?? plan.frog?.task;
+  const right = view.name === "reward" ? "reward" : state.focus ? "focus" : "task";
+
   const form = (
     <CaptureForm
       draft={state.draft}
@@ -253,11 +297,136 @@ export function App() {
     />
   );
 
-  const open = (t: Task) => (view.name === "today" || view.name === "inbox") && navigate({ name: "task", id: t.id, from: view.name });
+  const open = (t: Task) => (twoPane ? select(t) : (view.name === "today" || view.name === "inbox") && navigate({ name: "task", id: t.id, from: view.name }));
+
+  const reward =
+    view.name === "reward" ? (
+      <RewardView
+        title={view.title}
+        done={doneCount}
+        total={plan.rows.length}
+        hasNext={plan.rows.some((r) => !r.done)}
+        onNext={() => {
+          const r = plan.rows.find((x) => !x.done)!;
+          if (r.chunk) start(r.chunk.id);
+          else startTask(r.task);
+        }}
+        onToday={() => navigate({ name: "today" })}
+        offerNudges={!state.nudge_offered}
+        onOffered={() => setState((s) => ({ ...s, nudge_offered: true }))}
+      />
+    ) : null;
+
+  const focus = (
+    <FocusView state={state} update={setState} announce={announce} onFinished={(title) => navigate({ name: "reward", title })} onStopped={() => navigate({ name: "today" }, "right")} />
+  );
+
+  // The Task view. On the right pane there is no Back: another row replaces it.
+  const taskView = (t: Task, inPane: boolean) => (
+    <TaskView
+      key={t.id}
+      task={t}
+      pickDate={view.name === "task" && view.id === t.id ? view.pickDate : undefined}
+      inPane={inPane}
+      state={state}
+      update={setState}
+      today={today}
+      inToday={plan.rows.some((r) => r.task.id === t.id)}
+      onPin={() => setState((s) => pin(s, t.id, today, Date.now()))}
+      onStart={() => startTask(t)}
+      onStartStep={start}
+      onBack={() => navigate({ name: view.name === "task" ? view.from : "today" })}
+      onTriage={(answers) => setState((s) => triage(s, t.id, answers, Date.now(), today))}
+      onRename={(title) => setState((s) => rename(s, t.id, title, Date.now()))}
+      onRemove={() => {
+        setState((s) => remove(s, t.id, Date.now()));
+        setSelected(null);
+        if (view.name === "task") navigate({ name: view.from });
+        else moveFocus("right");
+        announce("Moved out of the way. It's still here if you want it back.");
+      }}
+    />
+  );
+
+  const menuButton = (
+    <button className="icon-button" aria-label="Open menu" onClick={() => drawer.current!.showModal()}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </svg>
+    </button>
+  );
+
+  // Today, Inbox or Settings: the body of the screen, wherever it sits.
+  const screen = (name: Screen) =>
+    name === "settings" ? (
+      <SettingsView
+        state={state}
+        update={setState}
+        browserTz={browserTz}
+        backedUp={syncStatus.backedUp}
+        onSignedIn={() => {
+          sync.restart(); // what's on this device joins that list, and everything of theirs comes down
+          void sync.push();
+        }}
+      />
+    ) : name === "today" ? (
+      <TodayView
+        key={today} // a new day remounts it, so its morning confirm and Adjust mode start fresh
+        plan={plan}
+        state={state}
+        update={setState}
+        today={today}
+        selectedId={twoPane && right === "task" ? rightTask?.id : undefined}
+        onOpenTask={open}
+        onStart={(r) => (r.chunk ? start(r.chunk.id) : startTask(r.task))}
+        onInbox={() => navigate({ name: "inbox" })}
+        onCapture={openCapture}
+        welcome={welcome}
+        onWelcomeDone={() => setWelcome(false)}
+        onReset={() => setState((s) => resetOverdue(s, today, Date.now()))}
+        backedUp={syncStatus.backedUp}
+      />
+    ) : (
+      <Inbox
+        tasks={state.tasks}
+        waiting={plan.ranked.filter((t) => !plan.rows.some((r) => r.task.id === t.id))}
+        onOpen={open}
+        onRestore={(t) => {
+          setState((s) => restore(s, t.id, Date.now()));
+          announce("Back on your list.");
+        }}
+      />
+    );
 
   return (
-    <div className="app">
-      {onboarding ? (
+    <div className={`app${twoPane ? " two-pane" : ""}`}>
+      {twoPane ? (
+        <div className="panes">
+          <main className="pane pane-left" data-pane="left" aria-label={titleOf[leftScreen.current]}>
+            <header className="header">
+              {menuButton}
+              <h1 className="title" tabIndex={-1}>
+                {titleOf[leftScreen.current]}
+              </h1>
+            </header>
+            {leftScreen.current !== "settings" && <div className="capture-inline">{form}</div>}
+            <div className="main">{screen(leftScreen.current)}</div>
+          </main>
+          <section className="pane pane-right" data-pane="right" aria-label={right === "task" ? "Task" : "Focus"}>
+            {right === "reward" ? (
+              <div className="main">{reward}</div>
+            ) : right === "focus" ? (
+              <div className="main focus-main">{focus}</div>
+            ) : rightTask ? (
+              taskView(rightTask, true)
+            ) : (
+              <div className="main">
+                <p className="empty">{plan.rows.length ? "That's everything for today." : "Nothing's lined up for today yet."}</p>
+              </div>
+            )}
+          </section>
+        </div>
+      ) : onboarding ? (
         <main className="main">
           <Onboarding
             state={state}
@@ -271,22 +440,7 @@ export function App() {
           />
         </main>
       ) : view.name === "reward" ? (
-        <main className="main">
-          <RewardView
-            title={view.title}
-            done={doneCount}
-            total={plan.rows.length}
-            hasNext={plan.rows.some((r) => !r.done)}
-            onNext={() => {
-              const r = plan.rows.find((x) => !x.done)!;
-              if (r.chunk) start(r.chunk.id);
-              else startTask(r.task);
-            }}
-            onToday={() => navigate({ name: "today" })}
-            offerNudges={!state.nudge_offered}
-            onOffered={() => setState((s) => ({ ...s, nudge_offered: true }))}
-          />
-        </main>
+        <main className="main">{reward}</main>
       ) : view.name === "shutdown" ? (
         <main className="main">
           <ShutdownView
@@ -302,34 +456,11 @@ export function App() {
           />
         </main>
       ) : view.name === "task" && task ? (
-        <TaskView
-          key={task.id}
-          task={task}
-          pickDate={view.pickDate}
-          state={state}
-          update={setState}
-          today={today}
-          inToday={plan.rows.some((r) => r.task.id === task.id)}
-          onPin={() => setState((s) => pin(s, task.id, today, Date.now()))}
-          onStart={() => startTask(task)}
-          onStartStep={start}
-          onBack={() => navigate({ name: view.from })}
-          onTriage={(answers) => setState((s) => triage(s, task.id, answers, Date.now(), today))}
-          onRename={(title) => setState((s) => rename(s, task.id, title, Date.now()))}
-          onRemove={() => {
-            setState((s) => remove(s, task.id, Date.now()));
-            navigate({ name: view.from });
-            announce("Moved out of the way. It's still here if you want it back.");
-          }}
-        />
+        taskView(task, false)
       ) : (
         <>
           <header className={`header${view.name === "focus" ? " dimmed" : ""}`}>
-            <button className="icon-button" aria-label="Open menu" onClick={() => drawer.current!.showModal()}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
-                <path d="M4 7h16M4 12h16M4 17h16" />
-              </svg>
-            </button>
+            {menuButton}
             {view.name === "focus" ? (
               <span className="title">Today</span>
             ) : (
@@ -350,50 +481,9 @@ export function App() {
           {wide && view.name !== "settings" && <div className="capture-inline">{form}</div>}
           <main className={`main${view.name === "focus" ? " focus-main" : ""}`}>
             {view.name === "focus" && state.focus ? (
-              <FocusView
-                state={state}
-                update={setState}
-                announce={announce}
-                onFinished={(title) => navigate({ name: "reward", title })}
-                onStopped={() => navigate({ name: "today" })}
-              />
-            ) : view.name === "settings" ? (
-              <SettingsView
-                state={state}
-                update={setState}
-                browserTz={browserTz}
-                backedUp={syncStatus.backedUp}
-                onSignedIn={() => {
-                  sync.restart(); // what's on this device joins that list, and everything of theirs comes down
-                  void sync.push();
-                }}
-              />
-            ) : view.name === "today" ? (
-              <TodayView
-                key={today} // a new day remounts it, so its morning confirm and Adjust mode start fresh
-                plan={plan}
-                state={state}
-                update={setState}
-                today={today}
-                onOpenTask={open}
-                onStart={(r) => (r.chunk ? start(r.chunk.id) : startTask(r.task))}
-                onInbox={() => navigate({ name: "inbox" })}
-                onCapture={openCapture}
-                welcome={welcome}
-                onWelcomeDone={() => setWelcome(false)}
-                onReset={() => setState((s) => resetOverdue(s, today, Date.now()))}
-                backedUp={syncStatus.backedUp}
-              />
+              focus
             ) : (
-              <Inbox
-                tasks={state.tasks}
-                waiting={plan.ranked.filter((t) => !plan.rows.some((r) => r.task.id === t.id))}
-                onOpen={open}
-                onRestore={(t) => {
-                  setState((s) => restore(s, t.id, Date.now()));
-                  announce("Back on your list.");
-                }}
-              />
+              screen(isScreen(view) ? view.name : "today")
             )}
           </main>
           {/* Nothing to capture into from Settings (Wireframes.md, Global). */}
