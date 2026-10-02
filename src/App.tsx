@@ -110,6 +110,8 @@ export function App() {
 
   // The lapse return (Product_Scope.md §2) is decided once, from the last visit before this open.
   const [welcome, setWelcome] = useState(() => isLapse(boot.last_seen_at, Date.now(), boot.settings.tz ?? browserTz, boot.settings.quiet_end));
+  // The cat sleeps until it has woken on the day's first open (UX_Flows.md §6): the last visit before this open was on an earlier day.
+  const [lastVisitDay] = useState(() => (boot.last_seen_at ? dayOf(boot.last_seen_at, boot.settings.tz ?? browserTz, boot.settings.quiet_end) : null));
   useEffect(() => {
     if (minute) setState((s) => ({ ...s, last_seen_at: Date.now() })); // an app left open is still being seen
   }, [minute]);
@@ -382,6 +384,7 @@ export function App() {
         onInbox={() => navigate({ name: "inbox" })}
         onCapture={openCapture}
         welcome={welcome}
+        firstOpen={lastVisitDay !== today}
         onWelcomeDone={() => setWelcome(false)}
         onReset={() => setState((s) => resetOverdue(s, today, Date.now()))}
         backedUp={syncStatus.backedUp}

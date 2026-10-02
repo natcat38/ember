@@ -1088,3 +1088,67 @@ select.field {
     background: var(--color-nook);
   }
 }
+
+/* The cat (UX_Flows.md §6, Design_Direction.md §4). Decorative; it never covers the list. */
+.cat {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Today: the cat sits on the left of the nook, 72 px, beside the count and the ring */
+.nook {
+  gap: 14px;
+  padding: 10px 18px 10px 10px;
+}
+
+/* Focus: a small nook in the bottom-right corner, below the card */
+.cat-corner {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 148px;
+  min-height: 96px;
+  margin-top: var(--space-4);
+  background: var(--color-nook);
+  border-radius: 24px;
+}
+
+/* Reward: a 200 px circle in the centre of the screen */
+.cat-circle {
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-nook);
+  border-radius: 50%;
+}
+
+/* Shutdown: the cat asleep above "You're done" */
+.cat-sleep {
+  display: flex;
+  justify-content: center;
+}
+
+/* The stretch plays once as the session starts (about 2.4 s), then the pose holds still: a loop for the whole session
+   would fail WCAG 2.2.2 (Design_Direction.md §11, A1). Transform only. Reduced motion gets the still pose, no animation. */
+@media (prefers-reduced-motion: no-preference) {
+  .cat[data-pose="stretching"] {
+    transform-origin: 50% 100%;
+    animation: cat-stretch 2400ms var(--ease-out);
+  }
+}
+
+@keyframes cat-stretch {
+  0% {
+    transform: scaleX(0.9) translateY(2px);
+  }
+  55% {
+    transform: scaleX(1.04);
+  }
+  100% {
+    transform: none;
+  }
+}

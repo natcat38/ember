@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { linkTelegram } from "./Settings";
+import { Cat } from "./Cat";
+import { catPose } from "../core/cat";
 
 // The progress ring (Design_Direction.md §4): decorative lavender on a white track. It fills in 400 ms;
 // the day's last step gets one slower 700 ms fill, and nothing more (restraint rule 6).
@@ -45,7 +47,7 @@ interface Props {
   onOffered: () => void;
 }
 
-// Wireframes.md §5, phase-1 cut: the ring ticks, then the way on. The cat and the 90-second unlock arrive in phase 3.
+// Wireframes.md §5, phase-1 cut: the ring ticks, then the cat purrs in its circle, then the way on. The 90-second unlock arrives in phase 3.
 export function RewardView({ title, done, total, hasNext, onNext, onToday, offerNudges, onOffered }: Props) {
   const [shown, setShown] = useState(Math.max(done - 1, 0)); // start one short, so the ring visibly ticks
   // Decided once per visit: answering the offer marks it shown, and its follow-up line must stay on screen.
@@ -59,6 +61,9 @@ export function RewardView({ title, done, total, hasNext, onNext, onToday, offer
     <div className="reward">
       <p className="meta">{title}</p>
       <Ring done={shown} total={total} size={104} showCount />
+      <div className="cat-circle" aria-hidden="true">
+        <Cat pose={catPose({ screen: "reward" })} size={176} />
+      </div>
       <section className="card reward-card" aria-labelledby="reward-title">
         <h1 id="reward-title" className="lead" tabIndex={-1}>
           {hasNext ? "Step done." : "That's everything for today."}

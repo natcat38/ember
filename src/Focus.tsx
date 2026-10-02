@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { backToIt, breakLeft, endFocus, pauseFocus, resumeFocus, skipBreak, takeBreak, workLeft } from "../core/focus";
 import type { State } from "../core/task";
+import { catPose } from "../core/cat";
+import { Cat } from "./Cat";
 
 interface Props {
   state: State;
@@ -19,7 +21,7 @@ const spoken = (ms: number) => {
   return `${Math.floor(sec / 60)} minutes ${sec % 60} seconds`;
 };
 
-// Wireframes.md §4 and the Pomodoro break. The cat's corner nook arrives with the cat in phase 3.
+// Wireframes.md §4 and the Pomodoro break, with the cat's corner nook (Design_Direction.md §4).
 export function FocusView({ state, update, onFinished, onStopped, announce }: Props) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
@@ -56,88 +58,95 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
     onStopped();
   };
 
+  const pose = catPose({ screen: "focus", session: f.paused_at === null ? "running" : "paused" });
+
   return (
-    <div className="focus-card">
-      <h1 className="focus-title" tabIndex={-1}>
-        {chunk?.title}
-      </h1>
-      <p className="meta">{[task?.title, parent?.title].filter(Boolean).join(" · ")}</p>
+    <>
+      <div className="focus-card">
+        <h1 className="focus-title" tabIndex={-1}>
+          {chunk?.title}
+        </h1>
+        <p className="meta">{[task?.title, parent?.title].filter(Boolean).join(" · ")}</p>
 
-      {phase === "work" && (
-        <>
-          <div className="timer" role="timer" aria-label={`${spoken(left)} left`}>
-            {clock(left)}
-          </div>
-          {f.paused_at === null ? (
-            <button className="pause" onClick={() => act(pauseFocus)}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <rect x="6" y="5" width="4" height="14" rx="1" />
-                <rect x="14" y="5" width="4" height="14" rx="1" />
-              </svg>
-              Pause
-            </button>
-          ) : (
-            <button className="pause" onClick={() => act(resumeFocus)}>
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M8 5l11 7-11 7z" />
-              </svg>
-              Resume
-            </button>
-          )}
-          <div className="actions focus-actions">
-            <button className="button" onClick={stop}>
-              Stop for now
-            </button>
-            <button className="button" onClick={finish}>
-              Done
-            </button>
-          </div>
-        </>
-      )}
+        {phase === "work" && (
+          <>
+            <div className="timer" role="timer" aria-label={`${spoken(left)} left`}>
+              {clock(left)}
+            </div>
+            {f.paused_at === null ? (
+              <button className="pause" onClick={() => act(pauseFocus)}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <rect x="6" y="5" width="4" height="14" rx="1" />
+                  <rect x="14" y="5" width="4" height="14" rx="1" />
+                </svg>
+                Pause
+              </button>
+            ) : (
+              <button className="pause" onClick={() => act(resumeFocus)}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M8 5l11 7-11 7z" />
+                </svg>
+                Resume
+              </button>
+            )}
+            <div className="actions focus-actions">
+              <button className="button" onClick={stop}>
+                Stop for now
+              </button>
+              <button className="button" onClick={finish}>
+                Done
+              </button>
+            </div>
+          </>
+        )}
 
-      {phase === "prompt" && (
-        <section className="focus-prompt" aria-labelledby="take5">
-          <p id="take5" className="lead">
-            Take 5?
-          </p>
-          <div className="actions focus-actions">
-            <button className="button primary" onClick={() => act((s, t) => takeBreak(s, t))}>
-              Take 5
+        {phase === "prompt" && (
+          <section className="focus-prompt" aria-labelledby="take5">
+            <p id="take5" className="lead">
+              Take 5?
+            </p>
+            <div className="actions focus-actions">
+              <button className="button primary" onClick={() => act((s, t) => takeBreak(s, t))}>
+                Take 5
+              </button>
+              <button className="button" onClick={() => act((s, t) => skipBreak(s, t))}>
+                Skip break
+              </button>
+            </div>
+            <button className="text-button" onClick={finish}>
+              I finished it
             </button>
-            <button className="button" onClick={() => act((s, t) => skipBreak(s, t))}>
-              Skip break
-            </button>
-          </div>
-          <button className="text-button" onClick={finish}>
-            I finished it
-          </button>
-        </section>
-      )}
+          </section>
+        )}
 
-      {phase === "break" && (
-        <section className="focus-prompt" aria-label="Break">
-          <div className="breathe" aria-hidden="true" />
-          <div className="timer" role="timer" aria-label={`${spoken(breakLeft(f, now))} of break left`}>
-            {clock(breakLeft(f, now))}
-          </div>
-        </section>
-      )}
+        {phase === "break" && (
+          <section className="focus-prompt" aria-label="Break">
+            <div className="breathe" aria-hidden="true" />
+            <div className="timer" role="timer" aria-label={`${spoken(breakLeft(f, now))} of break left`}>
+              {clock(breakLeft(f, now))}
+            </div>
+          </section>
+        )}
 
-      {phase === "back" && (
-        <section className="focus-prompt" aria-labelledby="back">
-          <p id="back" className="lead">
-            Back to it?
-          </p>
-          <div className="actions focus-actions">
-            <button className="button primary" onClick={() => act(backToIt)}>
-              Back to it
-            </button>
-            <button className="button" onClick={stop}>
-              Stop here
-            </button>
-          </div>
-        </section>
-      )}
-    </div>
+        {phase === "back" && (
+          <section className="focus-prompt" aria-labelledby="back">
+            <p id="back" className="lead">
+              Back to it?
+            </p>
+            <div className="actions focus-actions">
+              <button className="button primary" onClick={() => act(backToIt)}>
+                Back to it
+              </button>
+              <button className="button" onClick={stop}>
+                Stop here
+              </button>
+            </div>
+          </section>
+        )}
+      </div>
+      <div className="cat-corner" aria-hidden="true">
+        <Cat pose={pose} size={pose === "stretching" ? 120 : 80} />
+      </div>
+    </>
   );
 }
