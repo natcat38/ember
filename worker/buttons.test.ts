@@ -454,7 +454,7 @@ describe("Reschedule", () => {
     await runTick(testEnv, sg("2026-10-07", "08:00:31")); // plans the day
     await runTick(testEnv, sg("2026-10-07", "08:01:31")); // sends (a tick sends before it plans)
     const sent = calls.filter((c) => c.method === "sendMessage");
-    expect(sent.map((c) => c.body.text)).toContain("Lab report was due today and isn't marked done. Still relevant?");
+    expect(sent.map((c) => c.body.text)).toContain("Lab report was due yesterday and isn't marked done. Still relevant?");
     expect(await count("SELECT COUNT(*) AS n FROM sends WHERE user_id = ? AND kind = 'overdue' AND sent_at IS NOT NULL", uid)).toBe(2);
   });
 
