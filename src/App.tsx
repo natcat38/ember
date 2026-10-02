@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { capture, pin, remove, rename, restore, triage, type CaptureInput, type State, type Task } from "../core/task";
+import { capture, pin, remove, rename, restore, triage, withZone, type CaptureInput, type State, type Task } from "../core/task";
 import { addDays, buildToday, doneTodayCount, isLapse, resetOverdue, slotsFor, wrapUp } from "../core/today";
 import { SettingsView } from "./Settings";
 import { Onboarding } from "./Onboarding";
@@ -53,7 +53,7 @@ const paneOf = (to: View, from: View): Pane => (to.name === "today" ? (from.name
 export function App() {
   // Stamp this visit as part of loading, so opening the app saves once; the lapse check reads the visit before it.
   const [boot] = useState(() => load());
-  const [state, setState] = useState<State>(() => ({ ...boot, last_seen_at: Date.now() }));
+  const [state, setState] = useState<State>(() => withZone({ ...boot, last_seen_at: Date.now() }, browserTz));
   const [saved, setSaved] = useState(true);
   // Phase 2 backup and sync (Tech_Scope.md §5): every state change becomes ops in an outbox the server applies once.
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ backedUp: false, pending: 0, offline: false });
