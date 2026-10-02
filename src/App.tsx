@@ -57,8 +57,9 @@ export function App() {
   const [saved, setSaved] = useState(true);
   // Phase 2 backup and sync (Tech_Scope.md §5): every state change becomes ops in an outbox the server applies once.
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ backedUp: false, pending: 0, offline: false });
+  // From `boot`, not `state`: a zone withZone just filled in then reaches the server as an ordinary settings op.
   const [sync] = useState(() =>
-    createSync(state, {
+    createSync(boot, {
       update: setState,
       onStatus: setSyncStatus,
       onRejected: () => announce("This changed on another device, so you're seeing the latest version."),

@@ -85,7 +85,7 @@ export const defaultSettings = (): Settings => ({ tz: null, quiet_start: 1320, q
 // only until the first run fills it in here; a zone already chosen is kept.
 export const withZone = (s: State, zone: string): State => (s.settings.tz ? s : { ...s, settings: { ...s.settings, tz: zone } });
 
-export const emptyState =(): State => ({ tasks: [], chunks: [], days: [], journal: [], sessions: [], focus: null, last_seen_at: null, onboarded: false, nudge_offered: false, settings: defaultSettings(), hard_blocks: [], draft: "" });
+export const emptyState = (): State => ({ tasks: [], chunks: [], days: [], journal: [], sessions: [], focus: null, last_seen_at: null, onboarded: false, nudge_offered: false, settings: defaultSettings(), hard_blocks: [], draft: "" });
 
 // The server refuses a title over 500 characters with a 400 that costs the whole sync batch (worker/schema.ts), so core clamps.
 export const MAX_TITLE_CHARS = 500;
