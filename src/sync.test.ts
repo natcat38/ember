@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { allOps, applyChanges, createSync, diff } from "./sync";
 import { capture, emptyState, triage, type State } from "../core/task";
-import { addChunk } from "../core/chunk";
+import { addChunk, tick } from "../core/chunk";
 
 let n = 0;
 const id = () => `id-${++n}`;
@@ -25,7 +25,7 @@ test("a new row becomes one complete op with every synced field", () => {
       op_id: "op1",
       entity: "tasks",
       id: "t1",
-      fields: { title: "Cover letter", state: "inbox", size: "XS", quick: true, holding_up: false, deadline: null, runway_start: null, pinned_on: null, snoozed_until: null, created_at: 1, updated_at: 1 },
+      fields: { title: "Cover letter", state: "inbox", size: "XS", quick: true, holding_up: false, deadline: null, runway_start: null, pinned_on: null, snoozed_until: null, done_at: null, created_at: 1, updated_at: 1 },
     },
   ]);
 });
@@ -130,6 +130,38 @@ test("offline means the network failed; a server error is not offline", async ()
     await engine.push();
   };
   await run(() => Promise.reject(new TypeError("Failed to fetch")));
-  await run(async () => reply({ error: "boom" }, 503));
+  await run(async () => reply({ error: "boom" }, 500));
   expect(statuses).toEqual([true, false]);
+});
+
+test("a 503 from a lost server race is resent once after Retry-After; a second one waits for the next trigger", async () => {
+  const lost = () => new Response(JSON.stringify({ error: "conflict" }), { status: 503, headers: { "Retry-After": "0" } });
+  const run = async (responses: Response[]) => {
+    const storage = fakeStorage();
+    let calls = 0;
+    const engine = createSync(sample(), { update: () => {}, storage, fetch: (async () => (calls++, responses.shift()!)) as typeof fetch });
+    await engine.push();
+    return { calls, meta: JSON.parse(storage.getItem("ember.sync")!) };
+  };
+  const won = await run([lost(), reply({ cursor: 3, changes: [], rejected: [] })]);
+  expect(won.calls).toBe(2);
+  expect(won.meta).toMatchObject({ cursor: 3, outbox: [], uploaded: true });
+
+  const lostTwice = await run([lost(), lost()]);
+  expect(lostTwice.calls).toBe(2);
+  expect(lostTwice.meta?.uploaded).not.toBe(true); // nothing marked sent: the next open, focus, reconnect or change uploads it
+});
+
+test("done_at travels both ways: finishing a step sends it, a server value merges in, a legacy row stays quiet", () => {
+  const s = sample();
+  const finished = tick(s, "id-4", true, 9);
+  expect(diff(s, finished, () => "op")).toContainEqual({ op_id: "op", entity: "chunks", id: "id-4", fields: { state: "done", done_at: 9, updated_at: 9 } });
+
+  // A row saved before done_at has no value; the diff reads that as null, so loading it sends nothing.
+  const legacy = structuredClone(s);
+  for (const c of legacy.chunks) delete c.done_at;
+  expect(diff(legacy, s, () => "op")).toEqual([]);
+
+  const merged = applyChanges(s, [{ entity: "chunks", row: { ...s.chunks[2], state: "done", done_at: 77, updated_at: 77, rev: 4 } }], []);
+  expect(merged.chunks[2]).toMatchObject({ state: "done", done_at: 77 });
 });

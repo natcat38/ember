@@ -12,6 +12,9 @@ export interface Chunk {
   state: ChunkState; // meaningful only on leaves; a parent's state is derived
   deleted: boolean; // tombstone, so sync can tell other devices
   updated_at: number;
+  // When the step became done (a parent: when its last smaller step did); null while open. Absent on rows saved before
+  // done_at existed. An edit never moves it, so "done today" is not fooled by a rename (core/today.ts).
+  done_at?: number | null;
 }
 
 const byPosition = (a: Chunk, b: Chunk) => a.position - b.position;
@@ -30,10 +33,24 @@ export function stateOf(s: State, c: Chunk): ChunkState {
   return kids.every((k) => k.state === "done") ? "done" : "todo";
 }
 
+// A change of state moves done_at with it: stamped when the row becomes done, cleared when it leaves, else kept.
+const withDoneAt = (c: Chunk, state: ChunkState | undefined, now: number): Pick<Chunk, "done_at"> | null =>
+  state === undefined || (state === "done") === (c.state === "done") ? null : { done_at: state === "done" ? now : null };
+
 function patch(s: State, ids: string[], now: number, p: Partial<Chunk>): State {
   const set = new Set(ids);
   if (!set.size) return s;
-  return { ...s, chunks: s.chunks.map((c) => (set.has(c.id) ? { ...c, ...p, updated_at: now } : c)) };
+  const chunks = s.chunks.map((c) => (set.has(c.id) ? { ...c, ...p, ...withDoneAt(c, p.state, now), updated_at: now } : c));
+  // A parent's own state is derived (rule 8), so it is stamped here when its smaller steps flip it, not by a tick.
+  const parents = new Set(s.chunks.filter((c) => set.has(c.id) && c.parent_id).map((c) => c.parent_id!));
+  const next = { ...s, chunks };
+  return { ...next, chunks: chunks.map((c) => (parents.has(c.id) ? flipParent(s, next, c, now) : c)) };
+}
+
+function flipParent(before: State, after: State, parent: Chunk, now: number): Chunk {
+  const was = stateOf(before, parent) === "done";
+  const is = stateOf(after, parent) === "done";
+  return was === is ? parent : { ...parent, done_at: is ? now : null, updated_at: now };
 }
 
 export function addChunk(
@@ -60,8 +77,11 @@ export function addChunk(
     state: "todo",
     deleted: false,
     updated_at: now,
+    done_at: null,
   };
-  return { ...s, chunks: [...s.chunks, chunk] };
+  const next = { ...s, chunks: [...s.chunks, chunk] };
+  // An open smaller step under a finished parent reopens it.
+  return parentId ? { ...next, chunks: next.chunks.map((c) => (c.id === parentId ? flipParent(s, next, c, now) : c)) } : next;
 }
 
 export function setLeafStates(s: State, ids: string[], state: ChunkState, now: number): State {

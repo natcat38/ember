@@ -30,6 +30,9 @@ function rawBand(t: Task, today: string): Band {
   return fraction > 0.5 ? "far" : "on_track";
 }
 
+// When a done row was finished. Rows saved before done_at existed have none, so they fall back to updated_at.
+const finishedAt = (r: { done_at?: number | null; updated_at: number }) => r.done_at ?? r.updated_at;
+
 const TIER: Record<Band, number> = { due_today: 1, overdue: 2, close: 3, on_track: 4, far: 5 };
 
 export interface TodayRow {
@@ -69,9 +72,7 @@ export function buildToday(s: State, today: string, o: TodayOptions): Today {
   const tz = o.tz ?? "Asia/Singapore";
   const slots = o.slots ?? 5;
   const deferred = new Set(s.days.find((d) => d.day === today)?.deferred ?? []);
-  // ponytail: "done today" reads updated_at, so renaming a step finished earlier brings it back as done today.
-  // Upgrade path: a done_at column, if that ever matters.
-  const doneToday = (c: Chunk) => c.state === "done" && dayOf(c.updated_at, tz, o.quietEndMin) === today;
+  const doneToday = (c: Chunk) => c.state === "done" && dayOf(finishedAt(c), tz, o.quietEndMin) === today;
 
   const ranked = s.tasks
     // A task pinned into today shows whether or not it was triaged: onboarding places its first task that way (§7).
@@ -133,8 +134,8 @@ export const wrapUp = (s: State, today: string, now: number) =>
 
 // Steps and tasks finished today: zero means the shutdown's resting variant (UX_Flows.md §3.7).
 export function doneTodayCount(s: State, today: string, tz = "Asia/Singapore", quietEndMin?: number) {
-  const on = (at: number) => dayOf(at, tz, quietEndMin) === today;
-  return s.chunks.filter((c) => !c.deleted && c.state === "done" && on(c.updated_at)).length + s.tasks.filter((t) => t.state === "done" && on(t.updated_at)).length;
+  const on = (r: { done_at?: number | null; updated_at: number }) => dayOf(finishedAt(r), tz, quietEndMin) === today;
+  return s.chunks.filter((c) => !c.deleted && c.state === "done" && on(c)).length + s.tasks.filter((t) => t.state === "done" && on(t)).length;
 }
 
 const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
