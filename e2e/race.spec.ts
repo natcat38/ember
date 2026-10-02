@@ -70,7 +70,7 @@ test("Settings offers Telegram, and says plainly when it can't link", async ({ p
   await page.getByRole("button", { name: "Settings", exact: true }).click();
   await expect(page.getByText("Ember can nudge you on Telegram while the app is closed.")).toBeVisible();
   await page.getByRole("button", { name: "Link Telegram" }).click();
-  await expect(page.getByText("Linking Telegram needs a connection.")).toBeVisible(); // API unreachable here
+  await expect(page.getByRole("main").getByText("Linking Telegram needs a connection.")).toBeVisible(); // API unreachable here
 });
 
 test.describe("Settings with the server reachable", () => {

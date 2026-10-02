@@ -74,7 +74,7 @@ test("before the first sync the key isn't made: the line is held, and the screen
   await toYoureDone(page);
   await page.getByRole("textbox", { name: "One line about today" }).fill(LINE);
   await page.getByRole("radio", { name: "Okay" }).check();
-  await expect(page.getByText("Your journal needs a connection the first time.")).toBeVisible();
+  await expect(page.getByRole("main").getByText("Your journal needs a connection the first time.")).toBeVisible();
   const s = await stored(page);
   expect(s.settings.journal_key).toBeNull(); // two devices must not each make a key
   expect(s.journal).toEqual([]);
