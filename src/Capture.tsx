@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import type { CaptureInput } from "../core/task";
+import { MAX_TITLE_CHARS, type CaptureInput } from "../core/task";
 
 const dueLabel = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 export const formatDue = (d: string) => `Due ${dueLabel.format(Date.parse(d))}`;
@@ -74,6 +74,7 @@ export function CaptureForm({ draft, onDraft, onSend, today, showHint, autoFocus
             placeholder="What's on your mind?"
             autoFocus={autoFocus}
             autoComplete="off"
+            maxLength={MAX_TITLE_CHARS}
             enterKeyHint="send"
             value={draft}
             onChange={(e) => onDraft(e.target.value)}

@@ -95,6 +95,12 @@ test("triage on a done or removed task is refused", () => {
   }
 });
 
+test("capture and rename clamp the title to the server's 500-character limit", () => {
+  const s = capture(emptyState(), { title: "y".repeat(600) }, now, today, ids());
+  expect(s.tasks[0].title).toHaveLength(500);
+  expect(rename(s, "id-1", "z".repeat(501), later).tasks[0].title).toHaveLength(500);
+});
+
 test("rename trims and ignores blank names", () => {
   expect(rename(one(), "id-1", "  Ethics essay v2 ", later).tasks[0].title).toBe("Ethics essay v2");
   const s = one();
