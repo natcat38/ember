@@ -238,6 +238,8 @@ export function buildPlan(loaded: Loaded, settings: State["settings"], now: numb
     sessions: loaded.sessions,
     focus: null,
     last_seen_at: null,
+    onboarded: true, // device-only fields: meaningless on the server
+    nudge_offered: true,
     settings,
     hard_blocks: loaded.hard_blocks,
     draft: "",

@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { band, blockProblem, buildToday, confirmDay, daysBetween, doneTodayCount, freeMinutes, isConfirmed, isLapse, notToday, remaining, resetOverdue, slotsFor, wrapUp } from "./today";
-import { completeTask, emptyState, pin, triage, type State, type Task } from "./task";
+import { completeTask, emptyState, pin, placeFirst, triage, type State, type Task } from "./task";
 import type { Chunk } from "./chunk";
 
 const TODAY = "2026-10-05"; // Mei's Monday, Tech_Scope.md §4.6
@@ -209,4 +209,17 @@ test("a block needs a day and must end after it starts", () => {
   expect(blockProblem({ weekdays: [], start_min: 60, end_min: 120 })).toBe("Pick at least one day.");
   expect(blockProblem({ weekdays: [1], start_min: 120, end_min: 120 })).toBe("End it after it starts.");
   expect(blockProblem({ weekdays: [1], start_min: 60, end_min: 120 })).toBeNull();
+});
+
+test("onboarding: the picked task is the first Today, untriaged; others stay in Inbox", () => {
+  let s = { ...emptyState(), tasks: [task("X", { state: "inbox", size: null }), task("Y", { state: "inbox", size: null })], chunks: steps("X", 1) };
+  expect(buildToday(s, TODAY, {}).rows).toEqual([]);
+  s = placeFirst(s, "X", TODAY, 5);
+  const t = buildToday(s, TODAY, {});
+  expect(t.rows.map((r) => r.key)).toEqual(["X1"]);
+  expect(t.frog?.task.id).toBe("X");
+  expect(s.tasks.find((x) => x.id === "X")).toMatchObject({ state: "inbox", size: null, pinned_on: TODAY });
+  expect(buildToday(s, "2026-10-06", {}).rows).toEqual([]); // the pin is for today only
+  const done = { ...s, tasks: s.tasks.map((x) => ({ ...x, state: "done" as const })) };
+  expect(placeFirst(done, "X", TODAY, 6)).toBe(done);
 });

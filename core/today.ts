@@ -74,7 +74,8 @@ export function buildToday(s: State, today: string, o: TodayOptions): Today {
   const doneToday = (c: Chunk) => c.state === "done" && dayOf(c.updated_at, tz, o.quietEndMin) === today;
 
   const ranked = s.tasks
-    .filter((t) => (t.state === "active" || t.state === "overdue") && t.size)
+    // A task pinned into today shows whether or not it was triaged: onboarding places its first task that way (§7).
+    .filter((t) => ((t.state === "active" || t.state === "overdue") && t.size) || (t.pinned_on === today && (t.state === "inbox" || t.state === "active" || t.state === "overdue")))
     .map((t) => {
       const left = t.deadline ? daysBetween(today, t.deadline) : null;
       // Sessions per day still needed, keeping one buffer day. No deadline: no pressure.

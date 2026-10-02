@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { capture, pin, remove, rename, restore, triage, type CaptureInput, type State, type Task } from "../core/task";
 import { addDays, buildToday, doneTodayCount, isLapse, resetOverdue, slotsFor, wrapUp } from "../core/today";
 import { SettingsView } from "./Settings";
+import { Onboarding } from "./Onboarding";
 import { createSync, type SyncStatus } from "./sync";
 import { RewardView } from "./Reward";
 import { ShutdownView } from "./Shutdown";
@@ -46,6 +47,16 @@ export function App() {
   // Reopening the app mid-session goes straight back to Focus; the timer kept running on the wall clock.
   const [view, setView] = useState<View>(() => ({ name: state.focus ? "focus" : "today" }));
   const [askFor, setAskFor] = useState<Task | null>(null);
+  // First run (UX_Flows.md §7): nothing on this device, never synced, and not arriving from a Telegram sign-in link.
+  const [onboarding, setOnboarding] = useState(() => {
+    let synced = false;
+    try {
+      synced = !!localStorage.getItem("ember.sync");
+    } catch {
+      // storage unavailable: treat as a first run
+    }
+    return !boot.onboarded && boot.tasks.length === 0 && !synced && !new URLSearchParams(location.search).has("h");
+  });
   const nextAction = useRef<HTMLDialogElement>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -198,7 +209,20 @@ export function App() {
 
   return (
     <div className="app">
-      {view.name === "reward" ? (
+      {onboarding ? (
+        <main className="main">
+          <Onboarding
+            state={state}
+            update={setState}
+            today={today}
+            announce={announce}
+            onDone={(then) => {
+              setOnboarding(false);
+              navigate({ name: then });
+            }}
+          />
+        </main>
+      ) : view.name === "reward" ? (
         <main className="main">
           <RewardView
             title={view.title}
@@ -211,6 +235,8 @@ export function App() {
               else startTask(r.task);
             }}
             onToday={() => navigate({ name: "today" })}
+            offerNudges={!state.nudge_offered}
+            onOffered={() => setState((s) => ({ ...s, nudge_offered: true }))}
           />
         </main>
       ) : view.name === "shutdown" ? (

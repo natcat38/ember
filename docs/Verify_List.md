@@ -8,7 +8,8 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [ ] **workers.dev subdomain**: rename `cron-telegram` before anyone installs the app (a rename breaks installed icons) and before the bot's link buttons go out (`APP_ORIGIN` in `wrangler.jsonc`).
 - [ ] **Slice 7 part 2: the 5-minute iPhone install test** (`Tech_Scope.md` §7), then the install nudge with the `#import=` handoff, or the agreed fallback.
 - [ ] **Slice 14 device check**: phone and laptop show the same list after *Use Ember on another device* / *Sign in with a passkey*. Also look at Worker CPU time on a real sign-in (free plan: 10 ms).
-- [ ] **Onboarding** (`UX_Flows.md` §7: first capture, *"That's it for now"*, the one/many branch, starter focus) is in the UX flows but in no Build slice. Decide: add a slice, or move it to a later phase.
+- [x] ~~Onboarding~~: added as slice 16 and built (#29).
+- [ ] **Onboarding calls to confirm** (#29): a second device needs a way past the first run, so step 1 has *"Already use Ember? Sign in"* (draft copy); the 2-minute starter ends with the usual *Take 5?* prompt; the reminder offer only has Telegram until web push (phase 3); the picked task shows in Today *and* in Inbox's *Needs sorting*, since it's still untriaged.
 - [ ] **Draft copy to approve** (each is marked `ponytail:` or listed in its PR):
   - Save failure: *"This device isn't saving right now. Keep Ember open so nothing is lost."* (#7)
   - Reward: *Next step*, *Back to Today* (#12)

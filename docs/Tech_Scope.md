@@ -264,6 +264,7 @@ Each slice ends runnable, tested, and merged by PR. No slice starts while the pr
 | 5 | **Focus.** 25/5 wall-clock timer, Pause, Done, *Stop for now*, *Take 5?* prompt, restful break screen, sessions logged | Locking the phone mid-session loses nothing | unit: timer from timestamps; e2e: focus |
 | 6 | **Reward + shutdown.** Progress ring, bigger last-of-day moment, three-step shutdown, zero-done variant | The loop runs end to end | e2e: full loop at 375 px |
 | 7 | **PWA + iPhone safety.** Manifest, service worker (offline shell), lapse return, iPhone install nudge with the §7 handoff, `navigator.storage.persist()` | **First:** the handoff test on Natalie's iPhone passes, or the fallback is agreed. Then: install keeps the list | device test; unit: import idempotent |
+| 16 | **Onboarding** (added 2026-10-02, Natalie). UX_Flows §7: first-run capture, *That's it for now*, the one/many branch, the picked task as the first Today (pinned, untriaged), first step, 2-minute starter focus, the one-time reminder offer after the first Reward. Shown only on a device with nothing on it, never synced, not arriving from a sign-in link; steps aside if the first sync brings a list back | From an empty device to a real step ready to start, and a starter session run | unit: placeFirst, starter length; e2e: both branches, skip, sign-in path |
 
 **Phase 1 done:** deployed PWA, used daily (the kill criterion in Product_Scope §6 starts counting in phase 2).
 

@@ -12,9 +12,10 @@ export interface Focus {
   paused_at: number | null;
   paused_ms: number; // total time paused in this work session
   break_started_at: number | null; // set while on the 5-minute break
+  length_ms?: number; // a shorter first session (onboarding's "Start with two minutes?"); 25 minutes when absent
 }
 
-// The D1 `sessions` table: one focus session; `completed` means it ran the full 25.
+// The D1 `sessions` table: one focus session; `completed` means it ran its full length (25, or a starter's 2).
 export interface Session {
   id: string;
   chunk_id: string;
@@ -24,7 +25,8 @@ export interface Session {
 }
 
 const worked = (f: Focus, now: number) => (f.paused_at ?? now) - f.started_at - f.paused_ms;
-export const workLeft = (f: Focus, now: number) => Math.max(WORK_MS - worked(f, now), 0);
+const lengthOf = (f: Focus) => f.length_ms ?? WORK_MS;
+export const workLeft = (f: Focus, now: number) => Math.max(lengthOf(f) - worked(f, now), 0);
 export const breakLeft = (f: Focus, now: number) => (f.break_started_at === null ? BREAK_MS : Math.max(BREAK_MS - (now - f.break_started_at), 0));
 
 type NewId = () => string;
@@ -37,18 +39,20 @@ function setChunk(s: State, id: string, state: "todo" | "focus" | "done", now: n
 // Log the work session in progress. A full 25 ends when the timer did, however late the user came back.
 function logWork(s: State, f: Focus, now: number, newId: NewId): State {
   const full = workLeft(f, now) === 0;
-  const ended_at = full ? f.started_at + f.paused_ms + WORK_MS : (f.paused_at ?? now);
+  const ended_at = full ? f.started_at + f.paused_ms + lengthOf(f) : (f.paused_at ?? now);
   return { ...s, sessions: [...s.sessions, { id: newId(), chunk_id: f.chunk_id, started_at: f.started_at, ended_at, completed: full }] };
 }
 
 const fresh = (chunk_id: string, now: number): Focus => ({ chunk_id, started_at: now, paused_at: null, paused_ms: 0, break_started_at: null });
 
 // Only a leaf that isn't done can be focused (UX_Flows.md §3.3 rule 3). Starting another step stops the current one.
-export function startFocus(s: State, chunkId: string, now: number, newId: NewId = uuid): State {
+// `lengthMs` sets a shorter first session (UX_Flows.md §7, step 6); Back to it and Skip break return to 25 minutes.
+export function startFocus(s: State, chunkId: string, now: number, newId: NewId = uuid, lengthMs?: number): State {
   const c = s.chunks.find((x) => x.id === chunkId);
   if (!c || c.deleted || c.state === "done" || childrenOf(s, c.id).length) return s;
   const cleared = s.focus ? endFocus(s, now, false, newId) : s;
-  return { ...setChunk(cleared, chunkId, "focus", now), focus: fresh(chunkId, now) };
+  const focus = lengthMs ? { ...fresh(chunkId, now), length_ms: lengthMs } : fresh(chunkId, now);
+  return { ...setChunk(cleared, chunkId, "focus", now), focus };
 }
 
 export function pauseFocus(s: State, now: number): State {
