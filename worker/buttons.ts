@@ -303,7 +303,7 @@ export async function handleCallback(env: ButtonsEnv, tap: ButtonTap, bot: BotCa
   let confirmation: string;
   switch (state) {
     case "done":
-      ops = [taskOp(first, { state: "done" }, now)];
+      ops = [taskOp(first, { state: "done", done_at: now }, now)];
       confirmation = COPY.done;
       break;
     case "remove":

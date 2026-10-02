@@ -27,6 +27,7 @@ test("capture adds a trimmed Inbox task with no triage", () => {
       runway_start: null,
       pinned_on: null,
       snoozed_until: null,
+      done_at: null,
       created_at: now,
       updated_at: now,
     },

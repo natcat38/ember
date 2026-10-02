@@ -39,3 +39,15 @@ test("a failed write reports false instead of throwing", () => {
   const st = { ...fakeStorage(), setItem: () => { throw new Error("QuotaExceededError"); } };
   expect(save(emptyState(), st)).toBe(false);
 });
+
+test("rows finished before done_at existed take their last edit time as the finish time on load; open rows are left alone", () => {
+  const st = fakeStorage();
+  const task = { id: "t", title: "T", state: "done", updated_at: 50 };
+  const done = { id: "c1", task_id: "t", parent_id: null, title: "x", position: 1, state: "done", deleted: false, updated_at: 70 };
+  const open = { ...done, id: "c2", state: "todo", updated_at: 80 };
+  const stamped = { ...done, id: "c3", done_at: 60, updated_at: 90 };
+  st.setItem(KEY, JSON.stringify({ ...emptyState(), tasks: [task], chunks: [done, open, stamped] }));
+  const s = load(st);
+  expect(s.tasks[0].done_at).toBe(50);
+  expect(s.chunks.map((c) => c.done_at)).toEqual([70, undefined, 60]);
+});

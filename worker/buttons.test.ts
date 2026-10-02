@@ -218,6 +218,14 @@ describe("Done", () => {
     expect(await count("SELECT COUNT(*) AS n FROM ops WHERE user_id = ? AND op_id = 'tg:cb-done-1'", uid)).toBe(1);
   });
 
+  it("stamps done_at with the time of the tap", async () => {
+    const { chat, message } = await overdueSetup();
+    const now = sg(DAY, "10:00:00");
+    await tap("d", { chat, message, now, id: "cb-done-at" });
+    const row = await env.DB.prepare("SELECT done_at, updated_at FROM tasks WHERE id = 't-over'").first<{ done_at: number | null; updated_at: number }>();
+    expect(row).toEqual({ done_at: now, updated_at: now });
+  });
+
   it("answers the callback even when the code is not one of ours", async () => {
     const { chat, message } = await overdueSetup();
     await tap("zz", { chat, message, id: "cb-odd" });

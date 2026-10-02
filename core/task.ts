@@ -16,6 +16,7 @@ export interface Task {
   runway_start: string | null; // local day the deadline was last set
   pinned_on: string | null;
   snoozed_until: number | null;
+  done_at?: number | null; // when the task became done; null otherwise; absent on rows saved before it existed
   created_at: number;
   updated_at: number;
 }
@@ -90,6 +91,7 @@ export function capture(
     runway_start: deadline ? today : null,
     pinned_on: null,
     snoozed_until: null,
+    done_at: null,
     created_at: now,
     updated_at: now,
   };
@@ -102,7 +104,10 @@ function update(s: State, id: string, now: number, fn: (t: Task) => Partial<Task
   const patch = i < 0 ? null : fn(s.tasks[i]);
   if (!patch) return s;
   const tasks = s.tasks.slice();
-  tasks[i] = { ...tasks[i], ...patch, updated_at: now };
+  // done_at follows the state: stamped when the task becomes done, cleared when it leaves, untouched by other edits.
+  const was = tasks[i].state === "done";
+  const doneAt = patch.state === undefined || (patch.state === "done") === was ? {} : { done_at: patch.state === "done" ? now : null };
+  tasks[i] = { ...tasks[i], ...patch, ...doneAt, updated_at: now };
   return { ...s, tasks };
 }
 

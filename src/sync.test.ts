@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { allOps, applyChanges, createSync, diff } from "./sync";
 import { capture, emptyState, triage, type State } from "../core/task";
-import { addChunk } from "../core/chunk";
+import { addChunk, tick } from "../core/chunk";
 
 let n = 0;
 const id = () => `id-${++n}`;
@@ -25,7 +25,7 @@ test("a new row becomes one complete op with every synced field", () => {
       op_id: "op1",
       entity: "tasks",
       id: "t1",
-      fields: { title: "Cover letter", state: "inbox", size: "XS", quick: true, holding_up: false, deadline: null, runway_start: null, pinned_on: null, snoozed_until: null, created_at: 1, updated_at: 1 },
+      fields: { title: "Cover letter", state: "inbox", size: "XS", quick: true, holding_up: false, deadline: null, runway_start: null, pinned_on: null, snoozed_until: null, done_at: null, created_at: 1, updated_at: 1 },
     },
   ]);
 });
@@ -132,4 +132,18 @@ test("offline means the network failed; a server error is not offline", async ()
   await run(() => Promise.reject(new TypeError("Failed to fetch")));
   await run(async () => reply({ error: "boom" }, 503));
   expect(statuses).toEqual([true, false]);
+});
+
+test("done_at travels both ways: finishing a step sends it, a server value merges in, a legacy row stays quiet", () => {
+  const s = sample();
+  const finished = tick(s, "id-4", true, 9);
+  expect(diff(s, finished, () => "op")).toContainEqual({ op_id: "op", entity: "chunks", id: "id-4", fields: { state: "done", done_at: 9, updated_at: 9 } });
+
+  // A row saved before done_at has no value; the diff reads that as null, so loading it sends nothing.
+  const legacy = structuredClone(s);
+  for (const c of legacy.chunks) delete c.done_at;
+  expect(diff(legacy, s, () => "op")).toEqual([]);
+
+  const merged = applyChanges(s, [{ entity: "chunks", row: { ...s.chunks[2], state: "done", done_at: 77, updated_at: 77, rev: 4 } }], []);
+  expect(merged.chunks[2]).toMatchObject({ state: "done", done_at: 77 });
 });

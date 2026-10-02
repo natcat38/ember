@@ -107,3 +107,51 @@ test("firstOpenLeaf skips done steps and parents", () => {
   s = tick(s, "c3", true, now);
   expect(firstOpenLeaf(s, T)).toBeNull();
 });
+
+// done_at (Verify_List "Done today"): set when a row becomes done, cleared when it leaves, untouched by edits.
+test("finishing a step sets done_at; ticking it off clears it; a rename leaves it alone", () => {
+  let s = sample();
+  expect(get(s, "c1").done_at).toBeNull();
+  s = tick(s, "c1", true, 2000);
+  expect(get(s, "c1")).toMatchObject({ state: "done", done_at: 2000, updated_at: 2000 });
+  s = renameChunk(s, "c1", "A renamed", 3000);
+  expect(get(s, "c1")).toMatchObject({ done_at: 2000, updated_at: 3000 });
+  s = tick(s, "c1", true, 4000); // already done: not a new finish
+  expect(get(s, "c1").done_at).toBe(2000);
+  s = tick(s, "c1", false, 5000);
+  expect(get(s, "c1")).toMatchObject({ state: "todo", done_at: null });
+});
+
+test("setLeafStates sets done_at on the steps it finishes and clears it on the steps it reopens", () => {
+  let s = setLeafStates(sample(), ["c1", "c3"], "done", 2000);
+  expect([get(s, "c1").done_at, get(s, "c3").done_at]).toEqual([2000, 2000]);
+  s = setLeafStates(s, ["c1"], "focus", 3000);
+  expect([get(s, "c1").done_at, get(s, "c3").done_at]).toEqual([null, 2000]);
+});
+
+test("ticking a parent stamps only the smaller steps it finishes; an earlier finish keeps its time", () => {
+  let s = tick(sample(), "c4", true, 2000); // B1 done at 2000
+  s = tick(s, "c2", true, 3000); // finishes B2 only
+  expect([get(s, "c4").done_at, get(s, "c5").done_at]).toEqual([2000, 3000]);
+  s = tick(s, "c2", false, 4000);
+  expect([get(s, "c4").done_at, get(s, "c5").done_at]).toEqual([null, null]);
+});
+
+test("a parent that completes through its last smaller step gets done_at, and loses it when one reopens", () => {
+  let s = tick(sample(), "c4", true, 2000);
+  expect(get(s, "c2").done_at).toBeNull(); // B2 is still open
+  s = tick(s, "c5", true, 3000);
+  expect(get(s, "c2")).toMatchObject({ done_at: 3000, updated_at: 3000 });
+  s = tick(s, "c4", false, 4000);
+  expect(get(s, "c2")).toMatchObject({ done_at: null, updated_at: 4000 });
+  s = tick(sample(), "c2", true, 5000); // ticking the parent finishes both, so the parent completes too
+  expect(get(s, "c2").done_at).toBe(5000);
+});
+
+test("adding an open smaller step under a finished parent reopens it and clears its done_at", () => {
+  let s = tick(sample(), "c2", true, 2000);
+  expect(get(s, "c2").done_at).toBe(2000);
+  s = addChunk(s, T, "B3", "c2", 3000, id);
+  expect(get(s, "c2")).toMatchObject({ done_at: null, updated_at: 3000 });
+  expect(get(s, "c6").done_at).toBeNull();
+});

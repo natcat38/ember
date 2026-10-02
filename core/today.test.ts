@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { band, blockProblem, buildToday, confirmDay, daysBetween, doneTodayCount, freeMinutes, isConfirmed, isLapse, notToday, remaining, resetOverdue, slotsFor, wrapUp } from "./today";
-import { completeTask, emptyState, pin, placeFirst, triage, type State, type Task } from "./task";
+import { completeTask, emptyState, pin, placeFirst, remove, rename, restore, triage, type State, type Task } from "./task";
 import type { Chunk } from "./chunk";
 
 const TODAY = "2026-10-05"; // Mei's Monday, Tech_Scope.md §4.6
@@ -222,4 +222,52 @@ test("onboarding: the picked task is the first Today, untriaged; others stay in 
   expect(buildToday(s, "2026-10-06", {}).rows).toEqual([]); // the pin is for today only
   const done = { ...s, tasks: s.tasks.map((x) => ({ ...x, state: "done" as const })) };
   expect(placeFirst(done, "X", TODAY, 6)).toBe(done);
+});
+
+// done_at (Verify_List "Done today"): "finished today" reads done_at, so a rename on a later day changes nothing.
+test("a step finished yesterday and renamed today is not done today", () => {
+  const s = mei();
+  const yesterday = Date.parse("2026-10-04T10:00:00+08:00");
+  const renamed = Date.parse("2026-10-05T09:00:00+08:00");
+  s.chunks = s.chunks.map((c) => (c.id === "C1" ? { ...c, state: "done", done_at: yesterday, updated_at: renamed } : c));
+  expect(ids(buildToday(s, TODAY, { sessionsDone: meiSessions, tz: "Asia/Singapore" }).rows)).toEqual(["B1", "C2", "C3", "A1", "A2"]);
+  expect(doneTodayCount(s, TODAY)).toBe(0);
+});
+
+test("a step finished today keeps its slot even when updated_at is later", () => {
+  const s = mei();
+  const finished = Date.parse("2026-10-05T10:00:00+08:00");
+  s.chunks = s.chunks.map((c) => (c.id === "C1" ? { ...c, state: "done", done_at: finished, updated_at: finished + 60_000 } : c));
+  expect(ids(buildToday(s, TODAY, { sessionsDone: meiSessions, tz: "Asia/Singapore" }).rows)).toContain("C1");
+  expect(doneTodayCount(s, TODAY)).toBe(1);
+});
+
+test("doneTodayCount reads done_at for steps and tasks", () => {
+  const s = mei();
+  const at = (iso: string) => Date.parse(iso);
+  s.chunks = s.chunks.map((c) =>
+    c.id === "A1" ? { ...c, state: "done", done_at: at("2026-10-05T12:00:00+08:00"), updated_at: at("2026-10-05T12:00:00+08:00") } : c.id === "A2" ? { ...c, state: "done", done_at: at("2026-10-04T12:00:00+08:00"), updated_at: at("2026-10-05T12:00:00+08:00") } : c,
+  );
+  s.tasks = s.tasks.map((t) => (t.id === "B" ? { ...t, state: "done", done_at: at("2026-10-03T12:00:00+08:00"), updated_at: at("2026-10-05T12:00:00+08:00") } : t));
+  expect(doneTodayCount(s, TODAY)).toBe(1); // A1 only: A2 and task B were finished earlier and merely edited today
+});
+
+test("rows saved before done_at (no value) fall back to updated_at", () => {
+  const s = mei();
+  const at = (iso: string) => Date.parse(iso);
+  s.chunks = s.chunks.map((c) =>
+    c.id === "A1" ? { ...c, state: "done", updated_at: at("2026-10-05T12:00:00+08:00") } : c.id === "A2" ? { ...c, state: "done", done_at: null, updated_at: at("2026-10-04T12:00:00+08:00") } : c,
+  );
+  s.tasks = s.tasks.map((t) => (t.id === "B" ? { ...t, state: "done", updated_at: at("2026-10-05T20:00:00+08:00") } : t));
+  expect(doneTodayCount(s, TODAY)).toBe(2); // A1 and task B
+});
+
+test("completing a task stamps done_at, an edit keeps it, and removing it clears it", () => {
+  const done = completeTask(mei(), "B", 5000);
+  expect(done.tasks.find((t) => t.id === "B")).toMatchObject({ state: "done", done_at: 5000 });
+  const renamed = rename(done, "B", "Cover letter, final", 6000);
+  expect(renamed.tasks.find((t) => t.id === "B")).toMatchObject({ done_at: 5000, updated_at: 6000 });
+  const removed = remove(renamed, "B", 7000);
+  expect(removed.tasks.find((t) => t.id === "B")).toMatchObject({ state: "removed", done_at: null });
+  expect(restore(removed, "B", 8000).tasks.find((t) => t.id === "B")?.done_at).toBeNull();
 });

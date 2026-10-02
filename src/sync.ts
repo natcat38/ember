@@ -9,8 +9,8 @@ type Row = Record<string, unknown>;
 // What syncs, per entity. Mirrors worker/schema.ts; anything not listed (draft, focus, last_seen_at) stays on this
 // device. Settings are one object on the device and one row ('me') on the server.
 const FIELDS: Record<Entity, string[]> = {
-  tasks: ["title", "state", "size", "quick", "holding_up", "deadline", "runway_start", "pinned_on", "snoozed_until", "created_at", "updated_at"],
-  chunks: ["task_id", "parent_id", "title", "position", "state", "deleted", "updated_at"],
+  tasks: ["title", "state", "size", "quick", "holding_up", "deadline", "runway_start", "pinned_on", "snoozed_until", "done_at", "created_at", "updated_at"],
+  chunks: ["task_id", "parent_id", "title", "position", "state", "deleted", "done_at", "updated_at"],
   sessions: ["chunk_id", "started_at", "ended_at", "completed"],
   days: ["confirmed_at", "shutdown_at", "deferred"],
   hard_blocks: ["weekdays", "start_min", "end_min", "label", "deleted", "updated_at"],

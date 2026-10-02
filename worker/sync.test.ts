@@ -477,3 +477,45 @@ describe("validation", () => {
     expect((await exports.default.fetch(new Request("https://ember.test/api/nope", { method: "POST" }))).status).toBe(404);
   });
 });
+
+
+describe("done_at", () => {
+  const chunk = (id: string, task_id: string, fields: Record<string, unknown> = {}): Op => ({
+    op_id: uuid(),
+    entity: "chunks",
+    id,
+    fields: { task_id, title: "A step", position: 1, state: "todo", ...fields },
+  });
+
+  it("stores done_at on a task and a chunk and returns it on the next pull, null by default", async () => {
+    const cookie = await newUser();
+    const t = uuid();
+    const c = uuid();
+    await sync({ cursor: 0, ops: [task(t, { state: "active" }), chunk(c, t)] }, cookie);
+    expect((await taskRow(t))!.done_at).toBeNull();
+
+    const when = 1_760_000_000_000;
+    const { body } = await sync({ cursor: 0, ops: [patch(t, { state: "done", done_at: when }), { op_id: uuid(), entity: "chunks", id: c, fields: { state: "done", done_at: when } }] }, cookie);
+    expect(body.rejected).toEqual([]);
+    expect((await taskRow(t))!.done_at).toBe(when);
+    const rows = Object.fromEntries(body.changes.map((x) => [x.entity, x.row]));
+    expect(rows.tasks.done_at).toBe(when);
+    expect(rows.chunks.done_at).toBe(when);
+  });
+
+  it("clears done_at with null and refuses a value that is not a timestamp", async () => {
+    const cookie = await newUser();
+    const t = uuid();
+    const c = uuid();
+    await sync({ cursor: 0, ops: [task(t, { state: "active" }), chunk(c, t, { state: "done", done_at: 5 })] }, cookie);
+
+    const cleared = await sync({ cursor: 0, ops: [{ op_id: uuid(), entity: "chunks", id: c, fields: { state: "todo", done_at: null } }] }, cookie);
+    expect(cleared.res.status).toBe(200);
+    expect(cleared.body.changes.find((x) => x.entity === "chunks")?.row.done_at).toBeNull();
+
+    for (const bad of ["yesterday", -1, 1.5]) {
+      const res = await sync({ cursor: 0, ops: [patch(t, { done_at: bad })] }, cookie);
+      expect(res.res.status).toBe(400);
+    }
+  });
+});
