@@ -11,4 +11,4 @@ npm install
 npm run dev
 ```
 
-`npm run typecheck` and `npm test` are what CI runs. `npm run deploy` builds and ships the `ember-tasks` Worker (Cloudflare, static assets only in phase 1).
+`npm run typecheck` and `npm test` are what CI runs. Every push to `main` that passes CI deploys itself: GitHub Actions applies pending D1 migrations, then ships the `ember-tasks` Worker (Cloudflare). `npm run deploy` still works by hand.

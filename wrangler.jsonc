@@ -1,6 +1,8 @@
 // One Worker: static assets, /api/*, and (slice 12) the cron (Tech_Scope.md §2, ADR-0004).
 {
   "name": "ember-tasks",
+  // Not a secret: CI's deploy needs it alongside the CLOUDFLARE_API_TOKEN secret (.github/workflows/ci.yml).
+  "account_id": "833d1568c1e637b7977a1cf4ec45777c",
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "assets": {
