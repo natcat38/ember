@@ -8,7 +8,9 @@ declare const process: { env: Record<string, string | undefined> }; // no @types
 const port = Number(process.env.E2E_PORT ?? 4173);
 export default defineConfig({
   testDir: "e2e",
-  use: { baseURL: `http://localhost:${port}`, viewport: { width: 375, height: 812 } },
+  // Service workers are blocked: in WebKit, requests from a page the worker controls skip page.route, so a stubbed or
+  // unreachable API would reach the real server. pwa.spec.ts turns them back on to test the worker itself.
+  use: { baseURL: `http://localhost:${port}`, viewport: { width: 375, height: 812 }, serviceWorkers: "block" },
   projects: [
     { name: "chromium", use: { browserName: "chromium" } },
     { name: "webkit", use: { ...devices["iPhone 13"], viewport: { width: 375, height: 812 } } },

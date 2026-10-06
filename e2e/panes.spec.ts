@@ -2,6 +2,7 @@ import { expect, test, type Page } from "./fixtures";
 
 // Wireframes.md §10: on a wide screen Today and Focus (or the selected task) sit side by side, two 560 px columns.
 test.use({ timezoneId: "Asia/Singapore", viewport: { width: 1440, height: 900 } });
+test.skip(({ browserName }) => browserName !== "chromium", "a desktop layout; the WebKit project is an iPhone");
 
 // The Mei example of Tech_Scope.md §4.6: the frog is B1 of "Cover letter"; the rest of Today is C1, C2, A1, A2.
 async function seed(page: Page) {

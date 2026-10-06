@@ -9,7 +9,10 @@ import { test as base, expect, type Page } from "@playwright/test";
 export const test = base.extend<{ online: boolean; firstRun: boolean }>({
   online: [false, { option: true }],
   firstRun: [false, { option: true }],
-  page: async ({ page, online, firstRun }, use) => {
+  page: async ({ page, online, firstRun }, use, testInfo) => {
+    // The identity cookie is Secure, and WebKit never sends a Secure cookie to http://localhost, so every request would be
+    // a new user. Server-backed specs run in Chromium; the deployed site is HTTPS, where Safari sends it.
+    testInfo.skip(online && testInfo.project.name === "webkit", "WebKit drops the Secure identity cookie on http://localhost");
     if (!online) await page.route("**/api/**", (route) => route.abort());
     if (!firstRun) {
       await page.addInitScript(() => {

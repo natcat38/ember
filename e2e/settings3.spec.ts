@@ -46,6 +46,7 @@ async function stubPush(page: Page, answer: NotificationPermission, permission: 
         }
       }
       Object.defineProperty(window, "Notification", { value: FakeNotification, configurable: true });
+      if (!("PushManager" in window)) Object.defineProperty(window, "PushManager", { value: class {}, configurable: true }); // Playwright's WebKit has none
       let sub: object | null = null;
       const pushManager = {
         subscribe(opts: { userVisibleOnly: boolean; applicationServerKey: Uint8Array }) {
@@ -65,6 +66,8 @@ async function stubPush(page: Page, answer: NotificationPermission, permission: 
   );
 }
 
+// The WebKit project is an iPhone, which gets the Home Screen hint instead of a prompt ("iPhone Safari, not on the Home Screen" below).
+const notIPhone = () => test.skip(test.info().project.name === "webkit", "an iPhone in Safari gets the Add to Home Screen hint instead");
 const stubs = (page: Page) => page.evaluate(() => ({ asked: (window as any).__asked, subscribed: (window as any).__subscribed, unsubscribed: (window as any).__unsubscribed }) as Stubs);
 
 // /api/me answers from `server`; the subscribe and unsubscribe routes record the bodies and flip `push`.
@@ -78,6 +81,7 @@ function routeServer(page: Page, server: { vapid: string | null; push?: boolean;
 }
 
 test("This device asks for permission on the tap, subscribes with the server's key, posts the subscription, and can be turned off", async ({ page }) => {
+  notIPhone();
   await stubPush(page, "granted");
   const posted = routeServer(page, { vapid: "AQID" });
   await page.goto("/");
@@ -98,6 +102,7 @@ test("This device asks for permission on the tap, subscribes with the server's k
 });
 
 test("a refused permission says so, offers Telegram, and is never asked again", async ({ page }) => {
+  notIPhone();
   await stubPush(page, "denied");
   const posted = routeServer(page, { vapid: "AQID" });
   await page.goto("/");
@@ -112,6 +117,7 @@ test("a refused permission says so, offers Telegram, and is never asked again", 
 });
 
 test("a server without push keys says it isn't set up, and nothing is asked", async ({ page }) => {
+  notIPhone();
   await stubPush(page, "granted");
   routeServer(page, { vapid: null });
   await page.goto("/");
@@ -130,6 +136,7 @@ test("a server without push keys says it isn't set up, and nothing is asked", as
 });
 
 test("without a connection, turning on notifications says it needs one", async ({ page }) => {
+  notIPhone();
   await stubPush(page, "granted"); // the default fixture leaves /api/me unreachable
   await page.goto("/");
   await openSettings(page);

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "./fixtures";
 
+test.use({ serviceWorkers: "allow" }); // the worker is what this file tests
+
 test("the manifest and icons are served", async ({ page, request }) => {
   await page.goto("/");
   const href = await page.locator('link[rel="manifest"]').getAttribute("href");
@@ -11,6 +13,7 @@ test("the manifest and icons are served", async ({ page, request }) => {
 });
 
 test("the app opens offline once it has been visited", async ({ page, context }) => {
+  test.skip(test.info().project.name === "webkit", "Playwright's WebKit fails an offline reload under a service worker with an internal error");
   await page.goto("/");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload(); // now controlled by the service worker, which caches the assets it serves
