@@ -97,14 +97,15 @@ test("Done early finishes the step; Stop for now puts it back", async ({ page })
   expect(s.sessions.map((x: { completed: boolean }) => x.completed)).toEqual([false, false]);
 });
 
-test("a task with no steps asks for the next action, then starts", async ({ page }) => {
+test("a task with no steps starts straight away, on its own title as its first step", async ({ page }) => {
   await seed(page);
   await page.getByRole("button", { name: "Start Book dentist" }).click();
-  const ask = page.getByRole("dialog", { name: "What's the very next physical action?" });
-  await ask.getByRole("textbox").fill("Find the clinic's number");
-  await ask.getByRole("button", { name: "Start" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Find the clinic's number" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Book dentist" })).toBeVisible();
   await expect(timer(page)).toHaveText("25:00");
+  const s = await stored(page);
+  const steps = s.chunks.filter((c: { task_id: string }) => c.task_id === "N");
+  expect(steps.map((c: { title: string }) => c.title)).toEqual(["Book dentist"]);
+  expect(s.focus.chunk_id).toBe(steps[0].id);
 });
 
 test("peeking away mid-session: the return bar goes back to the running timer", async ({ page }) => {
@@ -137,24 +138,8 @@ test("an untriaged Inbox task can be started straight from its Task view", async
   await page.getByRole("button", { name: "Return the library book" }).click();
   await expect(page.getByRole("button", { name: "Pin to today" })).toHaveCount(0); // not rankable yet
   await page.getByRole("button", { name: "Start", exact: true }).click();
-  const ask = page.getByRole("dialog", { name: "What's the very next physical action?" });
-  await ask.getByRole("textbox").fill("Find the book");
-  await ask.getByRole("button", { name: "Start" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Find the book" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Return the library book" })).toBeVisible();
   const s = await stored(page);
   expect(s.tasks.find((t: { title: string }) => t.title === "Return the library book").state).toBe("inbox"); // focusing doesn't triage it
 });
 
-test("the next-action dialog starts empty each time and will not submit blank", async ({ page }) => {
-  await seed(page);
-  await page.getByRole("button", { name: "Start Book dentist" }).click();
-  const ask = page.getByRole("dialog", { name: "What's the very next physical action?" });
-  await ask.getByRole("button", { name: "Start" }).click(); // blank: the dialog stays open, nothing starts
-  await expect(ask).toBeVisible();
-  await ask.getByRole("textbox").fill("Find the clinic's number");
-  await ask.getByRole("button", { name: "Cancel" }).click();
-  await expect(ask).toBeHidden();
-  await page.getByRole("button", { name: "Start Book dentist" }).click();
-  await expect(ask.getByRole("textbox")).toHaveValue(""); // typed text did not carry over
-  expect((await stored(page)).focus ?? null).toBeNull();
-});

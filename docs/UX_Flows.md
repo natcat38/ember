@@ -189,7 +189,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 
 **Entry points**
 - Task view, below triage: a prompt and the breakdown button.
-- Tapping **Start** on a task with no chunks yet → it asks for the next action first, inline, then starts.
+- Tapping **Start** on a task with no chunks yet → the task's own title becomes its first step and Focus starts on it, no question asked (Natalie, 2026-10-06; it used to ask for the next action first).
 
 **Every tap**
 1. Task view shows *"What's the very next physical action?"* with a text field, and a **Break this down for me** button beside it.
@@ -198,7 +198,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 4. Chunks show as a checklist under the task. Each chunk runs Todo → In focus → Done.
 
 **Decisions the app makes silently**
-- A task needs **≥1 chunk to enter Focus.** No chunk = the Start tap asks for the next action rather than blocking you.
+- A task needs **≥1 chunk to enter Focus.** No chunk = the Start tap makes the task's title its first step rather than blocking you.
 - **Chunks belong to the task; Today still surfaces only ≤5 across everything.** A 6-step breakdown doesn't blow the day — the rest wait behind the *"N more waiting"* line and surface as room opens.
 - **Two levels at most: a step can be split once into smaller steps** (wireframe review, 2026-09-30; replaces "chunks are flat"). The smaller steps stay under their parent, because the parent's name is how the user recognises the work. The cap of two levels keeps out recursive breakdown, the Goblin trap. The rules:
   1. **Splitting:** a step's `...` menu has *Break this step down*. Before phase 4 it's manual: the step becomes a heading and an indented field opens under it, labelled *Add a smaller step*. That field shows only right after a split or after the parent's *Add a smaller step* menu item, and closes when it loses focus while empty (design step 2, 2026-10-01). From phase 4 the AI returns 3–6 smaller steps with the same edit-then-accept flow, and each press counts against the daily cap like *Break this down for me*.
