@@ -251,6 +251,8 @@ textarea {
 @media (hover: hover) {
   .button:not(.primary):hover,
   .chip:not([aria-pressed="true"]):hover,
+  .date-button:hover > .button,
+  .date-button:hover > .chip:not([aria-pressed="true"]),
   .icon-button:hover,
   .text-button:hover {
     background: var(--color-nook);
@@ -359,12 +361,19 @@ textarea {
   }
 }
 
+.date-button {
+  position: relative;
+  display: inline-flex;
+}
+
+/* The real date field, transparent over its button so a tap opens the native picker (DateButton.tsx). */
 .date-input {
   position: absolute;
-  width: 1px;
-  height: 1px;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .hint {
