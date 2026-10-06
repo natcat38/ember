@@ -245,7 +245,7 @@ Home Screen apps on iPhone get their own storage and cookies, separate from Safa
 |---|---|---|
 | `core/` | Vitest, plain unit tests, clock injected | Bands, ranking, Today build, message plan. The §4.6 example is the golden test. |
 | Worker + D1 | `@cloudflare/vitest-pool-workers` (real D1 in a local simulator), Telegram `fetch` mocked | Same op twice applies once. Concurrent duplicates. Illegal transition rejected. Two overlapping ticks send once. Replan never exceeds the cap. |
-| UI | Playwright at 375 × 812 | The phase-1 loop end to end (capture → triage → step → Today → focus → reward → shutdown); offline queueing in phase 2. |
+| UI | Playwright at 375 × 812, in Chromium and in WebKit as an iPhone (2026-10-06) | The phase-1 loop end to end (capture → triage → step → Today → focus → reward → shutdown); offline queueing in phase 2. WebKit skips what it can't run locally (each skip names why in the spec): server-backed specs, since it never sends the Secure identity cookie to `http://localhost`; passkeys; desktop layouts. |
 | Device | Natalie's iPhone, by hand | The install handoff (slice 7). Telegram link opens signed in (slice 14). |
 
 CI (GitHub Actions) runs typecheck + Vitest on every PR, and Playwright on PRs that touch `src/`. Each slice runs only the layers it touched.

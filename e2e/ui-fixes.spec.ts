@@ -163,7 +163,7 @@ test("finding 7: the reminder offer is as wide as the Reward card at every stage
 
 test("finding 18: while an unlock plays the ring and cat shrink and Skip stays on screen", async ({ page }) => {
   await page.route("**/opentdb.com/api.php*", (route) =>
-    route.fulfill({ json: { response_code: 0, results: [{ question: "Which%20planet%20is%20known%20as%20the%20Red%20Planet%3F", correct_answer: "Mars", incorrect_answers: ["Venus", "Jupiter", "Saturn"] }] } }),
+    route.fulfill({ headers: { "Access-Control-Allow-Origin": "*" }, json: { response_code: 0, results: [{ question: "Which%20planet%20is%20known%20as%20the%20Red%20Planet%3F", correct_answer: "Mars", incorrect_answers: ["Venus", "Jupiter", "Saturn"] }] } }),
   );
   await seedMei(page, { ...confirmed, ...unlockTrivia });
   await page.getByRole("button", { name: "Do this first" }).click();
@@ -178,6 +178,7 @@ test("finding 18: while an unlock plays the ring and cat shrink and Skip stays o
 
 test.describe("desktop", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
+  test.skip(({ browserName }) => browserName !== "chromium", "a desktop layout; the WebKit project is an iPhone");
 
   test("finding 13: the capture field stays at the top of the left pane while a long Inbox scrolls", async ({ page }) => {
     const many = Array.from({ length: 40 }, (_, i) => ({ id: `i${i}`, title: `Inbox item ${i}`, state: "inbox", size: null, quick: false, holding_up: false, deadline: null, runway_start: null, pinned_on: null, snoozed_until: null, created_at: 100 + i, updated_at: 100 + i }));

@@ -22,6 +22,7 @@ const stored = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getIt
 const mode = (page: Page, name: "25/5" | "Flowtime") => page.getByRole("group", { name: "Timer for this session" }).getByRole("button", { name });
 
 test("switching to Flowtime counts up; stopping at 50 minutes offers a 10-minute break", async ({ page }) => {
+  test.slow(); // replays an hour of one-second ticks, each a render: more than WebKit manages in the default 30 s
   await seed(page);
   await page.getByRole("button", { name: "Do this first" }).click();
   await expect(timer(page)).toHaveText("25:00");

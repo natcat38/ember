@@ -7,6 +7,7 @@ import type { BrowserContext, CDPSession } from "@playwright/test";
 test.use({ online: true });
 
 async function authenticator(context: BrowserContext, page: Page): Promise<{ cdp: CDPSession; id: string }> {
+  test.skip(test.info().project.name !== "chromium", "the virtual authenticator is a Chromium DevTools feature");
   const cdp = await context.newCDPSession(page);
   await cdp.send("WebAuthn.enable");
   const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", {

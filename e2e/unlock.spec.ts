@@ -6,6 +6,7 @@ test.use({ timezoneId: "Asia/Singapore" });
 const SEC = 1000;
 const FRAME = "**/lichess.org/training/frame*";
 const TRIVIA = "**/opentdb.com/api.php*";
+// Feeds are other origins, so stubs carry a CORS header: WebKit enforces CORS on fulfilled responses, Chromium doesn't.
 const FACT = "**/api.wikimedia.org/feed/v1/wikipedia/en/onthisday/selected/**";
 
 // One task due today with two steps, so Focus → Done gives a Reward with a next step. `unlock` is the Settings choice.
@@ -25,11 +26,12 @@ async function seed(page: Page, unlock: string) {
 async function stubFeeds(page: Page) {
   await page.route(TRIVIA, (route) =>
     route.fulfill({
+      headers: { "Access-Control-Allow-Origin": "*" },
       json: { response_code: 0, results: [{ question: "Which%20planet%20is%20known%20as%20the%20Red%20Planet%3F", correct_answer: "Mars", incorrect_answers: ["Venus", "Jupiter", "Saturn"] }] },
     }),
   );
   await page.route(FACT, (route) =>
-    route.fulfill({ json: { selected: [{ text: "Apollo 11 lands on the Moon.", year: 1969, pages: [{ content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Apollo_11" } } }] }] } }),
+    route.fulfill({ headers: { "Access-Control-Allow-Origin": "*" }, json: { selected: [{ text: "Apollo 11 lands on the Moon.", year: 1969, pages: [{ content_urls: { desktop: { page: "https://en.wikipedia.org/wiki/Apollo_11" } } }] }] } }),
   );
   await page.route(FRAME, (route) => route.fulfill({ contentType: "text/html", body: "<p>A puzzle</p>" }));
 }
@@ -88,7 +90,7 @@ test("trivia: one question, four answers, right or wrong is shown, and the next 
 test("trivia: the right answer says so, and the text goes in as text", async ({ page }) => {
   await stubFeeds(page);
   await page.route(TRIVIA, (route) =>
-    route.fulfill({ json: { response_code: 0, results: [{ question: "Which%20tag%20is%20%3Cb%3Ebold%3C%2Fb%3E%3F", correct_answer: "%3Cb%3E", incorrect_answers: ["%3Ci%3E", "%3Cu%3E", "%3Cp%3E"] }] } }),
+    route.fulfill({ headers: { "Access-Control-Allow-Origin": "*" }, json: { response_code: 0, results: [{ question: "Which%20tag%20is%20%3Cb%3Ebold%3C%2Fb%3E%3F", correct_answer: "%3Cb%3E", incorrect_answers: ["%3Ci%3E", "%3Cu%3E", "%3Cp%3E"] }] } }),
   );
   await seed(page, "trivia");
   await finishInFocus(page);
@@ -212,7 +214,7 @@ test("a failed fetch says so once, with Skip, and does not retry", async ({ page
 
 test("an error from the feed counts as a failure too", async ({ page }) => {
   await stubFeeds(page);
-  await page.route(FACT, (route) => route.fulfill({ status: 503, body: "down" }));
+  await page.route(FACT, (route) => route.fulfill({ status: 503, headers: { "Access-Control-Allow-Origin": "*" }, body: "down" }));
   await seed(page, "fact");
   await finishInFocus(page);
   await page.getByRole("button", { name: "See what happened on this day" }).click();

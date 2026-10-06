@@ -64,7 +64,13 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
     lastPhase.current = phase;
   }, [phase]);
 
-  const act = (fn: (s: State, t: number) => State) => update((s) => fn(s, Date.now()));
+  // The action and the clock share one instant: a session started now would otherwise sit ahead of the last tick and
+  // count up from -1:-1 until the next one.
+  const act = (fn: (s: State, t: number) => State) => {
+    const t = Date.now();
+    setNow(t);
+    update((s) => fn(s, t));
+  };
   // The switch leaves after its minute; a keyboard user standing on it would otherwise drop to the page body.
   // Only on that change, never on mount, so opening Focus still lands on its heading.
   const pause = useRef<HTMLButtonElement>(null);

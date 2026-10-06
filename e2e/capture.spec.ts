@@ -82,9 +82,9 @@ test("a tap on Deadline lands on the real date field", async ({ page }) => {
   const hit = await page.getByRole("button", { name: "Deadline" }).evaluate(async (button) => {
     await Promise.all(document.getAnimations().map((a) => a.finished)); // the sheet slides up first
     const r = button.getBoundingClientRect();
-    return (document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) as HTMLInputElement | null)?.type;
+    return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === button.parentElement!.querySelector("input");
   });
-  expect(hit).toBe("date");
+  expect(hit).toBe(true);
 });
 
 test("Deadline shows the picked date and can be cleared", async ({ page }) => {
