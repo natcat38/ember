@@ -11,7 +11,7 @@ import { dayOf } from "../core/day";
 import { KEY, load, save } from "./store";
 import { CaptureForm, formatDue } from "./Capture";
 import { TaskView } from "./TaskView";
-import { closeOnBackdrop, TextDialog } from "./dialogs";
+import { closeOnBackdrop } from "./dialogs";
 import { FocusView } from "./Focus";
 import { sessionsDone, startFocus } from "../core/focus";
 import { addChunk, firstOpenLeaf } from "../core/chunk";
@@ -73,7 +73,6 @@ export function App() {
   const skipPops = useRef(0); // popstates we caused ourselves with history.go()
   // Focus, Reward and Shutdown are left by their own buttons, never by the gesture.
   const locked = useRef(false);
-  const [askFor, setAskFor] = useState<Task | null>(null);
   // First run (UX_Flows.md §7): nothing on this device, never synced, and not arriving from a Telegram sign-in link.
   const [onboarding, setOnboarding] = useState(() => {
     let synced = false;
@@ -103,7 +102,6 @@ export function App() {
   }, [pulling, state.tasks.length]);
   // Opened from a web push tap (public/sw.js adds the marker): Today or that task shows "Not now? Snooze" until it's used.
   const [arrival, setArrival] = useState(() => arrivalFrom(location.search));
-  const nextAction = useRef<HTMLDialogElement>(null);
   const [sent, setSent] = useState<string[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [status, setStatus] = useState("");
@@ -294,7 +292,7 @@ export function App() {
     sheet.current!.querySelector<HTMLInputElement>(".field")!.focus();
   }
 
-  // Focus on one step. A task with no open step asks for the next action first, then starts (UX_Flows.md §3.3).
+  // Focus on one step. A task with no open step starts on its own title, added as its first step (UX_Flows.md §3.3).
   function start(chunkId: string) {
     setState((s) => startFocus(s, chunkId, Date.now()));
     navigate({ name: "focus" });
@@ -302,8 +300,10 @@ export function App() {
   function startTask(t: Task) {
     const leaf = firstOpenLeaf(state, t.id);
     if (leaf) return start(leaf.id);
-    setAskFor(t);
-    nextAction.current!.showModal();
+    const id = crypto.randomUUID();
+    const now = Date.now();
+    setState((s) => startFocus(addChunk(s, t.id, t.title, null, now, () => id), id, now));
+    navigate({ name: "focus" });
   }
 
   locked.current = onboarding || view.name === "focus" || view.name === "reward" || view.name === "shutdown";
@@ -585,20 +585,6 @@ export function App() {
           </p>
         </div>
       </dialog>
-
-      <TextDialog
-        dialog={nextAction}
-        label="What's the very next physical action?"
-        placeholder="Type one step"
-        confirm="Start"
-        onSave={(title) => {
-          if (!askFor || !title.trim()) return;
-          const id = crypto.randomUUID();
-          const now = Date.now();
-          setState((s) => startFocus(addChunk(s, askFor.id, title, null, now, () => id), id, now));
-          navigate({ name: "focus" });
-        }}
-      />
 
       <dialog ref={drawer} className="drawer" aria-label="Menu" onClick={closeOnBackdrop}>
         <nav>

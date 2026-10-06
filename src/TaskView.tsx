@@ -129,7 +129,7 @@ export function TaskView({ task, pickDate, inPane, state, update, today, inToday
         <Steps state={state} update={update} taskId={task.id} onStart={onStartStep} />
       </Body>
 
-      {/* Start begins the first unfinished step, or asks for one. It works on an untriaged Inbox task too: Today is an offer,
+      {/* Start begins the first unfinished step, or the task itself as its first step. It works on an untriaged Inbox task too: Today is an offer,
           not a gate (UX_Flows.md §3.4), and Focus runs on a step whatever the task's state. Pin to today needs a rankable task. */}
       {task.state !== "done" && task.state !== "removed" && (
         <div className="bottom-bar">
