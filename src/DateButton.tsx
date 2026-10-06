@@ -11,8 +11,10 @@ interface Props {
   ref?: Ref<HTMLButtonElement>;
 }
 
-// A button that opens the browser's date picker. Where showPicker() is missing or refuses, the date field itself is
-// shown and focused instead: a visible, labelled input rather than a hidden one.
+// A button that opens the browser's date picker. A tap or click lands on the real date field, laid transparent over the
+// button, so phones open their native picker without showPicker(): iOS WebViews can accept that call and show nothing,
+// leaving no error to fall back on. The button is the keyboard and screen-reader path; where showPicker() is missing or
+// refuses there, the date field itself is shown and focused instead: a visible, labelled input rather than a hidden one.
 export function DateButton({ label, className, pressed, value, min, onPick, children, ref }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [manual, setManual] = useState(false);
@@ -21,7 +23,7 @@ export function DateButton({ label, className, pressed, value, min, onPick, chil
   }, [manual]);
 
   return (
-    <>
+    <span className="date-button">
       <button
         ref={ref}
         type="button"
@@ -46,9 +48,16 @@ export function DateButton({ label, className, pressed, value, min, onPick, chil
         aria-label={label}
         min={min}
         value={value}
+        onClick={(e) => {
+          try {
+            e.currentTarget.showPicker(); // desktop Chrome opens only from its icon otherwise
+          } catch {
+            // the tap already reached the native field
+          }
+        }}
         onChange={(e) => onPick(e.target.value)}
         onBlur={() => setManual(false)}
       />
-    </>
+    </span>
   );
 }

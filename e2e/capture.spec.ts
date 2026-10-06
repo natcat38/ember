@@ -67,12 +67,24 @@ test("without a date picker, Deadline shows a visible, labelled date field and f
   await page.addInitScript(() => delete (HTMLInputElement.prototype as { showPicker?: unknown }).showPicker);
   await page.goto("/");
   await page.getByRole("button", { name: "What's on your mind?" }).click();
-  await page.getByRole("button", { name: "Deadline" }).click();
+  await page.getByRole("button", { name: "Deadline" }).press("Enter"); // the keyboard path; a tap lands on the field itself
   const field = page.getByLabel("Deadline", { exact: true });
   await expect(field).toBeVisible();
   await expect(field).toBeFocused();
   await field.fill("2099-12-01");
   await expect(page.getByRole("button", { name: "Due 1 Dec" })).toHaveAttribute("aria-pressed", "true");
+});
+
+// iOS WebViews can take showPicker() and open nothing, so a tap must reach the native date field itself.
+test("a tap on Deadline lands on the real date field", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "What's on your mind?" }).click();
+  const hit = await page.getByRole("button", { name: "Deadline" }).evaluate(async (button) => {
+    await Promise.all(document.getAnimations().map((a) => a.finished)); // the sheet slides up first
+    const r = button.getBoundingClientRect();
+    return (document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) as HTMLInputElement | null)?.type;
+  });
+  expect(hit).toBe("date");
 });
 
 test("Deadline shows the picked date and can be cleared", async ({ page }) => {
