@@ -5,13 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#F6F3EE" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" href="/icon-192.png" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-title" content="Ember" />
     <!-- The installed app's status bar: "default" keeps dark time and battery text on a light bar. black-translucent would
          draw white text over the oat page, which can't be read. -->
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <title>Ember</title>
+    <meta name="description" content="Drop a task in one line; Ember turns it into a first small step and shows you at most five things today." />
+    <!-- Link previews (Telegram, chat apps). The image URL must be absolute. -->
+    <meta property="og:title" content="Ember" />
+    <meta property="og:description" content="Drop a task in one line; Ember turns it into a first small step and shows you at most five things today." />
+    <meta property="og:image" content="https://ember-tasks.cron-telegram.workers.dev/icon-512.png" />
   </head>
   <body>
     <div id="root"></div>

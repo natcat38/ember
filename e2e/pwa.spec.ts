@@ -7,8 +7,12 @@ test("the manifest and icons are served", async ({ page, request }) => {
   const href = await page.locator('link[rel="manifest"]').getAttribute("href");
   const manifest = await (await request.get(href!)).json();
   expect(manifest).toMatchObject({ name: "Ember", display: "standalone", start_url: "/" });
-  for (const icon of [...manifest.icons.map((i: { src: string }) => i.src), "/apple-touch-icon.png"]) {
-    expect((await request.get(icon)).status(), icon).toBe(200);
+  expect(manifest.icons.map((i: { purpose: string }) => i.purpose)).toContain("maskable");
+  // An image, not just a 200: a missing file gets the app's HTML from the SPA fallback, also with a 200.
+  for (const icon of [...manifest.icons.map((i: { src: string }) => i.src), "/apple-touch-icon.png", "/favicon.ico"]) {
+    const res = await request.get(icon);
+    expect(res.status(), icon).toBe(200);
+    expect(res.headers()["content-type"], icon).toMatch(/^image\//);
   }
 });
 
