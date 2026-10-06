@@ -6,7 +6,8 @@ test.use({ timezoneId: "Asia/Singapore" });
 const cat = (page: Page) => page.locator("picture.cat");
 const animations = (page: Page) => page.evaluate(() => document.getAnimations().length);
 // Which file the browser chose: the animated one when motion is allowed, the still under reduced motion (ADR 0009).
-const chosenFile = (page: Page) => cat(page).locator("img").evaluate((img) => new URL((img as HTMLImageElement).currentSrc).pathname);
+// Empty until the browser has picked a source, so callers poll it.
+const chosenFile = (page: Page) => cat(page).locator("img").evaluate((img) => { const src = (img as HTMLImageElement).currentSrc; return src && new URL(src).pathname; });
 
 // Two steps on one task due today, so Today has a frog. `lastSeen` is the visit before this open; `shutdown` marks today's wrap-up.
 async function seed(page: Page, { lastSeen = "2026-10-05T08:30:00+08:00", shutdown = false } = {}) {
@@ -75,7 +76,7 @@ test("Focus: the cat stretches once in the corner, then holds still", async ({ p
   await expect(cat(page)).toHaveAttribute("data-pose", "stretching");
   await expect(page.locator(".cat-corner")).toHaveAttribute("aria-hidden", "true");
   // The animated file plays once and holds its last frame (ADR 0009); there is no CSS animation to wait out.
-  expect(await chosenFile(page)).toBe("/cat/stretching.webp");
+  await expect.poll(() => chosenFile(page)).toBe("/cat/stretching.webp");
   expect(await animations(page)).toBe(0);
   await page.getByRole("button", { name: "Pause" }).click();
   await expect(cat(page)).toHaveAttribute("data-pose", "watching");
@@ -125,17 +126,17 @@ test.describe("reduced motion", () => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await seed(page);
     await expect(cat(page)).toHaveAttribute("data-pose", "watching");
-    expect(await chosenFile(page)).toBe("/cat/watching-still.webp");
+    await expect.poll(() => chosenFile(page)).toBe("/cat/watching-still.webp");
     expect(await animations(page)).toBe(0);
 
     await page.getByRole("button", { name: "Do this first" }).click();
     await expect(cat(page)).toHaveAttribute("data-pose", "stretching");
-    expect(await chosenFile(page)).toBe("/cat/stretching-still.webp");
+    await expect.poll(() => chosenFile(page)).toBe("/cat/stretching-still.webp");
     expect(await animations(page)).toBe(0);
 
     await page.getByRole("button", { name: "Done" }).click();
     await expect(cat(page)).toHaveAttribute("data-pose", "purring");
-    expect(await chosenFile(page)).toBe("/cat/purring-still.webp");
+    await expect.poll(() => chosenFile(page)).toBe("/cat/purring-still.webp");
     expect(await animations(page)).toBe(0);
   });
 });
