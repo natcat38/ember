@@ -4,7 +4,7 @@ import { expect, test, type Page } from "./fixtures";
 test.use({ timezoneId: "Asia/Singapore", viewport: { width: 1440, height: 900 } });
 test.skip(({ browserName }) => browserName !== "chromium", "a desktop layout; the WebKit project is an iPhone");
 
-// The Mei example of Tech_Scope.md §4.6: the frog is B1 of "Cover letter"; the rest of Today is C1, C2, A1, A2.
+// The Mei example of Tech_Scope.md §4.6: the frog is B1 of "Cover letter"; the rest of Today is C1, C2, C3, A1.
 async function seed(page: Page) {
   await page.clock.install({ time: new Date("2026-10-05T09:00:00+08:00") });
   await page.goto("/");
@@ -54,7 +54,7 @@ test("choosing another row swaps the right pane without leaving Today or adding 
   await expect(right(page).getByRole("heading", { level: 1, name: "Lab report" })).toBeFocused(); // focus follows the content
   await expect(left(page).getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
   await expect(left(page).locator(".row-link", { hasText: "C1" })).toHaveAttribute("aria-current", "true");
-  await expect(left(page).locator('.row-link[aria-current="true"]')).toHaveCount(2); // C1 and C2 are steps of the same task
+  await expect(left(page).locator('.row-link[aria-current="true"]')).toHaveCount(3); // C1, C2 and C3 are steps of the same task
   expect(await page.evaluate(() => history.length)).toBe(before); // back from a selected task needs no entry
 });
 

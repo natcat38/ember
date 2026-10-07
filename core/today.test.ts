@@ -29,11 +29,11 @@ function mei(): State {
 const meiSessions = (id: string) => (id === "A" ? 1 : 0);
 const ids = (rows: { key: string }[]) => rows.map((r) => r.key);
 
-test("golden: §4.6 Today is B1 (frog), C1, C2, A1, A2, with 1 more waiting and no light-day offer", () => {
+test("golden: §4.6 Today is B1 (frog), C1, C2, C3, A1, with 3 more waiting and no light-day offer", () => {
   const t = buildToday(mei(), TODAY, { sessionsDone: meiSessions });
-  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "A1", "A2"]);
+  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "C3", "A1"]);
   expect(t.frog?.key).toBe("B1");
-  expect(t.waiting).toBe(1); // E1
+  expect(t.waiting).toBe(3); // A2, A3, E1
   expect(t.lightDay).toBeNull(); // the day is full, so D is not offered
 });
 
@@ -69,7 +69,7 @@ test("pinning a task takes a slot and bumps the lowest-ranked step out", () => {
   const s = mei();
   s.tasks = s.tasks.map((t) => (t.id === "D" ? { ...t, pinned_on: TODAY } : t));
   const t = buildToday(s, TODAY, { sessionsDone: meiSessions });
-  expect(ids(t.rows)).toEqual(["D1", "B1", "C1", "C2", "A1"]);
+  expect(ids(t.rows)).toEqual(["D1", "D2", "B1", "C1", "C2"]);
   expect(t.frog?.key).toBe("D1");
 });
 
@@ -78,8 +78,13 @@ test("done means done: a step finished today keeps its slot, nothing refills", (
   const doneToday = Date.parse("2026-10-05T10:00:00+08:00");
   s.chunks = s.chunks.map((c) => (c.id === "B1" || c.id === "C1" ? { ...c, state: "done", updated_at: doneToday } : c));
   const t = buildToday(s, TODAY, { sessionsDone: meiSessions, tz: "Asia/Singapore" });
-  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "A1", "A2"]);
+  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "C3", "A1"]);
   expect(t.frog).toBeNull(); // the frog is eaten
+});
+
+test("a lone task shows all its steps: no per-task cap leaves slots empty", () => {
+  const s = { ...emptyState(), tasks: [task("L", { size: "L", deadline: "2026-10-07", runway_start: "2026-10-01" })], chunks: steps("L", 3) };
+  expect(ids(buildToday(s, TODAY, {}).rows)).toEqual(["L1", "L2", "L3"]);
 });
 
 test("a step finished on an earlier day leaves Today", () => {
@@ -185,7 +190,7 @@ test("golden, in full: Mei's Monday blocks leave 540 free minutes, so the cap of
   expect(freeMinutes(s, TODAY)).toBe(540);
   expect(slotsFor(s, TODAY)).toBe(5);
   const t = buildToday(s, TODAY, { sessionsDone: meiSessions, slots: slotsFor(s, TODAY) });
-  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "A1", "A2"]);
+  expect(ids(t.rows)).toEqual(["B1", "C1", "C2", "C3", "A1"]);
   expect(freeMinutes(s, "2026-10-06")).toBe(840); // Tuesday: no blocks
 });
 
