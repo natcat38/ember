@@ -13,7 +13,7 @@ import { CaptureForm, formatDue } from "./Capture";
 import { TaskView } from "./TaskView";
 import { closeOnBackdrop } from "./dialogs";
 import { FocusView } from "./Focus";
-import { sessionsDone, startFocus } from "../core/focus";
+import { AWAY_MS, sessionsDone, startFocus } from "../core/focus";
 import { addChunk, firstOpenLeaf } from "../core/chunk";
 import { AnnounceContext } from "./announce";
 import { ArrivalLine } from "./Arrival";
@@ -121,6 +121,22 @@ export function App() {
   const today = dayOf(Date.now(), tz, quietEndMin);
   const build = (day: string) => buildToday(state, day, { tz, quietEndMin, sessionsDone: sessionsDone(state), slots: slotsFor(state, day) });
   const plan = build(today);
+
+  // Back after AWAY_MS with a session open, Focus asks "Still on this step?" (Natalie, 2026-10-07). Away is measured from
+  // the last visit when the app reopens, and from when the page was hidden when it comes back to the front.
+  const [awaySince, setAwaySince] = useState(() => (boot.focus && boot.last_seen_at !== null && Date.now() - boot.last_seen_at >= AWAY_MS ? boot.last_seen_at : null));
+  const hasFocus = useRef(false);
+  hasFocus.current = !!state.focus;
+  useEffect(() => {
+    let hiddenAt: number | null = null;
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") hiddenAt = Date.now();
+      else if (hiddenAt !== null && hasFocus.current && Date.now() - hiddenAt >= AWAY_MS) setAwaySince(hiddenAt);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+  if (!state.focus && awaySince !== null) setAwaySince(null); // the session ended some other way
 
   // Re-render each minute so an app left open rolls over to the new day at the boundary.
   const [minute, setMinute] = useState(0);
@@ -358,7 +374,7 @@ export function App() {
     ) : null;
 
   const focus = (
-    <FocusView state={state} update={setState} announce={announce} onFinished={(title) => navigate({ name: "reward", title, fromFocus: true })} onStopped={() => navigate({ name: "today" }, "right")} />
+    <FocusView state={state} update={setState} announce={announce} awaySince={awaySince} onAwayAnswered={() => setAwaySince(null)} onFinished={(title) => navigate({ name: "reward", title, fromFocus: true })} onStopped={() => navigate({ name: "today" }, "right")} />
   );
 
   // The Task view. On the right pane there is no Back: another row replaces it.
@@ -389,7 +405,15 @@ export function App() {
   );
 
   const menuButton = (
-    <button className="icon-button" aria-label="Open menu" onClick={() => drawer.current!.showModal()}>
+    <button
+      className="icon-button"
+      aria-label="Open menu"
+      onClick={() => {
+        drawer.current!.showModal();
+        // showModal focuses the first item (Today), and its ring read as a second "you are here". Start on the current page.
+        drawer.current!.querySelector<HTMLElement>('[aria-current="page"]')?.focus();
+      }}
+    >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
         <path d="M4 7h16M4 12h16M4 17h16" />
       </svg>

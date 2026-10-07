@@ -60,6 +60,7 @@ test("a reload mid-session loses nothing either", async ({ page }) => {
 });
 
 test("the 25 ends: Take 5, a restful break, then Back to it? and Stop here logs the session", async ({ page }) => {
+  test.slow(); // replays half an hour of one-second ticks, each a render: WebKit took 29.9 s of the default 30
   await seed(page);
   await page.getByRole("button", { name: "Do this first" }).click();
   await page.clock.runFor(25 * MIN + 2000);
@@ -143,3 +144,60 @@ test("an untriaged Inbox task can be started straight from its Task view", async
   expect(s.tasks.find((t: { title: string }) => t.title === "Return the library book").state).toBe("inbox"); // focusing doesn't triage it
 });
 
+// Coming back to a session left open (Natalie, 2026-10-07): after 30 minutes away, Focus asks before carrying on.
+const still = (page: Page) => page.getByRole("region", { name: "Still on this step?" });
+async function startThenReopenAt(page: Page, at: string) {
+  await seed(page);
+  await page.getByRole("button", { name: "Do this first" }).click();
+  await expect(timer(page)).toHaveText("25:00");
+  await page.clock.setSystemTime(new Date(at)); // the app was closed in between: no ticks ran
+  await page.reload();
+}
+
+test("reopened two hours later, Start fresh begins a new 25 and logs the old session as ending when they left", async ({ page }) => {
+  await startThenReopenAt(page, "2026-10-05T11:00:00+08:00");
+  await expect(still(page)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Tailor the opening" })).toBeVisible();
+  await still(page).getByRole("button", { name: "Start fresh" }).click();
+  await expect(still(page)).toHaveCount(0);
+  await expect(timer(page)).toHaveText("25:00");
+  const s = await stored(page);
+  expect(s.sessions).toHaveLength(1);
+  expect(s.sessions[0].completed).toBe(false);
+  expect(s.sessions[0].ended_at - s.sessions[0].started_at).toBeLessThan(2 * MIN); // not two hours of work
+  expect(s.focus.chunk_id).toBe("B1");
+});
+
+test("Stop on the stale session goes to Today; Keep going leaves the session as it was", async ({ page }) => {
+  await startThenReopenAt(page, "2026-10-05T11:00:00+08:00");
+  await page.getByRole("button", { name: "Keep going" }).click();
+  await expect(still(page)).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Take 5?" })).toBeVisible(); // the 25 ran out while away
+  expect((await stored(page)).sessions).toHaveLength(0);
+
+  await page.clock.setSystemTime(new Date("2026-10-05T13:00:00+08:00"));
+  await page.reload();
+  await still(page).getByRole("button", { name: "Stop" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
+  expect((await stored(page)).focus).toBeNull();
+});
+
+test("ten minutes away is not stale: the timer just carries on", async ({ page }) => {
+  await startThenReopenAt(page, "2026-10-05T09:10:00+08:00");
+  await expect(timer(page)).toHaveText("15:00");
+  await expect(still(page)).toHaveCount(0);
+});
+
+test("the app left in the background for 45 minutes asks when it comes back to the front", async ({ page }) => {
+  await seed(page);
+  await page.getByRole("button", { name: "Do this first" }).click();
+  const visible = (on: boolean) =>
+    page.evaluate((on) => {
+      Object.defineProperty(document, "visibilityState", { value: on ? "visible" : "hidden", configurable: true });
+      document.dispatchEvent(new Event("visibilitychange"));
+    }, on);
+  await visible(false);
+  await page.clock.setSystemTime(new Date("2026-10-05T09:45:00+08:00"));
+  await visible(true);
+  await expect(still(page)).toBeVisible();
+});

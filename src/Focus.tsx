@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { backToIt, breakLeft, canSwitchMode, endFocus, isFlowtime, pauseFocus, resumeFocus, skipBreak, stopFlow, switchMode, takeBreak, workedMs, workLeft, workOver } from "../core/focus";
+import { backToIt, breakLeft, canSwitchMode, endAway, endFocus, isFlowtime, pauseFocus, restartAway, resumeFocus, skipBreak, stopFlow, switchMode, takeBreak, workedMs, workLeft, workOver } from "../core/focus";
 import type { State } from "../core/task";
 import { catPose } from "../core/cat";
 import { Cat } from "./Cat";
@@ -11,6 +11,8 @@ interface Props {
   onFinished: (title: string) => void; // the step is done: on to Reward
   onStopped: () => void;
   announce: (text: string) => void;
+  awaySince: number | null; // set when the user comes back after AWAY_MS with this session open
+  onAwayAnswered: () => void;
 }
 
 // A countdown rounds up (0:01 left is still a second left); Flowtime counts up and rounds down (0:00 at the start).
@@ -24,7 +26,7 @@ const spoken = (ms: number, up = false) => {
 };
 
 // Wireframes.md §4 and the Pomodoro break, with the cat's corner nook (Design_Direction.md §4).
-export function FocusView({ state, update, onFinished, onStopped, announce }: Props) {
+export function FocusView({ state, update, onFinished, onStopped, announce, awaySince, onAwayAnswered }: Props) {
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     const i = setInterval(() => setNow(Date.now()), 1000);
@@ -88,6 +90,13 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
     onStopped();
   };
 
+  // A session started after the user left (on another device, synced in) is not the stale one.
+  const away = awaySince !== null && f.started_at <= awaySince + 60_000 ? awaySince : null;
+  const answerAway = (fn: (s: State, t: number) => State) => {
+    act(fn);
+    onAwayAnswered();
+  };
+
   const pose = catPose({ screen: "focus", session: f.paused_at === null ? "running" : "paused" });
 
   return (
@@ -98,7 +107,33 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
         </h1>
         <p className="meta">{[task?.title, parent?.title].filter(Boolean).join(" · ")}</p>
 
-        {phase === "work" && (
+        {away !== null && (
+          // ponytail: draft copy. Natalie approved the question and Start fresh / Stop; Keep going is the safety valve.
+          <section className="focus-prompt" aria-labelledby="away">
+            <p id="away" className="lead">
+              Still on this step?
+            </p>
+            <div className="actions focus-actions">
+              <button className="button primary" onClick={() => answerAway((s, t) => restartAway(s, away, t))}>
+                Start fresh
+              </button>
+              <button
+                className="button"
+                onClick={() => {
+                  answerAway((s) => endAway(s, away));
+                  onStopped();
+                }}
+              >
+                Stop
+              </button>
+            </div>
+            <button className="text-button" onClick={onAwayAnswered}>
+              Keep going
+            </button>
+          </section>
+        )}
+
+        {away === null && phase === "work" && (
           <>
             {canSwitch && (
               // ponytail: draft copy. The per-session switch (Wireframes.md §4); wording not yet approved.
@@ -156,7 +191,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
           </>
         )}
 
-        {phase === "prompt" && (
+        {away === null && phase === "prompt" && (
           <section className="focus-prompt" aria-labelledby="take5">
             <p id="take5" className="lead" tabIndex={-1}>
               {offer}?
@@ -175,7 +210,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
           </section>
         )}
 
-        {phase === "break" && (
+        {away === null && phase === "break" && (
           <section className="focus-prompt" aria-label="Break">
             <div className="breathe" aria-hidden="true" />
             <div className="timer" role="timer" aria-label={`${spoken(breakLeft(f, now))} of break left`}>
@@ -184,7 +219,7 @@ export function FocusView({ state, update, onFinished, onStopped, announce }: Pr
           </section>
         )}
 
-        {phase === "back" && (
+        {away === null && phase === "back" && (
           <section className="focus-prompt" aria-labelledby="back">
             <p id="back" className="lead" tabIndex={-1}>
               Back to it?
