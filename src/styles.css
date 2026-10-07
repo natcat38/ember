@@ -376,6 +376,11 @@ textarea {
   cursor: pointer;
 }
 
+/* Keyboard up on a phone: the tap falls through to the button, which only puts the keyboard away (DateButton.tsx). */
+.date-input.waiting {
+  pointer-events: none;
+}
+
 .hint {
   margin: 0;
   font-size: 14px;

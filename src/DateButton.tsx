@@ -21,6 +21,7 @@ export function DateButton({ label, className, pressed, value, min, onPick, chil
   useEffect(() => {
     if (manual) input.current?.focus();
   }, [manual]);
+  const typing = useTyping();
 
   return (
     <span className="date-button">
@@ -30,6 +31,7 @@ export function DateButton({ label, className, pressed, value, min, onPick, chil
         className={className}
         aria-pressed={pressed}
         onClick={() => {
+          if (typing) return (document.activeElement as HTMLElement).blur(); // the first tap only puts the keyboard away
           try {
             input.current!.showPicker();
           } catch {
@@ -42,7 +44,7 @@ export function DateButton({ label, className, pressed, value, min, onPick, chil
       <input
         ref={input}
         type="date"
-        className={manual ? "field" : "date-input"}
+        className={manual ? "field" : typing ? "date-input waiting" : "date-input"}
         tabIndex={manual ? undefined : -1}
         aria-hidden={manual ? undefined : true}
         aria-label={label}
@@ -60,4 +62,24 @@ export function DateButton({ label, className, pressed, value, min, onPick, chil
       />
     </span>
   );
+}
+
+// On a touch screen with the keyboard up (Natalie, 2026-10-07): one tap moved focus from the text field straight to the
+// date field, so iOS dropped the keyboard, slid the sheet down and opened its calendar mid-slide. Now the first tap only
+// puts the keyboard away and the second opens the calendar in place. A delayed showPicker() can't stand in for the
+// second tap: iOS opens its picker only from a tap.
+function useTyping() {
+  const [typing, setTyping] = useState(false);
+  useEffect(() => {
+    const coarse = matchMedia("(pointer: coarse)");
+    const check = () => setTyping(coarse.matches && !!document.activeElement?.matches("textarea, input:not([type]), input[type=text], input[type=search]"));
+    document.addEventListener("focusin", check);
+    document.addEventListener("focusout", check);
+    check();
+    return () => {
+      document.removeEventListener("focusin", check);
+      document.removeEventListener("focusout", check);
+    };
+  }, []);
+  return typing;
 }

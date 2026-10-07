@@ -51,7 +51,7 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [ ] 320 / 375 / 414 / 768 px with no horizontal scroll on every screen.
 - [ ] Desktop: Today and Focus side by side from 1180 px, built (#34). Use it on a real laptop: selection, Focus on the right, Inbox and Settings on the left.
 - [x] **iPhone date pickers** (#60): Deadline and Pick a date open the native calendar from a tap. Natalie, 2026-10-07.
-- [ ] **iPhone, from the 2026-10-07 phone test:** the capture sheet jumps when the keyboard gives way to the date picker (Deadline tapped while typing); Today's step cap, drag-to-reorder, Telegram status, and the stale-session prompt are being fixed in their own PRs.
+- [ ] **iPhone, fixes from the 2026-10-07 phone test (#66–#70):** Deadline while typing takes two taps, keyboard away then the calendar, with no jump; drag a step with a 250 ms hold; Settings shows Telegram as Linked soon after pressing Start in the bot; reopening after 30 minutes on a running session asks *Still on this step?*; the menu marks only the current page.
 - [ ] Phase 3 on the deployed app: the Lichess frame embeds on the real origin; a web push arrives on desktop Chrome and, after the install test, on iPhone; the tap opens the right screen with *Not now? Snooze*.
 - [ ] **Web push CPU:** each push generates a P-256 key pair and runs ECDH (about 0.8 ms in Node). Check a real tick's CPU time against the free plan's 10 ms before more than a few users subscribe.
 - [ ] **iPhone on iOS 16** (the newest an iPhone 8 or X gets): the row menu and the Task view menu open through the `data-open` fallback (`src/menu.ts`), rewards load, and an error shows the Reload screen. (#54)
