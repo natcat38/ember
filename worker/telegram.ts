@@ -1,7 +1,7 @@
 import { isRecord, json } from "./http";
 import { handleCallback, type ButtonTap } from "./buttons";
 import { CODE_RE } from "./handoff";
-import { cookieFor, newUserId, resolveUser } from "./identity";
+import { cookieFor, newUserId, presentedUser, resolveUser } from "./identity";
 import { MAX_TITLE_CHARS } from "./schema";
 import { sync } from "./sync";
 
@@ -38,6 +38,7 @@ const COPY = {
   addedCut: `Added. Only the first ${MAX_TITLE_CHARS} characters fit.`,
   notAdded: "Couldn't add that. Try again in a moment.",
   command: "I only take plain text. Send what's on your mind and it goes to your Inbox.",
+  stopped: "Unlinked. Ember won't message this chat any more. Link it again from Settings whenever you like.", // ponytail: draft copy
 };
 
 const empty = (status: number) => new Response(null, { status });
@@ -102,6 +103,28 @@ export async function handleTgLink(request: Request, env: TelegramEnv): Promise<
   const code = newUserId(); // 128 random bits as base64url, the same recipe a handoff code needs
   await env.DB.prepare("INSERT INTO handoffs (code, user_id, purpose, expires_at) VALUES (?1, ?2, 'tg_link', ?3)").bind(code, uid, now + LINK_TTL_MS).run();
   return json({ url: `https://t.me/${env.TG_BOT_USERNAME}?start=${code}` }, 200, { "Set-Cookie": cookieFor(uid) });
+}
+
+// --- Unlink: POST /api/tg/unlink (Settings), or /stop in the chat ------------------------------------------------
+
+// The chat is forgotten and stops being the channel; the day's unsent messages are cancelled, and `planned_until = NULL`
+// has the next tick plan again for whatever channel is left (this device, or none). Added 2026-10-07 (Natalie): until
+// then nothing unlinked a chat, and blocking the bot kept it linked on purpose.
+export function unlinkTelegram(db: D1Database, by: "id" | "telegram_chat_id", key: string) {
+  return db.batch([
+    db.prepare(`UPDATE sends SET cancelled = 1 WHERE sent_at IS NULL AND cancelled = 0 AND user_id IN (SELECT id FROM users WHERE ${by} = ?1)`).bind(key),
+    db
+      .prepare(`UPDATE users SET telegram_chat_id = NULL, channel = CASE WHEN channel = 'telegram' THEN NULL ELSE channel END, planned_until = NULL WHERE ${by} = ?1`)
+      .bind(key),
+  ]);
+}
+
+// Read-only on identity, like /api/me: it never makes a user. Unlinking twice is fine.
+export async function handleTgUnlink(request: Request, env: { DB: D1Database }): Promise<Response> {
+  if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405, { Allow: "POST" });
+  const uid = presentedUser(request);
+  if (uid) await unlinkTelegram(env.DB, "id", uid);
+  return json({ ok: true });
 }
 
 // --- POST /api/tg/<path secret> --------------------------------------------------------------------------------
@@ -170,12 +193,19 @@ export async function handleTgWebhook(request: Request, env: TelegramEnv, pathSe
 
 // /start, /start@bot, /start <code>. `(?=\s|$)` keeps /starting from matching.
 const START_RE = /^\/start(?:@\w+)?(?=\s|$)(?:\s+(\S+))?/;
+const STOP_RE = /^\/stop(?:@\w+)?(?=\s|$)/;
 const COMMAND_RE = /^\/\w+(?:@\w+)?(?=\s|$)/;
 
 async function handleMessage(env: TelegramEnv, { updateId, chatId, text: message }: Incoming): Promise<void> {
   const start = START_RE.exec(message);
   if (start) {
     await reply(env, chatId, await redeem(env.DB, chatId, start[1]));
+    return;
+  }
+  if (STOP_RE.test(message)) {
+    const linked = await env.DB.prepare("SELECT 1 FROM users WHERE telegram_chat_id = ?1").bind(String(chatId)).first();
+    if (linked) await unlinkTelegram(env.DB, "telegram_chat_id", String(chatId));
+    await reply(env, chatId, linked ? COPY.stopped : COPY.unlinked);
     return;
   }
   if (COMMAND_RE.test(message)) {
