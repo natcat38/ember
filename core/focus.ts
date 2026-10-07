@@ -7,6 +7,9 @@ export const WORK_MS = 25 * 60_000;
 export const BREAK_MS = 5 * 60_000;
 export const MAX_FLOW_BREAK_MS = 15 * 60_000; // Tech_Scope.md §10 phase 3: a Flowtime break is a fifth of the time worked, at most 15 minutes
 export const SWITCH_WINDOW_MS = 60_000; // the per-session switch stays on offer for the first minute of work
+// Away this long (app closed, phone locked, tab hidden) with a session open, its timer no longer means anything, so Focus
+// asks before carrying on (Natalie, 2026-10-07). Shorter and a quick glance at a message would trigger it.
+export const AWAY_MS = 30 * 60_000;
 
 export interface Focus {
   chunk_id: string;
@@ -121,6 +124,16 @@ export function switchMode(s: State, mode: TimerMode, now: number): State {
   if (!f || !canSwitchMode(f, now) || isFlowtime(f) === (mode === "flowtime")) return s;
   const { mode: _was, ...pomodoro } = f;
   return { ...s, focus: mode === "flowtime" ? { ...pomodoro, mode } : pomodoro };
+}
+
+// A session left open while away is logged as ending when the user left, not when they came back. `awaySince` can sit
+// up to a minute before the start (the last-seen stamp ticks each minute), so it is clamped to the start.
+export function endAway(s: State, awaySince: number, newId: NewId = uuid): State {
+  return s.focus ? endFocus(s, Math.max(awaySince, s.focus.started_at), false, newId) : s;
+}
+// "Start fresh": the stale session ends as above, and a new one starts on the same step.
+export function restartAway(s: State, awaySince: number, now: number, newId: NewId = uuid): State {
+  return s.focus ? startFocus(endAway(s, awaySince, newId), s.focus.chunk_id, now, newId) : s;
 }
 
 // Done / I finished it (done = true) or Stop for now / Stop here (done = false). Sessions are logged either way.

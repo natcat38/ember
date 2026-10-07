@@ -60,6 +60,7 @@ test("switching to Flowtime counts up; stopping at 50 minutes offers a 10-minute
 });
 
 test("with timer_mode set to flowtime, Focus starts in Flowtime and Back to it stays in it", async ({ page }) => {
+  test.slow(); // half an hour of one-second ticks: WebKit on Windows needs more than 30 s
   await seed(page, { timer_mode: "flowtime" });
   await page.getByRole("button", { name: "Do this first" }).click();
   await expect(mode(page, "Flowtime")).toHaveAttribute("aria-pressed", "true");

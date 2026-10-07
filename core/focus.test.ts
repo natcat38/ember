@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { backToIt, BREAK_MS, breakFor, breakLeft, canSwitchMode, endFocus, pauseFocus, resumeFocus, sessionsDone, skipBreak, startFocus, stopFlow, switchMode, takeBreak, workedMs, workLeft, WORK_MS } from "./focus";
+import { backToIt, BREAK_MS, breakFor, breakLeft, canSwitchMode, endAway, endFocus, pauseFocus, restartAway, resumeFocus, sessionsDone, skipBreak, startFocus, stopFlow, switchMode, takeBreak, workedMs, workLeft, WORK_MS } from "./focus";
 import { emptyState, type State } from "./task";
 import type { Chunk } from "./chunk";
 
@@ -232,4 +232,24 @@ test("the per-session switch changes the mode in the first minute only, leaving 
   expect(canSwitchMode(s.focus!, T0 + 30 * MIN)).toBe(false);
   s = pauseFocus(startFocus(base(), "a", T0), T0 + 10 * MIN); // paused 10 minutes in: worked time, not wall time, counts
   expect(canSwitchMode(s.focus!, T0 + 90 * MIN)).toBe(false);
+});
+
+test("a session left open while away ends when the user left, and Start fresh begins a new one on the same step", () => {
+  const s = startFocus(base(), "a", T0, ids());
+  const away = T0 + 10 * MIN; // left after 10 minutes, came back 3 hours later
+  const ended = endAway(s, away, ids());
+  expect(ended.focus).toBeNull();
+  expect(ended.sessions).toEqual([{ id: "s1", chunk_id: "a", started_at: T0, ended_at: away, completed: false }]);
+  expect(stateOf(ended, "a")).toBe("todo");
+
+  const back = T0 + 3 * 60 * MIN;
+  const fresh = restartAway(s, away, back, ids());
+  expect(fresh.sessions.map((x) => x.ended_at)).toEqual([away]); // not 3 hours of work
+  expect(fresh.focus).toMatchObject({ chunk_id: "a", started_at: back, paused_ms: 0 });
+  expect(workLeft(fresh.focus!, back)).toBe(WORK_MS);
+});
+
+test("a last-seen stamp from just before the start never logs negative time", () => {
+  const s = startFocus(base(), "a", T0, ids());
+  expect(endAway(s, T0 - 40_000, ids()).sessions[0]).toMatchObject({ started_at: T0, ended_at: T0 });
 });
