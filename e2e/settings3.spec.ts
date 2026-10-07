@@ -109,7 +109,7 @@ test("a refused permission says so, offers Telegram, and is never asked again", 
   await openSettings(page);
   await page.getByRole("button", { name: "Turn on nudges on this device" }).click();
   await expect(page.getByRole("main").getByText("Notifications are off for this browser. You can turn them on in your browser settings, or use Telegram instead.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Link Telegram" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Link Telegram", exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Turn on nudges on this device" }).click();
   expect((await stubs(page)).asked).toBe(1); // the second tap did not prompt
@@ -152,16 +152,39 @@ test("a linked chat shows as Linked while this device has the nudges, and Use ha
   expect(switched).toBe(1); // no push subscription on this browser was needed
 });
 
+test("Unlink asks first, then forgets the chat and offers Link again", async ({ page }) => {
+  const me = { telegram: true, telegram_linked: true, passkeys: 0, push: false, vapid_public_key: null };
+  let unlinked = 0;
+  await page.route("**/api/me", (r) => r.fulfill({ json: me }));
+  await page.route("**/api/tg/unlink", (r) => (unlinked++, Object.assign(me, { telegram: false, telegram_linked: false }), r.fulfill({ json: { ok: true } })));
+  await page.goto("/");
+  await openSettings(page);
+  const rows = page.getByRole("list", { name: "Where nudges go" });
+  await expect(rows).toContainText("Linked · nudges go here");
+
+  await page.getByRole("button", { name: "Unlink Telegram" }).click();
+  const ask = page.getByRole("alertdialog", { name: "Unlink Telegram? Ember will stop messaging that chat." });
+  await ask.getByRole("button", { name: "Keep it" }).click();
+  expect(unlinked).toBe(0);
+
+  await page.getByRole("button", { name: "Unlink Telegram" }).click();
+  await ask.getByRole("button", { name: "Unlink" }).click();
+  await expect(rows).toContainText("Not linked");
+  await expect(page.getByRole("button", { name: "Link Telegram", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Unlink Telegram" })).toHaveCount(0);
+  expect(unlinked).toBe(1);
+});
+
 test("coming back from Telegram shows the new link without reopening Settings", async ({ page }) => {
   const me = { telegram: false, telegram_linked: false, passkeys: 0, push: false, vapid_public_key: null };
   await page.route("**/api/me", (r) => r.fulfill({ json: me }));
   await page.goto("/");
   await openSettings(page);
-  await expect(page.getByRole("button", { name: "Link Telegram" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Link Telegram", exact: true })).toBeVisible();
   Object.assign(me, { telegram: true, telegram_linked: true }); // the user pressed Start in the bot
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(page.getByRole("list", { name: "Where nudges go" })).toContainText("Linked · nudges go here");
-  await expect(page.getByRole("button", { name: "Link Telegram" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Link Telegram", exact: true })).toHaveCount(0);
 });
 
 test("without a connection, turning on notifications says it needs one", async ({ page }) => {

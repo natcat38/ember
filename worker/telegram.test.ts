@@ -308,6 +308,43 @@ describe("capture", () => {
     expect(sent).toHaveLength(1);
   });
 
+  // Unlink (Natalie, 2026-10-07): /stop in the chat, or Unlink in Settings.
+  it("/stop unlinks the chat, cancels unsent messages, and says so", async () => {
+    const { chat, cookie } = await linkedUser();
+    const uid = uidOf(cookie);
+    await env.DB.prepare("INSERT INTO sends (id, user_id, day, kind, due_at) VALUES (?1, ?2, '2026-10-07', 'morning', 0)").bind(`stop-${chat}`, uid).run();
+    await hook(update("/stop", chat));
+    expect(await userRow(uid)).toEqual({ telegram_chat_id: null, channel: null });
+    expect(await count("SELECT cancelled AS n FROM sends WHERE id = ?1", `stop-${chat}`)).toBe(1);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].text).toMatch(/^Unlinked/);
+    sent = [];
+    await hook(update("Remember the milk", chat)); // no longer captures
+    expect((await tasksOf(uid)).results).toHaveLength(0);
+    expect(sent[0].text).toMatch(/isn't linked/);
+  });
+
+  it("/stop from a chat that isn't linked changes nothing and says it isn't linked", async () => {
+    const chat = freshChat();
+    await hook(update("/stop", chat));
+    expect(sent[0].text).toMatch(/isn't linked/);
+  });
+
+  it("Unlink in Settings forgets the chat and leaves this device as the channel if it was", async () => {
+    const { chat, cookie } = await linkedUser();
+    const uid = uidOf(cookie);
+    await env.DB.prepare("UPDATE users SET channel = 'push' WHERE id = ?1").bind(uid).run();
+    const unlink = (c?: string) => callWorker(new Request(`${ORIGIN}/api/tg/unlink`, { method: "POST", headers: c ? { Cookie: c } : {} }));
+    expect((await unlink(cookie)).status).toBe(200);
+    expect(await userRow(uid)).toEqual({ telegram_chat_id: null, channel: "push" });
+    expect((await unlink(cookie)).status).toBe(200); // twice is fine
+    const users = await count("SELECT COUNT(*) AS n FROM users");
+    expect((await unlink()).status).toBe(200); // a stranger: nothing to do, and no user made
+    expect(await count("SELECT COUNT(*) AS n FROM users")).toBe(users);
+    await hook(update("Remember the milk", chat));
+    expect(sent.at(-1)!.text).toMatch(/isn't linked/);
+  });
+
   it("creates nothing for text from an unlinked chat and says the chat is not linked", async () => {
     const tasksBefore = await count("SELECT COUNT(*) AS n FROM tasks");
     const opsBefore = await count("SELECT COUNT(*) AS n FROM ops");

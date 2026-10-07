@@ -4,7 +4,7 @@ import { handleScheduled, type SchedulerEnv } from "./scheduler";
 import { handleSubscriptions } from "./subscriptions";
 import { handleSync } from "./sync";
 import { handlePasskey } from "./passkeys";
-import { handleTgLink, handleTgWebhook } from "./telegram";
+import { handleTgLink, handleTgUnlink, handleTgWebhook } from "./telegram";
 
 // Passkey routes are /api/passkey/{register,login}/{options,verify} (Tech_Scope.md §8, ADR-0005).
 const PASSKEY_PREFIX = "/api/passkey/";
@@ -24,7 +24,7 @@ const TG_HOOK_PREFIX = "/api/tg/";
 // tests) or no binding means no limit.
 async function overLimit(request: Request, env: Env, pathname: string): Promise<boolean> {
   const ip = request.headers.get("CF-Connecting-IP");
-  if (!ip || !env.API_LIMIT || (pathname.startsWith(TG_HOOK_PREFIX) && pathname !== "/api/tg/link")) return false;
+  if (!ip || !env.API_LIMIT || (pathname.startsWith(TG_HOOK_PREFIX) && pathname !== "/api/tg/link" && pathname !== "/api/tg/unlink")) return false;
   return !(await env.API_LIMIT.limit({ key: ip })).success;
 }
 
@@ -37,6 +37,7 @@ export default {
       if (pathname === "/api/sync") return await handleSync(request, env);
       if (pathname.startsWith(PASSKEY_PREFIX)) return await handlePasskey(request, env, pathname.slice(PASSKEY_PREFIX.length));
       if (pathname === "/api/tg/link") return await handleTgLink(request, env);
+      if (pathname === "/api/tg/unlink") return await handleTgUnlink(request, env);
       if (pathname === "/api/handoff/redeem") return await handleHandoffRedeem(request, env);
       if (pathname.startsWith(PUSH_PREFIX)) return await handleSubscriptions(request, env, pathname.slice(PUSH_PREFIX.length));
       if (pathname === "/api/me") return await handleMe(request, env);

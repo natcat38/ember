@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useAnnounce } from "./announce";
+import { ConfirmDialog } from "./dialogs";
 import { refocus } from "./refocus";
 import { addPasskey, cancelled, passkeysSupported, signInWithPasskey } from "./passkeys";
-import { channelOf, disablePush, enablePush, switchToTelegram, type Me, type PushOutcome, type PushProblem } from "./push";
+import { channelOf, disablePush, enablePush, switchToTelegram, unlinkTelegram, type Me, type PushOutcome, type PushProblem } from "./push";
 
 // Settings → Telegram (Tech_Scope.md §6): a one-time link code from the server, opened in Telegram.
 export async function linkTelegram(): Promise<string | null> {
@@ -246,6 +247,7 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
   const running = useRef(false);
   const channel = channelOf(me);
   const linked = !!me?.telegram_linked;
+  const unlinkDialog = useRef<HTMLDialogElement>(null);
 
   const run = async (job: () => Promise<PushOutcome>) => {
     if (running.current) return;
@@ -288,6 +290,12 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
               Use
             </button>
           )}
+          {linked && (
+            // Asks first: linking again means a trip through Telegram.
+            <button className="text-button" aria-label="Unlink Telegram" disabled={busy} onClick={() => unlinkDialog.current!.showModal()}>
+              Unlink
+            </button>
+          )}
         </li>
         <li className="row channel-row">
           <span>
@@ -315,6 +323,8 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
       )}
 
       {note && <p className="hint">{note}</p>}
+      {/* ponytail: draft copy */}
+      <ConfirmDialog dialog={unlinkDialog} question="Unlink Telegram? Ember will stop messaging that chat." keep="Keep it" confirm="Unlink" onConfirm={() => void run(unlinkTelegram)} />
     </section>
   );
 }

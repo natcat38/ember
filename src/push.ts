@@ -115,6 +115,15 @@ export async function switchToTelegram(): Promise<PushOutcome> {
   }
 }
 
+// Forget the linked chat (Settings → Unlink). /stop in the chat does the same on the server.
+export async function unlinkTelegram(): Promise<PushOutcome> {
+  try {
+    return (await post("/api/tg/unlink", {})).ok ? { ok: true } : { ok: false, problem: "failed" };
+  } catch (e) {
+    return { ok: false, problem: e instanceof TypeError ? "offline" : "failed" };
+  }
+}
+
 const post = (url: string, body: unknown) =>
   fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", body: JSON.stringify(body) });
 
