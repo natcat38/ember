@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { closestCenter, DndContext, MouseSensor, TouchSensor, useSensor, useSensors, type Modifier } from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Modifier } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { addChunk, childrenOf, deleteChunk, move, moveTo, renameChunk, setLeafStates, stateOf, tick, topLevel, type Chunk } from "../core/chunk";
 import type { State } from "../core/task";
 import { closeOnBackdrop, ConfirmDialog, TextDialog } from "./dialogs";
@@ -56,8 +56,18 @@ export function Steps({ state, update, taskId, onStart }: Props) {
     fn();
   }
 
-  const row = (c: Chunk, drag: DragListeners) => (
-    <div data-step={c.id} className={`row step${stateOf(state, c) === "done" ? " done" : ""}`} {...fromRow(drag)}>
+  const row = (c: Chunk, drag: Handle) => (
+    <div data-step={c.id} className={`row step${stateOf(state, c) === "done" ? " done" : ""}`}>
+      <button type="button" className="icon-button grip" {...drag.attributes} {...drag.listeners} aria-label={`Reorder ${c.title}`}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="9" cy="6" r="1.6" />
+          <circle cx="15" cy="6" r="1.6" />
+          <circle cx="9" cy="12" r="1.6" />
+          <circle cx="15" cy="12" r="1.6" />
+          <circle cx="9" cy="18" r="1.6" />
+          <circle cx="15" cy="18" r="1.6" />
+        </svg>
+      </button>
       <label className="check">
         <input type="checkbox" checked={stateOf(state, c) === "done"} aria-label={c.title} onChange={(e) => onTick(c, e.target.checked)} />
       </label>
@@ -238,17 +248,18 @@ function AddField(props: { label: string; visibleLabel?: boolean; placeholder: s
   );
 }
 
-// Wireframes.md §6: hold on touch, or press and drag with a mouse. No handle. @dnd-kit replaced a hand-made drag
-// (Natalie, 2026-10-07): the hold was 500 ms with no feedback, and the other rows only moved once the finger lifted.
-// Rows move among their own siblings only (rule 5): each list is its own context. Move up / Move down cover keyboard
-// and screen readers, so the keyboard sensor is left out and rows keep their own semantics.
-type DragListeners = ReturnType<typeof useSortable>["listeners"];
+// Wireframes.md §6, revised 2026-10-07 to match the shadcn/dnd-kit sortable list Natalie pointed at: a grip handle on
+// each row drags at once (4 px of movement, no hold), the rest of the row scrolls and taps as usual, and the dragged row
+// goes half-transparent while the others slide aside. The handle is a real button, so the keyboard lifts a row with
+// Space, moves it with the arrows and drops it with Space. Rows move among their own siblings only (rule 5): each list
+// is its own context.
+type Handle = Pick<ReturnType<typeof useSortable>, "attributes" | "listeners">;
 const vertical: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 
 function SortableList({ ids, onMove, children }: { ids: string[]; onMove: (id: string, index: number) => void; children: ReactNode }) {
   const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }), // moving sooner is a scroll
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), // a tap on the handle is not a drag
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   return (
     <DndContext
@@ -265,15 +276,11 @@ function SortableList({ ids, onMove, children }: { ids: string[]; onMove: (id: s
 }
 
 // The whole <li> moves, so a parent carries its smaller steps with it.
-function SortableStep({ id, children }: { id: string; children: (drag: DragListeners) => ReactNode }) {
-  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id });
+function SortableStep({ id, children }: { id: string; children: (drag: Handle) => ReactNode }) {
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({ id });
   return (
     <li ref={setNodeRef} className={isDragging ? "dragging" : undefined} style={{ transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined, transition }}>
-      {children(listeners)}
+      {children({ attributes, listeners })}
     </li>
   );
 }
-
-// A press on the checkbox or a button is that control's, never a drag.
-const fromRow = (drag: DragListeners) =>
-  drag && Object.fromEntries(Object.entries(drag).map(([name, fn]) => [name, (e: React.SyntheticEvent) => !(e.target as HTMLElement).closest("button, input, label") && fn(e)]));

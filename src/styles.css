@@ -696,20 +696,23 @@ dialog::backdrop {
   border-left: 3px solid var(--color-line);
 }
 
+/* The row being dragged goes half-transparent while the others slide aside (Steps.tsx). */
 .dragging {
   position: relative;
   z-index: 1;
+  opacity: 0.5;
 }
 
-/* Lifted: the nook fill and a soft shadow, so the hold reads as "picked up" the moment it starts. */
-.dragging > .row {
-  background: var(--color-nook);
-  box-shadow: 0 6px 18px rgb(46 42 53 / 0.18);
+/* The handle owns its gesture: no scroll or zoom, so a drag starts on the first few pixels of movement. */
+.row.step > .grip {
+  flex-grow: 0; /* .row > :first-child grows, and the handle is now first, not the title */
+  touch-action: none;
+  cursor: grab;
+  color: var(--color-ink-soft);
 }
 
-.row.step {
-  touch-action: manipulation; /* the drag library tells a hold from a scroll; no double-tap zoom in between */
-  transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+.grip:active {
+  cursor: grabbing;
 }
 
 .step-field {

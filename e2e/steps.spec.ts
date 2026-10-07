@@ -86,45 +86,72 @@ test("Move up / Move down, and a parent moves with its group", async ({ page }) 
   await expect(stepTitles(page)).toHaveText(["B", "B1", "C", "A"]);
 });
 
-// The phone path (Natalie, 2026-10-07): a hold of a quarter second picks the row up, the rows it passes slide aside while
-// the finger is still down, and a quick swipe is a scroll, never a drag.
-test("touch: a short hold picks a step up, the others make room during the drag, and a swipe does nothing", async ({ page, context }) => {
+// The grip handle (Natalie, 2026-10-07, after the shadcn/dnd-kit sortable list): it drags at once, no hold; the rows it
+// passes slide aside while the finger is still down; the rest of the row is left to scroll and tap.
+// A row that has slid up to make room for the one being dragged past it.
+const slidUp = (page: Page, title: string) => expect(page.locator("li", { has: page.locator(".step-title", { hasText: title }) })).toHaveAttribute("style", /translate3d\(0px?, -/);
+const centre = async (page: Page, title: string, what: "grip" | "title") => {
+  const b = (await (what === "grip" ? page.getByRole("button", { name: `Reorder ${title}` }) : page.locator(".step-title", { hasText: title })).boundingBox())!;
+  return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+};
+
+test("touch: the grip drags at once and the others make room; a swipe on the row does nothing", async ({ page, context }) => {
   test.skip(test.info().project.name !== "chromium", "touch is driven through the Chromium DevTools protocol");
   await openTask(page);
   await addSteps(page, "A", "B", "C");
   const cdp = await context.newCDPSession(page);
-  const a = (await page.locator(".step-title", { hasText: "A" }).boundingBox())!;
-  const c = (await page.locator(".step-title", { hasText: "C" }).boundingBox())!;
-  const x = a.x + 20;
-  const touch = (type: "touchStart" | "touchMove" | "touchEnd", y = 0) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
-  const rowB = page.locator("li", { has: page.locator(".step-title", { hasText: "B" }) });
+  const touch = (type: "touchStart" | "touchMove" | "touchEnd", p = { x: 0, y: 0 }) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [p] });
 
-  // A swipe that moves at once is a scroll: nothing reorders.
-  await touch("touchStart", a.y + a.height / 2);
-  await touch("touchMove", a.y + a.height / 2 + 40);
+  const title = await centre(page, "A", "title"); // the row body is not a handle
+  await touch("touchStart", title);
+  await touch("touchMove", { ...title, y: title.y + 60 });
   await touch("touchEnd");
   await expect(stepTitles(page)).toHaveText(["A", "B", "C"]);
 
-  await touch("touchStart", a.y + a.height / 2);
-  await page.waitForTimeout(350); // past the 250 ms hold
-  await expect(page.locator("li.dragging")).toHaveCount(1);
-  for (let i = 1; i <= 8; i++) await touch("touchMove", a.y + a.height / 2 + ((c.y + c.height / 2 + 10 - (a.y + a.height / 2)) * i) / 8);
-  await expect(rowB).toHaveAttribute("style", /translate3d\(0px?, -/); // B has slid up into A's place before the drop
+  const from = await centre(page, "A", "grip");
+  const to = await centre(page, "C", "grip");
+  await touch("touchStart", from);
+  for (let i = 1; i <= 8; i++) await touch("touchMove", { x: from.x, y: from.y + ((to.y + 10 - from.y) * i) / 8 }); // no hold first
+  await expect(page.locator("li.dragging")).toHaveCSS("opacity", "0.5");
+  await slidUp(page, "B"); // before the drop
+  await slidUp(page, "C");
   await touch("touchEnd");
   await expect(stepTitles(page)).toHaveText(["B", "C", "A"]);
 });
 
-test("drag with a mouse reorders", async ({ page }) => {
-  // The iPhone project has no mouse, and its WebKit drops the row one place short here (unverified on desktop Safari).
-  test.skip(test.info().project.name === "webkit", "an iPhone has no mouse; touch dragging is tested above in Chromium");
+test("every grip is the same 44 px target in the same place, so the rows line up", async ({ page }) => {
+  await openTask(page);
+  await addSteps(page, "A short one", "A much longer step title that wraps", "Mid");
+  const boxes = await page.locator(".grip").evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.x, r.width]));
+  expect(boxes).toEqual([boxes[0], boxes[0], boxes[0]]);
+  expect(boxes[0][1]).toBe(44);
+});
+
+test("drag with a mouse on the grip reorders", async ({ page }) => {
   await openTask(page);
   await addSteps(page, "A", "B", "C");
-  const a = await page.locator(".step-title", { hasText: "A" }).boundingBox();
-  const c = await page.locator(".step-title", { hasText: "C" }).boundingBox();
-  await page.mouse.move(a!.x + 20, a!.y + a!.height / 2);
+  const from = await centre(page, "A", "grip");
+  const to = await centre(page, "C", "grip");
+  await page.mouse.move(from.x, from.y);
   await page.mouse.down();
-  await page.mouse.move(a!.x + 20, c!.y + c!.height / 2 + 10, { steps: 8 });
+  await page.mouse.move(from.x, to.y + 10, { steps: 8 });
+  await slidUp(page, "C"); // a hand pauses over the spot before letting go
   await page.mouse.up();
+  await expect(stepTitles(page)).toHaveText(["B", "C", "A"]);
+});
+
+test("the keyboard reorders from the grip: Space lifts, arrows move, Space drops", async ({ page }) => {
+  await openTask(page);
+  await addSteps(page, "A", "B", "C");
+  await page.getByRole("button", { name: "Reorder A" }).focus();
+  await page.keyboard.press("Space");
+  await expect(page.locator("li.dragging")).toHaveCount(1); // lifted
+  await page.waitForTimeout(100); // dnd-kit listens for arrows a tick after the lift; no person presses sooner
+  await page.keyboard.press("ArrowDown");
+  await slidUp(page, "B");
+  await page.keyboard.press("ArrowDown");
+  await slidUp(page, "C");
+  await page.keyboard.press("Space");
   await expect(stepTitles(page)).toHaveText(["B", "C", "A"]);
 });
 
