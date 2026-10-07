@@ -39,7 +39,7 @@ async function addBlock(page: Page, days: string[], from: string, to: string, na
 
 const rows = (page: Page) => page.getByRole("list", { name: "Today" }).locator(".row-link > span:first-child");
 
-test("§4.6 in full: Mei's Monday lectures leave 540 minutes, so Today is still B1, C1, C2, A1, A2", async ({ page }) => {
+test("§4.6 in full: Mei's Monday lectures leave 540 minutes, so Today is still B1, C1, C2, C3, A1", async ({ page }) => {
   await seedMei(page);
   await openSettings(page);
   await addBlock(page, ["Monday"], "09:00", "12:00", "Lecture");
@@ -48,8 +48,8 @@ test("§4.6 in full: Mei's Monday lectures leave 540 minutes, so Today is still 
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect(page.getByRole("region", { name: "Do this first" })).toContainText("B1");
-  await expect(rows(page)).toHaveText(["C1", "C2", "A1", "A2"]);
-  await expect(page.getByRole("button", { name: "1 more waiting. They'll come up when there's room." })).toBeVisible();
+  await expect(rows(page)).toHaveText(["C1", "C2", "C3", "A1"]);
+  await expect(page.getByRole("button", { name: "3 more waiting. They'll come up when there's room." })).toBeVisible();
 });
 
 test("a packed day gets fewer slots, and the rest wait", async ({ page }) => {
@@ -60,7 +60,7 @@ test("a packed day gets fewer slots, and the rest wait", async ({ page }) => {
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect(page.getByRole("region", { name: "Do this first" })).toContainText("B1");
   await expect(rows(page)).toHaveText(["C1"]); // 60 free minutes → 2 slots
-  await expect(page.getByRole("button", { name: "4 more waiting. They'll come up when there's room." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "6 more waiting. They'll come up when there's room." })).toBeVisible();
 });
 
 test("Add a block moves focus into the form, and Cancel moves it back", async ({ page }) => {

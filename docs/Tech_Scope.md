@@ -155,7 +155,7 @@ A day starts when quiet hours end (08:00 default) in the user's time zone. Its n
 
 1. **Tier** each active or overdue task with at least a size: pinned today (0), due today (1), overdue (2), getting close (3), on track (4), far (5).
 2. **Sort** by tier, then holding up first, then `pressure = remaining / max(days_left − 1, 1)` descending (sessions per day still needed, keeping one buffer day), then earlier deadline, then older `runway_start`.
-3. **Each task contributes rows:** its first unfinished leaf chunks in list order, `min(unfinished leaves, clamp(ceil(pressure), 1, 2))` of them. The cap of 2 stops one big task from filling the whole day. A task with no chunks contributes one row whose Start asks for the next action (UX_Flows §3.3).
+3. **Each task contributes rows:** all its unfinished leaf chunks, in list order, so the slots fill purely by rank. (Until 2026-10-07 a task gave at most `clamp(ceil(pressure), 1, 2)`; Natalie removed the cap after a lone 3-step task showed only 2 steps beside 3 empty slots. A big urgent task can now fill the day.) A task with no chunks contributes one row whose Start asks for the next action (UX_Flows §3.3).
 4. **Skip** chunks deferred today (*Not today*). Tier 5 (far) is skipped too, except for the light-day offer.
 5. **Capacity:** `slots = min(5, floor(free_minutes / 30))`, where free minutes are the waking window (quiet end to quiet start) minus today's hard blocks. Phase 1 has no hard blocks, so it is always 5.
 6. **Take** the first `slots` rows. Leftover non-far rows feed *"N more waiting"*.
@@ -190,14 +190,14 @@ Mei, Monday 2026-10-05, quiet hours 22:00–08:00, time zone Asia/Singapore. Har
 | Task | Size → remaining | Deadline (runway start) | Band | Pressure | Rows |
 |---|---|---|---|---|---|
 | B Cover letter | S → 2 | 10-05 (10-01) | due today, tier 1 | 2 / 1 = 2.0 | B1 (its only step) |
-| C Lab report (3 steps left) | L → 10 | 10-04 (09-20) | overdue, tier 2 | 10 / 1 = 10 | C1, C2 (capped at 2) |
-| A DSA assignment | M → 5 − 1 done = 4 | 10-08 (09-28) | 3 days left → close, tier 3 | 4 / 2 = 2.0 | A1, A2 |
+| C Lab report (3 steps left) | L → 10 | 10-04 (09-20) | overdue, tier 2 | 10 / 1 = 10 | C1, C2, C3 |
+| A DSA assignment | M → 5 − 1 done = 4 | 10-08 (09-28) | 3 days left → close, tier 3 | 4 / 2 = 2.0 | A1, A2, A3 |
 | E Reply to recruiter | XS → 1 | 10-20 (10-01) | fraction 15/19 = 0.79 → far, holding up → on track, tier 4 | 1 / 14 | E1 |
 | D System design ch. 3 | M → 5 | none | far, tier 5 | — | light day only |
 
 Free time: 14 h waking window − 5 h of blocks = 540 min → `floor(540 / 30) = 18`, so the cap of 5 binds.
 
-**Today:** B1 (frog), C1, C2, A1, A2. Overflow line: *"1 more waiting. They'll come up when there's room."* (E1). D is not offered, because the day is full.
+**Today:** B1 (frog), C1, C2, C3, A1. Overflow line: *"3 more waiting. They'll come up when there's room."* (A2, A3, E1). D is not offered, because the day is full.
 
 **Messages:** candidates are overdue C (1), deadline day B (2), close A (3, wants two nudges), morning (4), wrap-up (5). The first three are kept; morning, A's second nudge, and wrap-up drop. Slots are S1 08:00, S2 15:00 → inside the 14:00–16:00 block → 16:00, S3 19:00, S4 21:00. Placement: deadline day B → 08:00 (*"Cover letter is due today."*), overdue C → S1 taken → 16:00, close A → S2 taken → 19:00. Three messages, deadlines first, nothing during a lecture.
 

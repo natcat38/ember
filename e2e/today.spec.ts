@@ -30,9 +30,9 @@ test("golden: the §4.6 example renders as specified", async ({ page }) => {
   await expect(page.getByText("Here's today: 5 things. Good to go?")).toBeVisible();
   await expect(frog(page)).toContainText("B1");
   await expect(frog(page)).toContainText("from: Cover letter");
-  await expect(rowTitles(page)).toHaveText(["C1", "C2", "A1", "A2"]);
+  await expect(rowTitles(page)).toHaveText(["C1", "C2", "C3", "A1"]);
   await expect(page.getByRole("list", { name: "Today" })).toContainText("Was due Sun");
-  await expect(page.getByRole("button", { name: "1 more waiting. They'll come up when there's room." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "3 more waiting. They'll come up when there's room." })).toBeVisible();
   await expect(page.getByText(/Light day/)).toHaveCount(0);
 });
 
@@ -50,7 +50,7 @@ test("Not today: the next-ranked step fills the slot; Adjust shows it on every r
   await page.getByRole("button", { name: "More actions for C2" }).click();
   await page.locator("#row-C2").getByRole("button", { name: "Not today" }).click();
   await expect(rowTitles(page)).toHaveText(["C1", "C3", "A1", "A2"]);
-  await expect(page.locator(".row-link:focus")).toContainText("A1"); // focus moves to the next row, not the page body
+  await expect(page.locator(".row-link:focus")).toContainText("C3"); // focus moves to the next row, not the page body
 
   await page.reload();
   await expect(rowTitles(page)).toHaveText(["C1", "C3", "A1", "A2"]); // survives a reload
@@ -69,15 +69,15 @@ test("Not today: the next-ranked step fills the slot; Adjust shows it on every r
 test("done means done: a ticked step stays, dimmed, and nothing refills", async ({ page }) => {
   await seedMei(page);
   await page.getByRole("checkbox", { name: "C1" }).check();
-  await expect(rowTitles(page)).toHaveText(["C2", "A1", "A2", "C1"]); // done rows sit below open ones
+  await expect(rowTitles(page)).toHaveText(["C2", "C3", "A1", "C1"]); // done rows sit below open ones
   await expect(page.getByRole("checkbox", { name: "C1" })).toBeChecked();
-  await expect(page.getByRole("button", { name: "1 more waiting. They'll come up when there's room." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "3 more waiting. They'll come up when there's room." })).toBeVisible();
 });
 
 test("Pin to today takes a slot and becomes the frog", async ({ page }) => {
   await seedMei(page);
   await page.getByRole("button", { name: "Let's go" }).click();
-  await page.getByRole("button", { name: "1 more waiting. They'll come up when there's room." }).click();
+  await page.getByRole("button", { name: "3 more waiting. They'll come up when there's room." }).click();
   await page.getByRole("region", { name: "Waiting" }).getByRole("button", { name: /System design ch\. 3/ }).click();
   await page.getByRole("button", { name: "Pin to today" }).click();
   await expect(page.getByRole("button", { name: "Pin to today" })).toHaveCount(0);
@@ -85,7 +85,7 @@ test("Pin to today takes a slot and becomes the frog", async ({ page }) => {
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect(frog(page)).toContainText("D1");
-  await expect(rowTitles(page)).toHaveText(["B1", "C1", "C2", "A1"]);
+  await expect(rowTitles(page)).toHaveText(["D2", "B1", "C1", "C2"]); // a pinned task brings all its steps
 });
 
 test("an app left open rolls over at 08:00: the new day gets its own morning confirm", async ({ page }) => {

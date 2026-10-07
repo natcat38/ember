@@ -104,13 +104,14 @@ export function buildToday(s: State, today: string, o: TodayOptions): Today {
         (a.t.runway_start ?? "9999").localeCompare(b.t.runway_start ?? "9999"),
     );
 
-  const rowsOf = ({ t, tier, pressure }: (typeof ranked)[number]): TodayRow[] => {
+  // Every unfinished step of a task, in list order: the slots fill purely by rank. (A per-task cap of 2 hid a lone task's
+  // third step behind empty slots; Natalie removed it 2026-10-07.)
+  const rowsOf = ({ t, tier }: (typeof ranked)[number]): TodayRow[] => {
     const all = leaves(t.id);
     if (!all.length) return deferred.has(t.id) ? [] : [{ key: t.id, task: t, chunk: null, parent: null, done: false, tier }];
     // A step finished today keeps its slot, so finishing never pulls in a new one ("done means done").
     const eligible = all.filter(({ chunk }) => (chunk.state !== "done" && !deferred.has(chunk.id)) || doneToday(chunk));
-    const cap = Math.min(Math.max(Math.ceil(pressure), 1), 2); // stops one big task filling the day
-    return eligible.slice(0, cap).map(({ chunk, parent }) => ({ key: chunk.id, task: t, chunk, parent, done: chunk.state === "done", tier }));
+    return eligible.map(({ chunk, parent }) => ({ key: chunk.id, task: t, chunk, parent, done: chunk.state === "done", tier }));
   };
 
   const candidates = ranked.filter((r) => r.tier < 5).flatMap(rowsOf);
