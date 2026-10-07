@@ -1,5 +1,5 @@
 import { handleHandoffRedeem } from "./handoff";
-import { handleMe } from "./me";
+import { handleMe, handleUseTelegram } from "./me";
 import { handleScheduled, type SchedulerEnv } from "./scheduler";
 import { handleSubscriptions } from "./subscriptions";
 import { handleSync } from "./sync";
@@ -40,6 +40,7 @@ export default {
       if (pathname === "/api/handoff/redeem") return await handleHandoffRedeem(request, env);
       if (pathname.startsWith(PUSH_PREFIX)) return await handleSubscriptions(request, env, pathname.slice(PUSH_PREFIX.length));
       if (pathname === "/api/me") return await handleMe(request, env);
+      if (pathname === "/api/channel/telegram") return await handleUseTelegram(request, env);
       if (pathname.startsWith(TG_HOOK_PREFIX)) return await handleTgWebhook(request, env, pathname.slice(TG_HOOK_PREFIX.length));
       if (pathname.startsWith("/api/")) return Response.json({ error: "not_found" }, { status: 404 });
       return await env.ASSETS.fetch(request);

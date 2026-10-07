@@ -9,6 +9,7 @@ import type { State } from "../core/task";
 /** What GET /api/me returns (worker/me.ts). */
 export interface Me {
   telegram: boolean; // true only while Telegram is the channel
+  telegram_linked: boolean; // a chat is linked, even while this device is the channel
   passkeys: number;
   push: boolean; // a browser is subscribed
   vapid_public_key: string | null; // null = web push is not set up on this server
@@ -102,6 +103,15 @@ export async function disablePush(): Promise<PushOutcome> {
     return { ok: true };
   } catch (e) {
     return { ok: false, problem: e instanceof TypeError ? "offline" : "failed" }; // fetch rejects with a TypeError only when the network is unreachable
+  }
+}
+
+// Telegram takes the nudges back, from any device: the server needs no subscription from this browser (Settings → Use).
+export async function switchToTelegram(): Promise<PushOutcome> {
+  try {
+    return (await post("/api/channel/telegram", {})).ok ? { ok: true } : { ok: false, problem: "failed" };
+  } catch (e) {
+    return { ok: false, problem: e instanceof TypeError ? "offline" : "failed" };
   }
 }
 

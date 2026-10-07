@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAnnounce } from "./announce";
 import { refocus } from "./refocus";
 import { addPasskey, cancelled, passkeysSupported, signInWithPasskey } from "./passkeys";
-import { channelOf, disablePush, enablePush, type Me, type PushOutcome, type PushProblem } from "./push";
+import { channelOf, disablePush, enablePush, switchToTelegram, type Me, type PushOutcome, type PushProblem } from "./push";
 
 // Settings → Telegram (Tech_Scope.md §6): a one-time link code from the server, opened in Telegram.
 export async function linkTelegram(): Promise<string | null> {
@@ -53,7 +53,17 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
       .then((r) => (r.ok ? (r.json() as Promise<Me>) : null))
       .catch(() => null)
       .then((m) => (setMe(m), m));
-  useEffect(() => void refreshMe(), []);
+  useEffect(() => {
+    void refreshMe();
+    // Linking happens in Telegram, so ask again on the way back: Settings used to keep the answer from when it opened.
+    const back = () => document.visibilityState === "visible" && void refreshMe();
+    document.addEventListener("visibilitychange", back);
+    window.addEventListener("focus", back);
+    return () => {
+      document.removeEventListener("visibilitychange", back);
+      window.removeEventListener("focus", back);
+    };
+  }, []);
 
   return (
     <>
@@ -232,9 +242,10 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
   const [note, setNote] = useState<string | null>(null);
   const [problem, setProblem] = useState<PushProblem | null>(null);
   const [busy, setBusy] = useState(false);
-  // A second tap while a change is in flight is ignored. The radios stay enabled: disabling the focused one mid-tap drops focus.
+  // A second tap while a change is in flight is ignored.
   const running = useRef(false);
   const channel = channelOf(me);
+  const linked = !!me?.telegram_linked;
 
   const run = async (job: () => Promise<PushOutcome>) => {
     if (running.current) return;
@@ -258,55 +269,49 @@ function Reminders({ me, refresh }: { me: Me | null; refresh: () => Promise<Me |
   return (
     <section className="section" aria-labelledby="h-nudges">
       <h2 id="h-nudges">Nudges</h2>
-      <div role="radiogroup" aria-label="Send to" className="choices">
-        <label className="choice">
-          <input
-            type="radio"
-            name="send-to"
-            checked={channel === "telegram"}
-            onChange={() => {
-              if (channel === "push") void run(disablePush); // the server hands the channel back to a linked chat
-              else if (!running.current) void linkTg();
-            }}
-          />
-          <span>Telegram</span>
-        </label>
-        <label className="choice">
-          <input
-            type="radio"
-            name="send-to"
-            checked={channel === "push"}
+      {/* One row per channel, each with its state and the one thing to do there (Natalie, 2026-10-07): the radios and a
+          separate Link Telegram button were two ways to do the same thing. Turning one on makes it the channel. */}
+      {channel === null && <p className="empty">Ember can nudge you while the app is closed: on Telegram, or on this device.</p>}
+      <ul className="list" aria-label="Where nudges go">
+        <li className="row channel-row">
+          <span>
+            Telegram
+            <span className="meta">{linked ? (channel === "telegram" ? "Linked · nudges go here" : "Linked") : "Not linked"}</span>
+          </span>
+          {!linked && (
+            <button className="button" aria-label="Link Telegram" onClick={linkTg}>
+              Link
+            </button>
+          )}
+          {linked && channel !== "telegram" && (
+            <button className="button" aria-label="Use Telegram" disabled={busy} onClick={() => void run(switchToTelegram)}>
+              Use
+            </button>
+          )}
+        </li>
+        <li className="row channel-row">
+          <span>
+            This device
+            <span className="meta">{channel === "push" ? "On · nudges go here" : "Off"}</span>
+          </span>
+          {channel === "push" ? (
+            <button className="button" aria-label="Turn off nudges on this device" disabled={busy} onClick={() => void run(disablePush)}>
+              Turn off
+            </button>
+          ) : (
             // Inside the tap: the permission prompt is only shown for a gesture.
-            onChange={() => void run(() => enablePush(me ? me.vapid_public_key : undefined))}
-          />
-          <span>This device</span>
-        </label>
-      </div>
+            <button className="button" aria-label="Turn on nudges on this device" disabled={busy} onClick={() => void run(() => enablePush(me ? me.vapid_public_key : undefined))}>
+              Turn on
+            </button>
+          )}
+        </li>
+      </ul>
 
-      {/* Straight under the radios: it answers the choice just made, not the Link Telegram button below (Verify finding 6). */}
       {text && <p className="hint">{text}</p>}
       {problem === "home_screen" && (
         <button className="text-button" style={{ alignSelf: "flex-start" }} onClick={() => setProblem(null)}>
           Got it
         </button>
-      )}
-
-      {channel === "telegram" && <p className="empty">Nudges go to Telegram.</p>}
-      {channel === "push" && (
-        <>
-          <p className="empty">Nudges come to this device.</p>
-          <button className="button" style={{ alignSelf: "flex-start" }} disabled={busy} onClick={() => void run(disablePush)}>
-            Turn off
-          </button>
-        </>
-      )}
-      {channel === null && (
-        <>
-          <p className="empty">Ember can nudge you on Telegram while the app is closed.</p>
-          <button className="button" style={{ alignSelf: "flex-start" }} onClick={linkTg}>
-            Link Telegram
-          </button>
-        </>
       )}
 
       {note && <p className="hint">{note}</p>}

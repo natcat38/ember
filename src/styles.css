@@ -1125,6 +1125,13 @@ dialog::backdrop {
   flex-direction: column;
 }
 
+/* Settings → Nudges: the channel and its state on the left, its one action on the right. */
+.channel-row > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .drawer .wrap-up {
   margin-top: var(--space-6);
 }
