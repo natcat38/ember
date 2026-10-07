@@ -45,7 +45,7 @@ Written 2026-10-02 during Build. Every known gap, deferred check and draft-copy 
 - [x] ~~UI walk of every screen at 375 and 1440~~ (2026-10-02): 21 findings, 20 fixed (#56); #10 above is a product call.
 - [ ] **iPhone, after the UI fixes (#56):** safe-area insets in the installed app (portrait and landscape notch); the status bar colour (`default` gives a light bar, not exactly oat); the capture sheet staying above the keyboard; the lost-tap fix on *Add a smaller step* with a finger; Focus on a short phone (iPhone SE, 667 px) still scrolls.
 
-- [ ] Touch drag-to-reorder on a real phone (Playwright can't long-press-drag). (#9)
+- [ ] Touch drag-to-reorder on a real phone: now @dnd-kit with a 250 ms hold (#69); Chromium e2e drives the touch path through DevTools, but iPhone Safari is still to feel. Mouse dragging in desktop Safari is unverified (Playwright's WebKit drops the row one place short). (#9)
 - [ ] A screen-reader and keyboard pass over every screen. (Design_Direction §11)
 - [ ] The Focus break's breathing circle moves for 5 minutes: check against WCAG 2.2.2, the same finding as A1. (#11)
 - [ ] 320 / 375 / 414 / 768 px with no horizontal scroll on every screen.

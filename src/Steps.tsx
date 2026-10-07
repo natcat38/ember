@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { closestCenter, DndContext, MouseSensor, TouchSensor, useSensor, useSensors, type Modifier } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { addChunk, childrenOf, deleteChunk, move, moveTo, renameChunk, setLeafStates, stateOf, tick, topLevel, type Chunk } from "../core/chunk";
 import type { State } from "../core/task";
 import { closeOnBackdrop, ConfirmDialog, TextDialog } from "./dialogs";
@@ -19,7 +21,7 @@ export function Steps({ state, update, taskId, onStart }: Props) {
   const menu = useRef<HTMLDialogElement>(null);
   const renameDialog = useRef<HTMLDialogElement>(null);
   const deleteDialog = useRef<HTMLDialogElement>(null);
-  const startDrag = useDragReorder((id, index) => act((s) => moveTo(s, id, index, Date.now())));
+  const moveStep = (id: string, index: number) => act((s) => moveTo(s, id, index, Date.now()));
 
   // Any other change closes the window in which unticking a parent restores its smaller steps (rule 2).
   function act(fn: (s: State) => State) {
@@ -54,8 +56,8 @@ export function Steps({ state, update, taskId, onStart }: Props) {
     fn();
   }
 
-  const row = (c: Chunk) => (
-    <div data-step={c.id} className={`row step${stateOf(state, c) === "done" ? " done" : ""}`} onPointerDown={(e) => startDrag(e, c.id)}>
+  const row = (c: Chunk, drag: DragListeners) => (
+    <div data-step={c.id} className={`row step${stateOf(state, c) === "done" ? " done" : ""}`} {...fromRow(drag)}>
       <label className="check">
         <input type="checkbox" checked={stateOf(state, c) === "done"} aria-label={c.title} onChange={(e) => onTick(c, e.target.checked)} />
       </label>
@@ -94,37 +96,43 @@ export function Steps({ state, update, taskId, onStart }: Props) {
         Steps
       </h2>
       {top.length > 0 && (
-        <ul className="list">
+        <SortableList ids={top.map((c) => c.id)} onMove={moveStep}>
           {top.map((c) => {
             const kids = childrenOf(state, c.id);
             return (
-              <li key={c.id}>
-                {row(c)}
-                {(kids.length > 0 || addingTo === c.id) && (
-                  <div className="substeps" role="group" aria-label={`Smaller steps of ${c.title}`}>
-                    {kids.length > 0 && (
-                      <ul className="list">
-                        {kids.map((k) => (
-                          <li key={k.id}>{row(k)}</li>
-                        ))}
-                      </ul>
+              <SortableStep key={c.id} id={c.id}>
+                {(drag) => (
+                  <>
+                    {row(c, drag)}
+                    {(kids.length > 0 || addingTo === c.id) && (
+                      <div className="substeps" role="group" aria-label={`Smaller steps of ${c.title}`}>
+                        {kids.length > 0 && (
+                          <SortableList ids={kids.map((k) => k.id)} onMove={moveStep}>
+                            {kids.map((k) => (
+                              <SortableStep key={k.id} id={k.id}>
+                                {(drag) => row(k, drag)}
+                              </SortableStep>
+                            ))}
+                          </SortableList>
+                        )}
+                        {addingTo === c.id && (
+                          <AddField
+                            label={`Add a smaller step to ${c.title}`}
+                            placeholder="Add a smaller step"
+                            button="Add smaller step"
+                            autoFocus
+                            onAdd={(title) => act((s) => addChunk(s, taskId, title, c.id, Date.now()))}
+                            onBlurEmpty={() => setAddingTo((now) => (now === c.id ? null : now))}
+                          />
+                        )}
+                      </div>
                     )}
-                    {addingTo === c.id && (
-                      <AddField
-                        label={`Add a smaller step to ${c.title}`}
-                        placeholder="Add a smaller step"
-                        button="Add smaller step"
-                        autoFocus
-                        onAdd={(title) => act((s) => addChunk(s, taskId, title, c.id, Date.now()))}
-                        onBlurEmpty={() => setAddingTo((now) => (now === c.id ? null : now))}
-                      />
-                    )}
-                  </div>
+                  </>
                 )}
-              </li>
+              </SortableStep>
             );
           })}
-        </ul>
+        </SortableList>
       )}
       <AddField
         label="What's the very next physical action?"
@@ -230,55 +238,42 @@ function AddField(props: { label: string; visibleLabel?: boolean; placeholder: s
   );
 }
 
-// Wireframes.md §6: hold about half a second on touch, or press and drag with a mouse. No handle.
-// Rows move among their own siblings only (rule 5); Move up / Move down cover keyboard and screen readers.
-function useDragReorder(onDrop: (id: string, index: number) => void) {
-  const dragging = useRef(false);
-  useEffect(() => {
-    // Once a hold has started a drag, stop the page from scrolling under the finger.
-    const block = (e: TouchEvent) => dragging.current && e.preventDefault();
-    document.addEventListener("touchmove", block, { passive: false });
-    return () => document.removeEventListener("touchmove", block);
-  }, []);
+// Wireframes.md §6: hold on touch, or press and drag with a mouse. No handle. @dnd-kit replaced a hand-made drag
+// (Natalie, 2026-10-07): the hold was 500 ms with no feedback, and the other rows only moved once the finger lifted.
+// Rows move among their own siblings only (rule 5): each list is its own context. Move up / Move down cover keyboard
+// and screen readers, so the keyboard sensor is left out and rows keep their own semantics.
+type DragListeners = ReturnType<typeof useSortable>["listeners"];
+const vertical: Modifier = ({ transform }) => ({ ...transform, x: 0 });
 
-  return (e: React.PointerEvent<HTMLElement>, id: string) => {
-    if (e.button !== 0 || (e.target as HTMLElement).closest("button, input, label")) return;
-    const li = e.currentTarget.closest("li")!;
-    const items = [...li.parentElement!.children] as HTMLElement[];
-    const rects = items.map((el) => el.getBoundingClientRect());
-    const self = items.indexOf(li);
-    const { clientX: x0, clientY: y0 } = e;
-    const touch = e.pointerType !== "mouse";
-    let started = false;
-    const timer = touch ? window.setTimeout(begin, 500) : 0;
-
-    function begin() {
-      started = true;
-      dragging.current = true;
-      li.classList.add("dragging");
-    }
-    function onMove(ev: PointerEvent) {
-      if (!started) {
-        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < (touch ? 8 : 4)) return;
-        if (touch) return end(); // moved before the hold finished: it's a scroll
-        begin();
-      }
-      li.style.transform = `translateY(${ev.clientY - y0}px)`;
-    }
-    function end(ev?: PointerEvent) {
-      clearTimeout(timer);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", end);
-      window.removeEventListener("pointercancel", end);
-      li.style.transform = "";
-      li.classList.remove("dragging");
-      dragging.current = false;
-      if (!started || ev?.type !== "pointerup") return;
-      const center = (rects[self].top + rects[self].bottom) / 2 + ev.clientY - y0;
-      onDrop(id, rects.filter((r, i) => i !== self && (r.top + r.bottom) / 2 < center).length);
-    }
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", end);
-    window.addEventListener("pointercancel", end);
-  };
+function SortableList({ ids, onMove, children }: { ids: string[]; onMove: (id: string, index: number) => void; children: ReactNode }) {
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }), // moving sooner is a scroll
+  );
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      modifiers={[vertical]}
+      onDragEnd={({ active, over }) => over && active.id !== over.id && onMove(String(active.id), ids.indexOf(String(over.id)))}
+    >
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <ul className="list">{children}</ul>
+      </SortableContext>
+    </DndContext>
+  );
 }
+
+// The whole <li> moves, so a parent carries its smaller steps with it.
+function SortableStep({ id, children }: { id: string; children: (drag: DragListeners) => ReactNode }) {
+  const { setNodeRef, listeners, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <li ref={setNodeRef} className={isDragging ? "dragging" : undefined} style={{ transform: transform ? `translate3d(0, ${transform.y}px, 0)` : undefined, transition }}>
+      {children(listeners)}
+    </li>
+  );
+}
+
+// A press on the checkbox or a button is that control's, never a drag.
+const fromRow = (drag: DragListeners) =>
+  drag && Object.fromEntries(Object.entries(drag).map(([name, fn]) => [name, (e: React.SyntheticEvent) => !(e.target as HTMLElement).closest("button, input, label") && fn(e)]));

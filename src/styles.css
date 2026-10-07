@@ -696,8 +696,15 @@ dialog::backdrop {
   z-index: 1;
 }
 
+/* Lifted: the nook fill and a soft shadow, so the hold reads as "picked up" the moment it starts. */
 .dragging > .row {
   background: var(--color-nook);
+  box-shadow: 0 6px 18px rgb(46 42 53 / 0.18);
+}
+
+.row.step {
+  touch-action: manipulation; /* the drag library tells a hold from a scroll; no double-tap zoom in between */
+  transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
 .step-field {
