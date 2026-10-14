@@ -50,6 +50,26 @@ test("locking the phone mid-session loses nothing", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Tailor the opening" })).toBeVisible(); // and the session is still there
 });
 
+test("the screen stays on while the session runs, and Pause and Stop let it lock", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { held: number };
+    w.held = 0;
+    Object.defineProperty(navigator, "wakeLock", {
+      value: { request: async () => (w.held++, { release: async () => void w.held-- }) },
+    });
+  });
+  await seed(page);
+  const held = () => page.evaluate(() => (window as unknown as { held: number }).held);
+  await page.getByRole("button", { name: "Do this first" }).click();
+  await expect.poll(held).toBe(1);
+  await page.getByRole("button", { name: "Pause" }).click();
+  await expect.poll(held).toBe(0);
+  await page.getByRole("button", { name: "Resume" }).click();
+  await expect.poll(held).toBe(1);
+  await page.getByRole("button", { name: "Stop for now" }).click();
+  await expect.poll(held).toBe(0);
+});
+
 test("a reload mid-session loses nothing either", async ({ page }) => {
   await seed(page);
   await page.getByRole("button", { name: "Do this first" }).click();

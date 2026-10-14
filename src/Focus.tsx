@@ -51,6 +51,31 @@ export function FocusView({ state, update, onFinished, onStopped, announce, away
   const offer = `Take ${Math.round(breakLeft(f, now) / 60_000)}${flow ? " min" : ""}`;
   const canSwitch = canSwitchMode(f, now);
 
+  // The screen stays on while the session runs (work or break), so the phone's auto-lock doesn't hide the timer
+  // (2026-10-14 phone test). Pause lets it lock again. The browser drops the lock whenever the page is hidden, so it is
+  // taken again on return. No Wake Lock API (iOS before 16.4, a Home Screen app before 18.4) = the phone locks as before.
+  const running = f.paused_at === null;
+  useEffect(() => {
+    if (!running || !("wakeLock" in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let done = false;
+    const take = () => {
+      if (document.visibilityState !== "visible") return;
+      // ponytail: a refusal (Low Power Mode, say) is ignored; the timer still runs on the wall clock either way.
+      navigator.wakeLock.request("screen").then((l) => {
+        if (done) l.release().catch(() => {});
+        else lock = l;
+      }, () => {});
+    };
+    take();
+    document.addEventListener("visibilitychange", take);
+    return () => {
+      done = true;
+      document.removeEventListener("visibilitychange", take);
+      lock?.release().catch(() => {});
+    };
+  }, [running]);
+
   useEffect(() => {
     if (phase === "prompt") announce(`${offer}?`);
     if (phase === "back") announce("Back to it?");
