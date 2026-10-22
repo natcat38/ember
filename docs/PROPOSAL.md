@@ -4,8 +4,6 @@ Date: 2026-09-09. Status: **awaiting your decisions** (section 5). Nothing is bu
 
 Research behind this lives in `research/` (five files, ~1,300 lines, ~150 sources). This document is the short version. Every claim below points at the file that backs it.
 
-Priority note: this is secondary to the job search. It earns its place only as a portfolio piece that reads well to a Singapore recruiter and as a tool that actually helps you ship the job-search work itself.
-
 ---
 
 ## 1. What it is, in one paragraph

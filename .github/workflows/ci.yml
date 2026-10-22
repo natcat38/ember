@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# Least privilege: the default token only reads the repo. Fork PRs get no secrets either way.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest

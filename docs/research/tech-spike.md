@@ -1,6 +1,6 @@
 # Tech spike results
 
-Run 2026-10-02 against `tech-feasibility.md` (desk research, 2026-09-09). Each question gets a yes/no and the source it rests on. Brief: `docs/Tech_Spike_Session_Brief.md`.
+Run 2026-10-02 against `tech-feasibility.md` (desk research, 2026-09-09). Each question gets a yes/no and the source it rests on.
 
 ## 1. Cloudflare free tier runs the phase-2 spine (cron → D1 → Telegram)
 

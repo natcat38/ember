@@ -8,7 +8,6 @@ Answers gathered in the evaluator session before research reports landed.
 - Sync: **yes, real cross-device sync** on a free tier.
 - Repo name: Claude proposes 3; folder created after she picks.
 - "Claude design" = the Claude Design canvas skill, used at the Design Direction stage for mockups.
-- Priority: secondary to the job search (stated and acknowledged).
 
 ## Habits
 - Tasks currently live in **Notion / Obsidian / text files** — free-form, no reminders.
