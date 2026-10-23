@@ -15,4 +15,4 @@ npm run dev
 
 ## License
 
-Code: MIT, see `LICENSE`. The cat artwork and app icons are not licensed for reuse. Security reports: see `SECURITY.md`.
+Code: MIT, see `LICENSE`. The cat artwork and app icons are not licensed for reuse, see `NOTICE`. Security reports: see `SECURITY.md`.
