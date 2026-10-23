@@ -23,7 +23,7 @@ Full protocol: `Tech_Scope.md` §5.
 | Option | Why it lost |
 |---|---|
 | **Op ledger + per-field LWW (chosen)** | — |
-| CRDT library (Yjs or Automerge), Stack B | Correct offline merging of text, which a task list barely needs, at the cost of a sync layer to learn and debug on a 3-month runway. Stays open as a v2. |
+| CRDT library (Yjs or Automerge), Stack B | Correct offline merging of text, which a task list barely needs, at the cost of a sync layer to learn and debug on a time-boxed solo build. Stays open as a v2. |
 | Whole-row last write wins by client timestamp | A rename on one device erases a *Done* from the other, and skewed phone clocks pick the wrong winner. |
 | Server-only, no offline queue | Breaks the offline promise in `UX_Flows.md` §4. |
 

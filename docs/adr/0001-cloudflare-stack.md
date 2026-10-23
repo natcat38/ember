@@ -25,7 +25,7 @@ Full comparison in `docs/research/tech-feasibility.md` §6.
 | Complexity | Low | High: merge logic, offline persistence, sync debugging | Medium: two vendors |
 | Scheduler | 1-minute cron, measured | Same as A (still needs it) | Supabase `pg_cron` collides with the pause; else borrows A's cron |
 
-**Why B lost:** true offline merge is the strongest portfolio story but the highest risk on a 3-month runway. A to-do app with a server of record does not need CRDTs. B stays open as a v2 layered on A.
+**Why B lost:** true offline merge is the strongest portfolio story but the highest risk on a time-boxed solo build. A to-do app with a server of record does not need CRDTs. B stays open as a v2 layered on A.
 
 **Why C lost:** it shows nothing A doesn't, and it brings back the Supabase pause risk. Go on Workers needs a WASM build, and Fly.io's free allowance now requires a card. Natalie's PL/SQL history already covers the "knows SQL" signal.
 
