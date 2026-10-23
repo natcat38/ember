@@ -58,7 +58,7 @@ Gone seven days. Home screen looks like a normal day: no red, no count of missed
 
 ### Natalie
 
-The builder. Unemployed, job hunting for a Senior/Full Stack/Backend/Product role in Singapore; NeetCode and system-design practice daily; learning Spring. Uses Ember every day for months, so her paths test durability and the no-guilt design under real emotional load. **Her frog: learning DSA / hard concepts** — the deep-learning task she avoids. **Her day: currently formless; she wants a university shape** — hard blocks (fixed) and free-floating time (see Day shape in `Product_Scope.md` §2).
+The builder, and Ember's first daily user. NeetCode and system-design practice daily; learning Spring. Uses Ember every day for months, so her paths test durability and the no-guilt design under real emotional load. **Her frog: learning DSA / hard concepts** — the deep-learning task she avoids. **Her day: currently formless; she wants a university shape** — hard blocks (fixed) and free-floating time (see Day shape in `Product_Scope.md` §2).
 
 **First run**
 She built it, so first run is the first day she uses it for real. Dumps: three applications to send, a NeetCode set, a Spring tutorial, résumé tweaks, Ember work. Hybrid branch fires on the dump path → *"Let's make today small."* → surfaces one. Cat: waking → watching. Same seven-step shape as Mei's first run.
