@@ -1,4 +1,4 @@
-import { expect, test } from "./fixtures";
+import { expect, startFrog, test } from "./fixtures";
 
 // Slice 6 done-when: the phase-1 loop runs end to end at 375 px (Tech_Scope.md §9):
 // capture → triage → step → Today → focus → reward → shutdown.
@@ -23,7 +23,7 @@ test("the whole loop, from an empty device to a closed day", async ({ page }) =>
   await page.getByRole("group", { name: "Size" }).getByRole("button", { name: "S", exact: true }).click();
 
   // Step
-  const next = page.getByRole("textbox", { name: "What's the very next physical action?" });
+  const next = page.getByRole("textbox", { name: "What's the first small thing to do?" });
   await next.fill("Tailor the opening");
   await next.press("Enter");
   await next.fill("Proofread");
@@ -38,7 +38,7 @@ test("the whole loop, from an empty device to a closed day", async ({ page }) =>
   await expect(page.getByRole("img", { name: "0 of 2 done today" })).toBeVisible();
 
   // Focus → Reward
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.clock.runFor(12 * 60_000);
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Step done." })).toBeVisible();

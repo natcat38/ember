@@ -29,10 +29,10 @@ Phone frames are drawn at a 375px-wide screen.
 | | * DO THIS FIRST                | |
 | | Outline DSA: heaps chapter     | |
 | | from: Revise DSA basics        | |
-| | [> Do this first]  [Not today] | |
+| | [> Start]          [Not today] | |
 | +--------------------------------+ |
-| [ ] Apply: backend role   [>] ...  |
-| [ ] Spring tutorial, ch.3 [>] ...  |
+| [ ] Apply: backend role       ...  |
+| [ ] Spring tutorial, ch.3     ...  |
 | [x] Fix resume bullet              |
 | [x] Send follow-up email           |
 |                                    |
@@ -46,8 +46,8 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 ```
 
-- The frog card sits first and is larger. Its buttons are the scope's own pair, *Do this first* (starts Focus on it) and *Not today* (§3.4). *Do this first* carries the same start icon as every other start button (step 2, C6).
-- Each other row has three controls: the checkbox marks the chunk done without Focus (goes to Reward), `[>]` starts Focus, and `...` offers *Not today* and *Open task*. Tapping the row text opens the Task view.
+- The frog card sits first and is larger. The card's label says *Do this first*; its buttons are *Start* (starts Focus on it, named like the Task view's) and *Not today* (§3.4). *Start* carries the same start icon as every other start button (step 2, C6).
+- Each other row has two controls besides its title (UX pass, 2026-10-24, R5): the checkbox marks the chunk done without Focus (goes to Reward), and `...` offers *Start*, *Not today* and *Open task*. Tapping the row text opens the Task view.
 - Done chunks stay on the list, dimmed, below the open ones, so the day's progress stays visible.
 - A smaller step (one split off a bigger step, `UX_Flows.md` §3.3) shows its parent step's name as a dimmed second line, so the row says where it belongs. Today counts smaller steps, never their parent. The frog card's *from:* line names the task, then the parent step: *from: Revise DSA basics · Outline heaps chapter* (step 2, C7).
 - An overdue task shows *"Was due Tue"* in plain text under its title (§4). Overdue tasks rank at the top, so one is usually the frog.
@@ -60,10 +60,8 @@ Phone frames are drawn at a 375px-wide screen.
 | =  Today              (0/5)  cat   |
 +------------------------------------+
 | +--------------------------------+ |
-| | Here's today: 5 things.        | |
-| | Good to go?                    | |
-| |                                | |
-| | [Let's go]            [Adjust] | |
+| | Here's today: 5 things. Good   | |
+| | to go?        Let's go  Adjust | |
 | +--------------------------------+ |
 | (Today's list below, as normal)    |
 |                                    |
@@ -74,7 +72,7 @@ Phone frames are drawn at a 375px-wide screen.
 +------------------------------------+
 ```
 
-- *Let's go* dismisses the card. *Adjust* dismisses it and shows *Not today* directly on every row, plus a *Pin a task* row that opens Inbox to choose from (§3.4).
+- The confirm is a strip, not a card (UX pass, R5: about 56 px, was 125), with text buttons so the frog's *Start* stays the one primary. *Let's go* dismisses it. *Adjust* dismisses it and shows *Not today* directly on every row, plus a *Pin a task* row that opens Inbox to choose from (§3.4).
 - Dismissing without either button leaves Today as built; the card does not return that day.
 
 ## 2. Drawer
@@ -242,7 +240,7 @@ Phone frames are drawn at a 375px-wide screen.
 
 - A line under *Break this down for me* names the task it splits: *Splits "Revise DSA basics" into 3 to 6 steps you can edit.* (Natalie's call, from canvas review: make it obvious which task gets broken down.) The button label itself is scope copy (`Product_Scope.md` §3) and is unchanged.
 - In **Steps**, *Break this down for me* sits first, above the list (Natalie's call, from canvas review): the task's name is already the big question, so breaking it down is the first move. The field under the list adds one step by hand (the only way before the AI breakdown ships in phase 4).
-- **Adding a step by hand:** the question *"What's the very next physical action?"* is the field's label, *Type one step* is its placeholder. Enter or the round **(+)** button adds the step to the bottom of the list; the field clears and stays ready for the next one; an empty entry is ignored. Same pattern as the capture sheet's send button (canvas review).
+- **Adding a step by hand:** the question *"What's the first small thing to do?"* is the field's label, *Type one step* is its placeholder. Enter or the round **(+)** button adds the step to the bottom of the list; the field clears and stays ready for the next one; an empty entry is ignored. Same pattern as the capture sheet's send button (canvas review).
 - *Pin to today* shows only when the task is not already in Today (§3.4).
 - *Remove from list* (Natalie's call, 2026-09-30; was *Let it go*) lives only in the header `...` menu, next to *Rename* (Natalie's call, from canvas review). A button under *Start* and *Pin to today* was too easy to hit by accident while setting a task up. It moves the task out of Today and Inbox into the collapsed Removed section; it is not the back arrow, which only leaves the screen (§4).
 

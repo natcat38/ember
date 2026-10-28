@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, startRow, test, type Page } from "./fixtures";
 
 // Wireframes.md §10: on a wide screen Today and Focus (or the selected task) sit side by side, two 560 px columns.
 test.use({ timezoneId: "Asia/Singapore", viewport: { width: 1440, height: 900 } });
@@ -60,7 +60,7 @@ test("choosing another row swaps the right pane without leaving Today or adding 
 
 test("starting Focus puts the timer on the right while Today stays", async ({ page }) => {
   await seed(page);
-  await left(page).getByRole("button", { name: "Start C1" }).click();
+  await startRow(left(page), "C1");
   await expect(page.getByRole("region", { name: "Focus" })).toBeVisible();
   await expect(right(page).getByRole("timer")).toBeVisible();
   await expect(right(page).getByRole("heading", { level: 1, name: "C1" })).toBeFocused();
@@ -78,7 +78,7 @@ test("starting Focus puts the timer on the right while Today stays", async ({ pa
 
 test("finishing a step shows Reward on the right", async ({ page }) => {
   await seed(page);
-  await left(page).getByRole("button", { name: "Start C1" }).click();
+  await startRow(left(page), "C1");
   await right(page).getByRole("button", { name: "Done" }).click();
   await expect(right(page).getByRole("heading", { level: 1, name: "Step done." })).toBeVisible();
   await expect(left(page).getByRole("list", { name: "Today" })).toBeVisible();

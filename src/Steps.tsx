@@ -145,7 +145,7 @@ export function Steps({ state, update, taskId, onStart }: Props) {
         </SortableList>
       )}
       <AddField
-        label="What's the very next physical action?"
+        label="What's the first small thing to do?"
         visibleLabel
         placeholder="Type one step"
         button="Add step"

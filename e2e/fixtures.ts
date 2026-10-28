@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Locator, type Page } from "@playwright/test";
 
 // Most specs exercise the device on its own and seed localStorage directly; with the server reachable, sync would
 // (correctly) overwrite those hand edits with the server's rows. So the API is unreachable unless a spec opts in with
@@ -38,6 +38,15 @@ export async function openFold(page: Page, title: string) {
   const head = page.getByRole("button", { name: new RegExp(`^${title}`) });
   if ((await head.getAttribute("aria-expanded")) !== "true") await head.click();
   await expect(head).toHaveAttribute("aria-expanded", "true");
+}
+
+// The frog's Start button. The region is labelled "Do this first"; the button inside it says what it does (EMB-UX-4).
+export const startFrog = (page: Page) => page.getByRole("region", { name: "Do this first" }).getByRole("button", { name: "Start", exact: true });
+
+// A Today row is a checkbox and a title: Start lives in its "..." menu (EMB-UX-6). `scope` is the page or a pane.
+export async function startRow(scope: Page | Locator, title: string) {
+  await scope.getByRole("button", { name: `More actions for ${title}`, exact: true }).click();
+  await scope.locator(".row-menu").getByRole("button", { name: "Start", exact: true }).click();
 }
 
 export { expect, type Page };

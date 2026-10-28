@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, startFrog, test, type Page } from "./fixtures";
 
 // Slice 17 (Tech_Scope.md §10): the cat's poses by trigger (UX_Flows.md §6) and where it appears (Design_Direction.md §4).
 test.use({ timezoneId: "Asia/Singapore" });
@@ -70,7 +70,7 @@ test("after shutdown the cat stays asleep, even on a reopen", async ({ page }) =
 
 test("Focus: the cat stretches once in the corner, then holds still", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await expect(page.getByRole("heading", { level: 1, name: "Tailor the opening" })).toBeVisible();
   await expect(cat(page)).toHaveCount(1);
   await expect(cat(page)).toHaveAttribute("data-pose", "stretching");
@@ -84,7 +84,7 @@ test("Focus: the cat stretches once in the corner, then holds still", async ({ p
 
 test("Reward: the cat purrs in the 200 px circle", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Step done." })).toBeVisible();
   await expect(cat(page)).toHaveCount(1);
@@ -129,7 +129,7 @@ test.describe("reduced motion", () => {
     await expect.poll(() => chosenFile(page)).toBe("/cat/watching-still.webp");
     expect(await animations(page)).toBe(0);
 
-    await page.getByRole("button", { name: "Do this first" }).click();
+    await startFrog(page).click();
     await expect(cat(page)).toHaveAttribute("data-pose", "stretching");
     await expect.poll(() => chosenFile(page)).toBe("/cat/stretching-still.webp");
     expect(await animations(page)).toBe(0);

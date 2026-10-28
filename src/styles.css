@@ -909,6 +909,32 @@ dialog::backdrop {
   margin-top: var(--space-3);
 }
 
+/* The morning confirm (EMB-UX-5): one line of text and two text buttons on a white strip, not a card. */
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0 var(--space-1);
+  padding: 0 var(--space-2) 0 var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-row);
+}
+
+.strip p {
+  flex: 1 1 8em; /* the words wrap before the buttons do; on a very narrow screen the buttons drop to their own line */
+  margin: 0;
+  padding: var(--space-2) 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.strip .text-button {
+  flex-shrink: 0;
+  padding: 0 var(--space-2);
+  white-space: nowrap;
+}
+
 .card-actions .button {
   flex: 1 1 0;
 }
@@ -955,7 +981,7 @@ dialog::backdrop {
   gap: 0;
 }
 
-/* Adjust mode: "Not today" stays on one line, so the title wraps instead and the play icons line up. */
+/* Adjust mode: "Not today" stays on one line, so the title wraps instead and the buttons keep the same place on every row. */
 .today-row .text-button {
   flex-shrink: 0;
   padding: 0 var(--space-3);
@@ -1249,11 +1275,19 @@ dialog::backdrop {
 }
 
 .step-foot {
-  margin-top: auto;
+  margin-top: var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-4);
+}
+
+/* On a phone the buttons sit at the foot of the screen, in thumb reach. On a wider screen that put them 700 px below the
+   field they belong to (EMB-UX-7), so there they follow the content. */
+@media (max-width: 599.98px) {
+  .step-foot {
+    margin-top: auto;
+  }
 }
 
 .dots {

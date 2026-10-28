@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, startFrog, startRow, test, type Page } from "./fixtures";
 
 test.use({ timezoneId: "Asia/Singapore" });
 
@@ -22,7 +22,7 @@ const stored = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getIt
 
 test("Do this first starts a 25 on the frog; Pause holds the time", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await expect(page.getByRole("heading", { level: 1, name: "Tailor the opening" })).toBeVisible();
   await expect(timer(page)).toHaveText("25:00");
   await page.clock.runFor(2 * MIN);
@@ -37,7 +37,7 @@ test("Do this first starts a 25 on the frog; Pause holds the time", async ({ pag
 
 test("locking the phone mid-session loses nothing", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.clock.pauseAt(new Date("2026-10-05T09:00:30+08:00")); // from here no timer fires on its own, as in a locked phone
   await expect(timer(page)).toHaveText(/^2[45]:\d\d$/);
   await page.evaluate(() => Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true }));
@@ -60,7 +60,7 @@ test("the screen stays on while the session runs, and Pause and Stop let it lock
   });
   await seed(page);
   const held = () => page.evaluate(() => (window as unknown as { held: number }).held);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await expect.poll(held).toBe(1);
   await page.getByRole("button", { name: "Pause" }).click();
   await expect.poll(held).toBe(0);
@@ -72,7 +72,7 @@ test("the screen stays on while the session runs, and Pause and Stop let it lock
 
 test("a reload mid-session loses nothing either", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.clock.runFor(10 * MIN);
   await page.reload(); // the page was discarded while away
   await expect(page.getByRole("heading", { level: 1, name: "Tailor the opening" })).toBeVisible();
@@ -82,7 +82,7 @@ test("a reload mid-session loses nothing either", async ({ page }) => {
 test("the 25 ends: Take 5, a restful break, then Back to it? and Stop here logs the session", async ({ page }) => {
   test.slow(); // replays half an hour of one-second ticks, each a render: WebKit took 29.9 s of the default 30
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.clock.runFor(25 * MIN + 2000);
   await expect(page.getByRole("region", { name: "Take 5?" })).toBeVisible();
   await expect(page.getByRole("button", { name: "I finished it" })).toBeVisible();
@@ -103,7 +103,7 @@ test("the 25 ends: Take 5, a restful break, then Back to it? and Stop here logs 
 
 test("Done early finishes the step; Stop for now puts it back", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.clock.runFor(3 * MIN);
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Step done." })).toBeVisible(); // Reward
@@ -111,7 +111,7 @@ test("Done early finishes the step; Stop for now puts it back", async ({ page })
   await page.getByRole("button", { name: "Back to Today" }).click();
   await expect(page.getByRole("checkbox", { name: "Tailor the opening" })).toBeChecked();
 
-  await page.getByRole("button", { name: "Start Proofread" }).click();
+  await startRow(page, "Proofread");
   await page.getByRole("button", { name: "Stop for now" }).click();
   await expect(page.getByRole("checkbox", { name: "Proofread" })).not.toBeChecked(); // back in Today, still to do
   const s = await stored(page);
@@ -120,7 +120,7 @@ test("Done early finishes the step; Stop for now puts it back", async ({ page })
 
 test("a task with no steps starts straight away, on its own title as its first step", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Start Book dentist" }).click();
+  await startRow(page, "Book dentist");
   await expect(page.getByRole("heading", { level: 1, name: "Book dentist" })).toBeVisible();
   await expect(timer(page)).toHaveText("25:00");
   const s = await stored(page);
@@ -131,7 +131,7 @@ test("a task with no steps starts straight away, on its own title as its first s
 
 test("peeking away mid-session: the return bar goes back to the running timer", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("button", { name: "Inbox", exact: true }).click();
   await expect(page.getByText("Focusing on Tailor the opening")).toBeVisible();
@@ -168,7 +168,7 @@ test("an untriaged Inbox task can be started straight from its Task view", async
 const still = (page: Page) => page.getByRole("region", { name: "Still on this step?" });
 async function startThenReopenAt(page: Page, at: string) {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await expect(timer(page)).toHaveText("25:00");
   await page.clock.setSystemTime(new Date(at)); // the app was closed in between: no ticks ran
   await page.reload();
@@ -210,7 +210,7 @@ test("ten minutes away is not stale: the timer just carries on", async ({ page }
 
 test("the app left in the background for 45 minutes asks when it comes back to the front", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   const visible = (on: boolean) =>
     page.evaluate((on) => {
       Object.defineProperty(document, "visibilityState", { value: on ? "visible" : "hidden", configurable: true });

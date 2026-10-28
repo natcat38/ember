@@ -12,7 +12,7 @@ async function openTask(page: Page) {
   await page.getByRole("button", { name: /Revise DSA basics/ }).click();
 }
 
-const nextAction = (page: Page) => page.getByRole("textbox", { name: "What's the very next physical action?" });
+const nextAction = (page: Page) => page.getByRole("textbox", { name: "What's the first small thing to do?" });
 const stepTitles = (page: Page) => page.locator(".step-title");
 
 async function addSteps(page: Page, ...titles: string[]) {

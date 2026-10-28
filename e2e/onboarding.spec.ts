@@ -12,9 +12,9 @@ test("several things: pick the heavy one, give it a first step, start two minute
   // 1. Land: the field is ready, with its sub-line. No tour, no account screen.
   await expect(field(page)).toBeFocused();
   await expect(page.getByRole("main").getByText("One thing or ten. Just get it out of your head.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Skip for now" })).toBeVisible();
 
-  // 2. Dump: each item stacks; after the first, Close becomes "That's it for now".
+  // 2. Dump: each item stacks; after the first, Skip for now becomes "That's it for now".
   for (const t of ["Cover letter", "Lab report", "Book dentist"]) {
     await field(page).fill(t);
     await field(page).press("Enter");
@@ -28,10 +28,11 @@ test("several things: pick the heavy one, give it a first step, start two minute
 
   // 4. First Today: the picked task, alone.
   await expect(page.getByRole("region", { name: "Do this first" })).toContainText("Lab report");
+  await expect(page.getByRole("button", { name: "Start", exact: true })).toHaveCount(0); // one way on, not two that run the same line
   await page.getByRole("button", { name: "Break this down" }).click();
 
   // 5. First step.
-  await page.getByRole("textbox", { name: "What's the very next physical action?" }).fill("Open the data sheet");
+  await page.getByRole("textbox", { name: "What's the first small thing to do?" }).fill("Open the data sheet");
   await page.getByRole("button", { name: "Next" }).click();
 
   // 6. Starter focus: two minutes.
@@ -67,9 +68,9 @@ test("one thing: 'Not now' puts it alone in Today, untriaged", async ({ page }) 
   await expect(page.getByRole("region", { name: "Do this first" })).toContainText("Reply to recruiter");
 });
 
-test("Close with nothing captured skips the first run for good", async ({ page }) => {
+test("Skip for now with nothing captured skips the first run for good", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();

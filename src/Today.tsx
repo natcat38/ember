@@ -121,20 +121,14 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
           <span>{title(r)}</span>
           {second && <span className="meta">{second}</span>}
         </button>
-        {!r.done && (
-          <button className="icon-button" aria-label={`Start ${title(r)}`} onClick={() => onStart(r)}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
-              <path d="M8 5l11 7-11 7z" />
-            </svg>
-          </button>
-        )}
+        {/* A row is a checkbox and a title (EMB-UX-6): Start and Not today live in its "..." menu, so a calm list stays calm. */}
         {!r.done &&
           (adjusting ? (
             <button className="text-button" onClick={() => defer(r.key)} aria-label={`Not today: ${title(r)}`}>
               Not today
             </button>
           ) : (
-            <RowMenu id={`row-${r.key}`} label={title(r)} onNotToday={() => defer(r.key)} onOpen={() => onOpenTask(r.task)} />
+            <RowMenu id={`row-${r.key}`} label={title(r)} onStart={() => onStart(r)} onNotToday={() => defer(r.key)} onOpen={() => onOpenTask(r.task)} />
           ))}
       </li>
     );
@@ -184,32 +178,31 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
         </section>
       )}
       {confirming && (
-        <section className="card" aria-label="Morning confirm">
-          <p className="lead">
+        // A strip, not a card (EMB-UX-5): it was 125 px between the cat and the frog's button. Same words; text buttons, so the
+        // frog's Start stays the view's one primary (restraint rule 2).
+        <section className="strip" aria-label="Morning confirm">
+          <p>
             Here's today: {rows.length} {rows.length === 1 ? "thing" : "things"}. Good to go?
           </p>
-          <div className="actions card-actions">
-            {/* Outlined: the frog's Do this first is the view's one primary button (restraint rule 2). */}
-            <button
-              className="button"
-              onClick={() => {
-                setConfirming(false);
-                cardGone();
-              }}
-            >
-              Let's go
-            </button>
-            <button
-              className="button"
-              onClick={() => {
-                setConfirming(false);
-                setAdjusting(true);
-                cardGone();
-              }}
-            >
-              Adjust
-            </button>
-          </div>
+          <button
+            className="text-button"
+            onClick={() => {
+              setConfirming(false);
+              cardGone();
+            }}
+          >
+            Let's go
+          </button>
+          <button
+            className="text-button"
+            onClick={() => {
+              setConfirming(false);
+              setAdjusting(true);
+              cardGone();
+            }}
+          >
+            Adjust
+          </button>
         </section>
       )}
 
@@ -227,12 +220,13 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
           {frog.chunk && <p className="meta">from: {[frog.task.title, frog.parent?.title].filter(Boolean).join(" · ")}</p>}
           {frog.task.deadline && band(frog.task, today) === "overdue" && <p className="meta">{wasDue(frog.task.deadline, today)}</p>}
           <div className="actions card-actions">
-            {/* The view's one primary, until a session is running (on desktop it sits beside Focus, whose Pause is the primary then). */}
+            {/* The view's one primary, until a session is running (on desktop it sits beside Focus, whose Pause is the primary then).
+                Named for what it does, like the Task view's: the label above it already says "Do this first" (EMB-UX-4). */}
             <button className={`button${state.focus ? "" : " primary"} icon-label`} onClick={() => onStart(frog)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M8 5l11 7-11 7z" />
               </svg>
-              Do this first
+              Start
             </button>
             <button className="button" onClick={() => defer(frog.key)}>
               Not today
@@ -274,12 +268,12 @@ function placeBelow(button: HTMLElement, id: string) {
   const r = button.getBoundingClientRect();
   const el = document.getElementById(id)!.style;
   el.right = `${innerWidth - r.right}px`;
-  const below = r.bottom + 120 < innerHeight;
+  const below = r.bottom + 160 < innerHeight; // three items: about 150 px
   el.top = below ? `${r.bottom + 4}px` : "auto";
   el.bottom = below ? "auto" : `${innerHeight - r.top + 4}px`;
 }
 
-function RowMenu({ id, label, onNotToday, onOpen }: { id: string; label: string; onNotToday: () => void; onOpen: () => void }) {
+function RowMenu({ id, label, onStart, onNotToday, onOpen }: { id: string; label: string; onStart: () => void; onNotToday: () => void; onOpen: () => void }) {
   const close = (fn: () => void) => () => {
     closeMenu(document.getElementById(id));
     fn();
@@ -297,6 +291,7 @@ function RowMenu({ id, label, onNotToday, onOpen }: { id: string; label: string;
         </svg>
       </button>
       <div id={id} popover="auto" className="menu row-menu">
+        <button onClick={close(onStart)}>Start</button>
         <button onClick={close(onNotToday)}>Not today</button>
         <button onClick={close(onOpen)}>Open task</button>
       </div>
