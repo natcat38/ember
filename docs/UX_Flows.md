@@ -192,7 +192,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 - Tapping **Start** on a task with no chunks yet → the task's own title becomes its first step and Focus starts on it, no question asked (Natalie, 2026-10-06; it used to ask for the next action first).
 
 **Every tap**
-1. Task view shows *"What's the very next physical action?"* with a text field, and a **Break this down for me** button beside it.
+1. Task view shows *"What's the first small thing to do?"* with a text field, and a **Break this down for me** button beside it.
 2. **Manual:** type one next action and press enter or the **+** button → it's added to the bottom of the list, and the field clears and stays ready for another. Add more if you want, but you never have to — one next thing is enough to start. The question *"What's the very next physical action?"* is the field's label; its placeholder is *"Type one step"* (wireframe review, 2026-09-30).
 3. **AI** (*phase-4 seam; before that, manual only*): tap *Break this down for me* → 3–6 editable steps come back. Edit, delete, reorder, then **accept** → added as the task's chunks. Nothing commits until you accept.
 4. Chunks show as a checklist under the task. Each chunk runs Todo → In focus → Done.
@@ -220,7 +220,7 @@ Capture, triage, chunk, pick, focus, reward, review. Each flow lists its entry p
 - Don't chunk: the task ranks and sits; Start prompts the one-line next action whenever you're ready. Chunking is never a separate chore.
 - Bad AI breakdown: edit it down or discard and type your own.
 
-**Copy:** *"What's the very next physical action?"*; button *Break this down for me*, with a line under it naming the task, *Splits "Revise DSA basics" into 3 to 6 steps you can edit.* (added in wireframe review, 2026-09-30); cap reached *"Out of breakdowns for today. Try: what's the very next physical action?"*
+**Copy:** *"What's the first small thing to do?"* (was *"What's the very next physical action?"*, UX pass R6); button *Break this down for me*, with a line under it naming the task, *Splits "Revise DSA basics" into 3 to 6 steps you can edit.* (added in wireframe review, 2026-09-30); cap reached *"Out of breakdowns for today. Try: what's the very next physical action?"*
 
 ### 3.4 Pick
 

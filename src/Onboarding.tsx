@@ -73,7 +73,7 @@ export function Onboarding({ state, update, today, onDone, announce }: Props) {
             <>
               {/* A quiet text button: with nothing typed it is a way out, not an action to weigh against the field above. */}
               <button className="text-button" onClick={() => finish("today")}>
-                Close
+                Skip for now
               </button>
               {/* ponytail: not yet approved copy. A second device needs a way past the first run to sign in (ADR-0005). */}
               <button className="text-button" onClick={() => finish("settings")}>
@@ -133,11 +133,9 @@ export function Onboarding({ state, update, today, onDone, announce }: Props) {
           <p className="lead">{step.task.title}</p>
         </section>
         <div className="step-foot">
+          {/* The one way on: a second button here ran the same line and opened the same screen (EMB-UX-8). */}
           <button className="button primary" onClick={() => setStep({ name: "first-step", task: step.task })}>
             Break this down
-          </button>
-          <button className="button" onClick={() => setStep({ name: "first-step", task: step.task })}>
-            Start
           </button>
         </div>
       </Card>
@@ -159,7 +157,7 @@ export function Onboarding({ state, update, today, onDone, announce }: Props) {
           }}
         >
           <label className="question">
-            <span className="question-label">What's the very next physical action?</span>
+            <span className="question-label">What's the first small thing to do?</span>
             <input name="step" className="field step-field" placeholder="Type one step" autoComplete="off" />
           </label>
           <div className="step-foot">

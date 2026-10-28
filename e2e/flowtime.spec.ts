@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, startFrog, startRow, test, type Page } from "./fixtures";
 
 test.use({ timezoneId: "Asia/Singapore" });
 
@@ -24,7 +24,7 @@ const mode = (page: Page, name: "25/5" | "Flowtime") => page.getByRole("group", 
 test("switching to Flowtime counts up; stopping at 50 minutes offers a 10-minute break", async ({ page }) => {
   test.slow(); // replays an hour of one-second ticks, each a render: more than WebKit manages in the default 30 s
   await seed(page);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await expect(timer(page)).toHaveText("25:00");
   await expect(mode(page, "25/5")).toHaveAttribute("aria-pressed", "true");
 
@@ -62,7 +62,7 @@ test("switching to Flowtime counts up; stopping at 50 minutes offers a 10-minute
 test("with timer_mode set to flowtime, Focus starts in Flowtime and Back to it stays in it", async ({ page }) => {
   test.slow(); // half an hour of one-second ticks: WebKit on Windows needs more than 30 s
   await seed(page, { timer_mode: "flowtime" });
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await expect(mode(page, "Flowtime")).toHaveAttribute("aria-pressed", "true");
   await expect(timer(page)).toHaveText("0:00");
   await page.clock.runFor(30 * MIN);
@@ -74,7 +74,7 @@ test("with timer_mode set to flowtime, Focus starts in Flowtime and Back to it s
 
 test("the switch can go back to 25/5, and is gone once the session is a minute old", async ({ page }) => {
   await seed(page, { timer_mode: "flowtime" });
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await mode(page, "25/5").click();
   await expect(timer(page)).toHaveText("25:00");
   await expect(timer(page)).toHaveAccessibleName(/left$/);
@@ -87,13 +87,13 @@ test("the switch can go back to 25/5, and is gone once the session is a minute o
 
 test("Flowtime: Done goes to Reward and Stop for now returns to Today, with the time logged", async ({ page }) => {
   await seed(page, { timer_mode: "flowtime" });
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.clock.runFor(3 * MIN);
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Step done." })).toBeVisible();
   await page.getByRole("button", { name: "Back to Today" }).click();
 
-  await page.getByRole("button", { name: "Start Proofread" }).click();
+  await startRow(page, "Proofread");
   await page.clock.runFor(4 * MIN);
   await page.getByRole("button", { name: "Stop for now" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();

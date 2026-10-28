@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, startFrog, test, type Page } from "./fixtures";
 
 // Slice 20: the 90-second unlock on Reward, with the three feeds stubbed (Tech_Scope.md §10, UX_Flows.md §3.6).
 test.use({ timezoneId: "Asia/Singapore" });
@@ -38,7 +38,7 @@ async function stubFeeds(page: Page) {
 
 // Focus on the first step, then Done: the Reward, with the unlock offered.
 async function finishInFocus(page: Page) {
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.getByRole("button", { name: "Done" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Step done. Ninety seconds, if you want it." })).toBeVisible();
 }

@@ -1,4 +1,4 @@
-import { expect, openFold, test, type Page } from "./fixtures";
+import { expect, openFold, startFrog, test, type Page } from "./fixtures";
 
 // Fixes from the Verify-stage UI walk (v1-report.md). Each test is named for the finding it keeps fixed.
 test.use({ timezoneId: "Asia/Singapore", locale: "en-US" });
@@ -104,19 +104,18 @@ test("finding 2: the time zone select is 16 px, in the body font, and shows a ch
   expect(style.image).toContain("svg");
 });
 
-test("finding 8: in Adjust mode 'Not today' stays on one line and the play icons line up", async ({ page }) => {
+test("finding 8: in Adjust mode 'Not today' stays on one line and lines up on every row", async ({ page }) => {
   await seedMei(page);
   await page.getByRole("button", { name: "Adjust" }).click();
   const [a, b] = await Promise.all(["C1", "C2"].map((t) => page.getByRole("button", { name: `Not today: ${t}` }).boundingBox()));
   expect(a!.height).toBeLessThanOrEqual(44);
   expect(b!.height).toBeLessThanOrEqual(44);
-  const [pa, pb] = await Promise.all(["C1", "C2"].map((t) => page.getByRole("button", { name: `Start ${t}`, exact: true }).boundingBox()));
-  expect(pa!.x).toBe(pb!.x);
+  expect(a!.x).toBe(b!.x);
 });
 
 test("finding 11: Focus fits a phone screen in both timer modes, with the cat's corner on it", async ({ page }) => {
   await seedMei(page, confirmed);
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   const fits = () => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight);
   expect(await fits()).toBe(true);
   await page.getByRole("button", { name: "Flowtime" }).click();
@@ -154,7 +153,7 @@ test("finding 15: the last shutdown card has one Close, the placeholder shows wh
 
 test("finding 7: the reminder offer is as wide as the Reward card at every stage", async ({ page }) => {
   await seedMei(page, { ...confirmed, nudge_offered: false });
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.getByRole("button", { name: "Done" }).click();
   const widths = async () => [(await page.getByRole("region", { name: "Reminders" }).boundingBox())!.width, (await page.locator(".reward-card").boundingBox())!.width];
   const [offer, card] = await widths();
@@ -169,7 +168,7 @@ test("finding 18: while an unlock plays the ring and cat shrink and Skip stays o
     route.fulfill({ headers: { "Access-Control-Allow-Origin": "*" }, json: { response_code: 0, results: [{ question: "Which%20planet%20is%20known%20as%20the%20Red%20Planet%3F", correct_answer: "Mars", incorrect_answers: ["Venus", "Jupiter", "Saturn"] }] } }),
   );
   await seedMei(page, { ...confirmed, ...unlockTrivia });
-  await page.getByRole("button", { name: "Do this first" }).click();
+  await startFrog(page).click();
   await page.getByRole("button", { name: "Done" }).click();
   expect((await page.locator(".cat-circle").boundingBox())!.width).toBe(200);
   await page.getByRole("button", { name: "Answer a trivia question" }).click();
@@ -202,12 +201,12 @@ test.describe("desktop", () => {
     // A solid lavender-deep fill is what "primary" looks like, whichever class draws it; a selected pill (.chip) is allowed one.
     const primaries = (pane: string) =>
       page.locator(`[data-pane=${pane}]`).evaluate((el) => [...el.querySelectorAll("button")].filter((b) => !b.classList.contains("chip") && b.getClientRects().length > 0 && getComputedStyle(b).backgroundColor === "rgb(107, 91, 168)").map((b) => b.textContent?.trim() || b.getAttribute("aria-label")));
-    expect(await primaries("left")).toEqual(["Do this first"]);
+    expect(await primaries("left")).toEqual(["Start"]);
     expect(await primaries("right")).toEqual(["Start"]);
     await expect(page.locator(".capture-inline .send")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     await expect(page.locator("[data-pane=right] .send")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     // The frog's step already runs: its button stops asking to be pressed, and Focus's Pause is the one primary.
-    await page.getByRole("button", { name: "Do this first" }).first().click();
+    await startFrog(page).click();
     expect(await primaries("left")).toEqual([]);
     expect(await primaries("right")).toEqual(["Pause"]);
   });
