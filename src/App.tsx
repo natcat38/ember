@@ -104,6 +104,8 @@ export function App() {
   const [arrival, setArrival] = useState(() => arrivalFrom(location.search));
   const [sent, setSent] = useState<string[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // "Already use Ember? Sign in" in first-run lands on Settings with the Data row (where the passkey sign-in is) already open.
+  const [signInOpen, setSignInOpen] = useState(false);
   const [status, setStatus] = useState("");
   const statusTimer = useRef(0);
   const sheet = useRef<HTMLDialogElement>(null);
@@ -264,6 +266,7 @@ export function App() {
   // moves, but on a fresh load nothing has moved, and the browser would draw a focus rectangle round the title.
   function show(v: View, pane?: Pane, focus = true) {
     if (v.name !== "today") setWelcome(false); // the welcome back is offered once
+    if (v.name !== "settings") setSignInOpen(false);
     setView(v);
     window.scrollTo(0, 0);
     if (focus) moveFocus(pane ?? paneOf(v, viewNow.current));
@@ -278,7 +281,7 @@ export function App() {
       const el = paneNow.current ? document.querySelector<HTMLElement>(`[data-pane="${pane}"]`) : null;
       el?.scrollTo(0, 0);
       const now = document.activeElement;
-      if (!now || now === before || now === document.body) (el ?? document).querySelector<HTMLElement>("h1")?.focus();
+      if (!now || now === before || now === document.body) (el ?? document).querySelector<HTMLElement>("[data-landing], h1")?.focus();
     });
   }
 
@@ -335,7 +338,8 @@ export function App() {
   else if (view.name === "task") leftScreen.current = view.from;
   if (twoPane && view.name === "task" && selected !== view.id) setSelected(view.id);
   // Right pane, never empty: the running session (or its Reward), else the chosen task, else the frog's.
-  const rightTask = state.tasks.find((t) => t.id === selected && t.state !== "removed") ?? plan.frog?.task;
+  // The frog is the fallback on Today and Inbox; beside Settings it has nothing to do with the left pane, so the pane stays quiet.
+  const rightTask = state.tasks.find((t) => t.id === selected && t.state !== "removed") ?? (leftScreen.current === "settings" ? undefined : plan.frog?.task);
   const right = view.name === "reward" ? "reward" : state.focus ? "focus" : "task";
 
   const arrivalTask = arrival?.task ? state.tasks.find((t) => t.id === arrival.task) : undefined;
@@ -420,6 +424,18 @@ export function App() {
     </button>
   );
 
+  // The name beside the menu on every screen that has one (EMB-UX-1, Natalie's D-D 2): text only.
+  const wordmark = <span className="wordmark">Ember</span>;
+
+  // Under the header, inside the column they speak to (EMB-UX-13): the left pane on two panes, else the one column.
+  const statusLines = (
+    <>
+      {/* ponytail: copy not yet in Design_Direction §6; needs Natalie's approval. */}
+      {syncStatus.offline && <p className="status-line">Offline. Your changes will sync when you reconnect.</p>}
+      {!saved && <p className="status-line">This device isn't saving right now. Keep Ember open so nothing is lost.</p>}
+    </>
+  );
+
   // Today, Inbox or Settings: the body of the screen, wherever it sits.
   const screen = (name: Screen) =>
     name === "settings" ? (
@@ -428,6 +444,7 @@ export function App() {
         update={setState}
         browserTz={browserTz}
         backedUp={syncStatus.backedUp}
+        dataOpen={signInOpen}
         onSignedIn={() => {
           sync.restart(); // what's on this device joins that list, and everything of theirs comes down
           void sync.push();
@@ -476,12 +493,25 @@ export function App() {
       {twoPane ? (
         <div className="panes">
           <main className="pane pane-left" data-pane="left" aria-label={titleOf[leftScreen.current]}>
-            <header className="header">
-              {menuButton}
-              <h1 className="title" tabIndex={-1}>
+            {/* From 1180 px there is room for the destinations themselves instead of a menu (EMB-UX-2). The tab for the
+                current screen takes the focus a heading would (data-landing), so the h1 can stay as a quiet page title. */}
+            <header className="header header-tabs">
+              {wordmark}
+              <nav className="tabs" aria-label="Screens">
+                {(["today", "inbox", "settings"] as const).map((v) => (
+                  <button key={v} className="tab" data-landing={leftScreen.current === v ? "" : undefined} aria-current={leftScreen.current === v ? "page" : undefined} onClick={() => navigate({ name: v })}>
+                    {titleOf[v]}
+                  </button>
+                ))}
+              </nav>
+              <button className="text-button wrap-up-link" onClick={() => navigate({ name: "shutdown" })}>
+                Wrap up the day
+              </button>
+              <h1 className="sr-only" tabIndex={-1}>
                 {titleOf[leftScreen.current]}
               </h1>
             </header>
+            {statusLines}
             {leftScreen.current !== "settings" && <div className="capture-inline">{form}</div>}
             <div className="main">{screen(leftScreen.current)}</div>
           </main>
@@ -494,7 +524,7 @@ export function App() {
               taskView(rightTask, true)
             ) : (
               <div className="main">
-                <p className="empty">{plan.rows.length ? "That's everything for today." : "Nothing's lined up for today yet."}</p>
+                <p className="empty">{leftScreen.current === "settings" ? "Pick a task to see it here." : plan.rows.length ? "That's everything for today." : "Nothing's lined up for today yet."}</p>
               </div>
             )}
           </section>
@@ -517,6 +547,7 @@ export function App() {
             announce={announce}
             onDone={(then) => {
               setOnboarding(false);
+              setSignInOpen(then === "settings");
               navigate({ name: then });
             }}
           />
@@ -544,6 +575,7 @@ export function App() {
         <>
           <header className={`header${view.name === "focus" ? " dimmed" : ""}`}>
             {menuButton}
+            {wordmark}
             {view.name === "focus" ? (
               <span className="title">Today</span>
             ) : (
@@ -580,9 +612,7 @@ export function App() {
         </>
       )}
 
-      {/* ponytail: copy not yet in Design_Direction §6; needs Natalie's approval. */}
-      {syncStatus.offline && <p className="status-line">Offline. Your changes will sync when you reconnect.</p>}
-      {!saved && <p className="status-line">This device isn't saving right now. Keep Ember open so nothing is lost.</p>}
+      {!twoPane && statusLines}
       {/* Success is silent on screen (Design_Direction.md §6): this region is for screen readers and takes no room, so a
           row never moves under a second tap. Offline and save-failure above stay visible.
           The open sheet makes the page inert, which mutes a live region outside it, so the sheet carries its own. */}

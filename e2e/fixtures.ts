@@ -32,4 +32,12 @@ export const test = base.extend<{ online: boolean; firstRun: boolean }>({
   },
 });
 
+// Settings keeps the set-once groups (Quiet hours, Time zone, Hard blocks, Rewards, Data) behind a row with a one-line
+// summary (EMB-UX-10). Open one by its title before touching what is inside.
+export async function openFold(page: Page, title: string) {
+  const head = page.getByRole("button", { name: new RegExp(`^${title}`) });
+  if ((await head.getAttribute("aria-expanded")) !== "true") await head.click();
+  await expect(head).toHaveAttribute("aria-expanded", "true");
+}
+
 export { expect, type Page };

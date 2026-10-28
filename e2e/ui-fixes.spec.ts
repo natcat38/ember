@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, openFold, test, type Page } from "./fixtures";
 
 // Fixes from the Verify-stage UI walk (v1-report.md). Each test is named for the finding it keeps fixed.
 test.use({ timezoneId: "Asia/Singapore", locale: "en-US" });
@@ -19,7 +19,9 @@ async function seedMei(page: Page, over: Record<string, unknown> = {}, at = "202
 const confirmed = { days: [{ day: "2026-10-05", confirmed_at: 1, deferred: [] }] };
 const unlockTrivia = { nudge_offered: true, settings: { tz: null, quiet_start: 1320, quiet_end: 480, timer_mode: "pomodoro", unlock: "trivia", journal_key: null } };
 const menu = async (page: Page, item: string) => {
-  await page.getByRole("button", { name: "Open menu" }).click();
+  // From 1180 px the destinations are tabs in the header, with no menu to open.
+  const open = page.getByRole("button", { name: "Open menu" });
+  if (await open.count()) await open.click();
   await page.getByRole("button", { name: item, exact: true }).click();
 };
 
@@ -91,6 +93,7 @@ test("finding 20: the summary's Edit button is a full-size target", async ({ pag
 test("finding 2: the time zone select is 16 px, in the body font, and shows a chevron", async ({ page }) => {
   await seedMei(page);
   await menu(page, "Settings");
+  await openFold(page, "Time zone");
   const select = page.getByRole("combobox");
   const style = await select.evaluate((el) => {
     const s = getComputedStyle(el);
@@ -189,8 +192,9 @@ test.describe("desktop", () => {
     await page.locator("[data-pane=left]").evaluate((el) => el.scrollTo(0, 1200));
     await expect(page.getByText("Inbox item 0", { exact: true })).not.toBeInViewport(); // the list did scroll
     await expect(field).toBeInViewport();
-    expect((await field.boundingBox())!.y).toBeLessThan(top); // the header scrolled away; the capture row stuck at the pane's top
-    expect((await field.boundingBox())!.y).toBeLessThan(100);
+    await expect(page.getByRole("button", { name: "Settings", exact: true })).toBeInViewport(); // the header (EMB-UX-1) stays too
+    expect((await field.boundingBox())!.y).toBeLessThanOrEqual(top); // the status line scrolled away; the capture row stuck right under the header
+    expect((await field.boundingBox())!.y).toBeLessThan(140);
   });
 
   test("finding 12: each pane has one primary button, and the add (+) and Send buttons are outlined", async ({ page }) => {

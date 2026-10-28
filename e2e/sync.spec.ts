@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, openFold, test, type Page } from "./fixtures";
 
 // Slice 8 done-when: clearing the device's storage and returning restores the list (Tech_Scope.md §10).
 // The identity lives in the server's HttpOnly cookie, which Safari's 7-day wipe of script storage doesn't touch.
@@ -35,6 +35,7 @@ test("the list comes back after the device's storage is wiped", async ({ page })
 
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openFold(page, "Data");
   await expect(page.getByText("Your list is backed up, so it won't get lost.")).toBeVisible();
 
   await wipeAndReturn(page); // what Safari's wipe does; the cookie survives

@@ -67,8 +67,7 @@ test("starting Focus puts the timer on the right while Today stays", async ({ pa
   await expect(left(page).getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
   await expect(left(page).getByRole("list", { name: "Today" })).toBeVisible();
   // Peeking at Inbox in the left pane leaves the session where it is.
-  await page.getByRole("button", { name: "Open menu" }).click();
-  await page.getByRole("button", { name: "Inbox", exact: true }).click();
+  await left(page).getByRole("button", { name: "Inbox", exact: true }).click(); // a tab: no menu from 1180 px
   await expect(left(page).getByRole("heading", { level: 1, name: "Inbox" })).toBeVisible();
   await expect(right(page).getByRole("timer")).toBeVisible();
   // Stopping hands the right pane back to a task, and the focus goes with it.
@@ -90,12 +89,15 @@ test("finishing a step shows Reward on the right", async ({ page }) => {
 
 test("Settings replaces the left pane and leaves the right one", async ({ page }) => {
   await seed(page);
-  await page.getByRole("button", { name: "Open menu" }).click();
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-  await expect(left(page).getByRole("heading", { level: 1, name: "Settings" })).toBeFocused();
+  await left(page).getByRole("button", { name: "Settings", exact: true }).click();
+  await expect(left(page).getByRole("button", { name: "Settings", exact: true })).toBeFocused(); // the tab takes the focus a heading would
+  await expect(left(page).getByRole("button", { name: "Settings", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(left(page).getByRole("heading", { level: 1, name: "Settings" })).toBeAttached(); // a quiet page title for screen readers
   await expect(page.getByRole("main", { name: "Settings" })).toBeVisible();
   await expect(left(page).getByRole("list", { name: "Today" })).toHaveCount(0);
-  await expect(right(page).getByRole("heading", { level: 1, name: "Cover letter" })).toBeVisible();
+  // Settings has nothing to do with the frog, so the right pane stays quiet instead of showing it (EMB-UX-2).
+  await expect(right(page).getByText("Pick a task to see it here.")).toBeVisible();
+  await expect(right(page).getByRole("heading", { level: 1, name: "Cover letter" })).toHaveCount(0);
   await page.goBack(); // the phone's gesture and the browser's Back still unwind the left pane
   await expect(left(page).getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
 });

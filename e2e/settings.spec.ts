@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, openFold, test, type Page } from "./fixtures";
 
 // Slice 10 done-when: the §4.6 example renders in full, hard blocks included.
 test.use({ timezoneId: "Asia/Singapore", locale: "en-US" }); // the locale decides how the time inputs and the sentences beside them show a time
@@ -28,6 +28,7 @@ async function openSettings(page: Page) {
 }
 
 async function addBlock(page: Page, days: string[], from: string, to: string, name: string) {
+  await openFold(page, "Hard blocks");
   await page.getByRole("button", { name: "+ Add a block" }).click();
   const form = page.getByRole("form", { name: "Add a block" });
   for (const d of days) await form.getByRole("button", { name: d }).click();
@@ -66,6 +67,7 @@ test("a packed day gets fewer slots, and the rest wait", async ({ page }) => {
 test("Add a block moves focus into the form, and Cancel moves it back", async ({ page }) => {
   await seedMei(page);
   await openSettings(page);
+  await openFold(page, "Hard blocks");
   await page.getByRole("button", { name: "+ Add a block" }).click();
   const form = page.getByRole("form", { name: "Add a block" });
   await expect(form.getByRole("button").first()).toBeFocused();
@@ -76,15 +78,19 @@ test("Add a block moves focus into the form, and Cancel moves it back", async ({
 test("a block needs a day; quiet hours move the day's start", async ({ page }) => {
   await seedMei(page);
   await openSettings(page);
+  await openFold(page, "Hard blocks");
   await page.getByRole("button", { name: "+ Add a block" }).click();
   await page.getByRole("form", { name: "Add a block" }).getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("main").getByText("Pick at least one day.")).toBeVisible();
 
+  await openFold(page, "Quiet hours");
   const quiet = page.getByRole("region", { name: "Quiet hours" });
   await quiet.getByLabel("To").fill("07:00");
   await expect(quiet).toContainText(/No nudges between 10:00\sPM and 07:00\sAM\./); // the same format as the inputs (en-US here), not 22:00
   await expect(quiet).toContainText(/Today is rebuilt at 07:00\sAM\./);
   await page.reload();
   await openSettings(page);
+  await expect(page.getByRole("button", { name: /^Quiet hours/ })).toContainText("07:00"); // the closed row says it too
+  await openFold(page, "Quiet hours");
   await expect(page.getByRole("region", { name: "Quiet hours" }).getByLabel("To")).toHaveValue("07:00"); // saved
 });

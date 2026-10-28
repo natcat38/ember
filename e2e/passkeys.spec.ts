@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, openFold, test, type Page } from "./fixtures";
 import type { BrowserContext, CDPSession } from "@playwright/test";
 
 // Slice 14 done-when, automated: phone and laptop show the same list. Chromium's virtual authenticator stands in for
@@ -19,6 +19,7 @@ async function authenticator(context: BrowserContext, page: Page): Promise<{ cdp
 const settings = async (page: Page) => {
   await page.getByRole("button", { name: "Open menu" }).click();
   await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openFold(page, "Data"); // the two passkey buttons live in Data
 };
 const settled = (page: Page) =>
   page.waitForFunction(() => {
@@ -48,7 +49,7 @@ test("a passkey made on one device signs another into the same list", async ({ p
   await authB.cdp.send("WebAuthn.addCredential", { authenticatorId: authB.id, credential: credentials[0] });
   await b.goto("/");
   await b.getByRole("button", { name: "Already use Ember? Sign in" }).click(); // a fresh device opens on the first run
-  await b.getByRole("button", { name: "Sign in with a passkey" }).click();
+  await b.getByRole("button", { name: "Sign in with a passkey" }).click(); // Data is already open on this way in
   await b.getByRole("button", { name: "Open menu" }).click();
   await b.getByRole("button", { name: "Inbox", exact: true }).click();
   await expect(b.getByRole("region", { name: "Needs sorting" })).toContainText("Made on the laptop");
