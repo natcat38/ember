@@ -74,7 +74,7 @@ export function Steps({ state, update, taskId, onStart }: Props) {
       <span className="step-title">{c.title}</span>
       {/* Rule 3: no start button on a parent; Focus runs on one smaller step. */}
       {!childrenOf(state, c.id).length && c.state !== "done" && (
-        <button className="icon-button" aria-label={`Start ${c.title}`} onClick={() => onStart(c.id)}>
+        <button className="icon-button step-start" aria-label={`Start ${c.title}`} onClick={() => onStart(c.id)}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
           <path d="M8 5l11 7-11 7z" />
         </svg>

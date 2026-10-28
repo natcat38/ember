@@ -344,7 +344,7 @@ Every state follows the same rules: no red, no counts of what was missed, and ea
 | State | When | What the screen does | Copy |
 |---|---|---|---|
 | **Empty Inbox** | Nothing captured, or everything triaged | Plain line + capture button | *"Nothing waiting here."* |
-| **Empty Today: nothing lined up** | Nothing triaged and ranked yet | Two ways forward, no blank grid | *"Nothing's lined up for today yet."* → *[Sort a few from Inbox]* *[Capture something]* |
+| **Empty Today: nothing lined up** | Nothing triaged and ranked yet | Two ways forward, no blank grid | *"Nothing's lined up for today yet."* → *[Sort a few from Inbox]* only when Inbox holds something; the capture bar is the way to add (UX pass, EMB-UX-11) |
 | **Empty Today: all done** | Today cleared | Done means done: ring full, cat purring, optional get-ahead offer | *"That's everything for today."* |
 | **Overflow** | More than 5 chunks qualify | One line under Today, links to Inbox | *fixed:* *"4 more waiting. They'll come up when there's room."* |
 | **Offline** | No connection | Small quiet indicator, not a banner. Capture, complete, focus, and shutdown keep working and queue. Only AI breakdown and Telegram linking need a connection | *"Offline. Your changes will sync when you reconnect."* · breakdown offline: *"Breakdowns need a connection. Try: what's the very next physical action?"* |
