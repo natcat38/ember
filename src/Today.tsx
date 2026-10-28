@@ -17,7 +17,6 @@ interface Props {
   onOpenTask: (t: Task) => void;
   onStart: (r: TodayRow) => void;
   onInbox: () => void;
-  onCapture: () => void;
   welcome: boolean; // first open after 3+ days away
   firstOpen: boolean; // the first open of this day: the cat starts asleep
   onWelcomeDone: () => void;
@@ -57,7 +56,7 @@ function useNookCat(today: string, shutdownDone: boolean, firstOpen: boolean, we
 }
 
 // Wireframes.md §1.
-export function TodayView({ plan, state, update, today, selectedId, onOpenTask, onStart, onInbox, onCapture, welcome, firstOpen, onWelcomeDone, onReset, backedUp }: Props) {
+export function TodayView({ plan, state, update, today, selectedId, onOpenTask, onStart, onInbox, welcome, firstOpen, onWelcomeDone, onReset, backedUp }: Props) {
   const { rows, frog, waiting, lightDay } = plan;
   // The morning confirm shows on the day's first visit to Today and never returns that day, answered or not.
   // On a lapse return the welcome back takes its place.
@@ -83,19 +82,24 @@ export function TodayView({ plan, state, update, today, selectedId, onOpenTask, 
   const done = rest.filter((r) => r.done);
 
   if (rows.length === 0) {
+    // Inbox is only worth a button when it holds something: tasks to sort, or ranked ones waiting for room.
+    const inboxHasTasks = plan.ranked.length > 0 || state.tasks.some((t) => t.state === "inbox");
     return (
       <section className="section">
-        <p className="empty">Nothing's lined up for today yet.</p>
+        {/* The nook with the resting cat, as on a full day; the capture bar below is the way to add something. */}
+        <div className="nook" data-pose={pose}>
+          <Cat pose={pose} size={pose === "door" ? 92 : 72} />
+          <p className="lead">Nothing's lined up for today yet.</p>
+        </div>
         {/* The landing disclosure from phase 2 on (UX_Flows.md §7). */}
         {backedUp && <p className="hint">Your list is backed up, so it won't get lost.</p>}
-        <div className="actions">
-          <button className="button primary" onClick={onInbox}>
-            Sort a few from Inbox
-          </button>
-          <button className="button" onClick={onCapture}>
-            Capture something
-          </button>
-        </div>
+        {inboxHasTasks && (
+          <div className="actions">
+            <button className="button primary" onClick={onInbox}>
+              Sort a few from Inbox
+            </button>
+          </div>
+        )}
         {lightDay && <LightDay task={lightDay} onPin={() => update((s) => pin(s, lightDay.id, today, Date.now()))} onDecline={() => defer(lightDay.id)} />}
       </section>
     );

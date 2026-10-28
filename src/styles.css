@@ -47,10 +47,31 @@
   box-sizing: border-box;
 }
 
-/* The sticky capture bar (~90px) and the Task view's bottom bar (~80px) must not hide a focused field near the bottom (SC 2.4.11). */
+/* The sticky capture bar (~75px) and the Task view's bottom bar (~80px) must not hide a focused field near the bottom (SC 2.4.11). */
 html,
 .pane {
   scroll-padding-block-end: 120px;
+}
+
+/* The phone baseline (EMB-UX-9): no grey tap flash and no rubber-band bounce; the press feedback is each control's own
+   :active colour below. Hover is already gated by (hover: hover). */
+html {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+/* A double tap on a control is two taps, not a zoom, and a long press does not select its label. */
+button,
+a,
+[role="button"],
+.row-link,
+label.check {
+  touch-action: manipulation;
+}
+
+button {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body {
@@ -231,6 +252,23 @@ textarea {
   transform: scale(0.98);
 }
 
+/* Press feedback for the controls that are not .button or .chip: a colour change, no bounce and no transition, like a
+   native control (EMB-UX-9). A transition here would also run whenever Focus recolours the capture bar. */
+.row-link:active,
+.icon-button:active,
+.text-button:active,
+.row-button:active,
+.menu button:active,
+.menu-sheet button:active,
+.drawer .nav-item:active,
+.capture-bar > button:active {
+  background: var(--color-nook);
+}
+
+.pause:active {
+  background: color-mix(in oklab, var(--color-lavender-deep), black 10%);
+}
+
 /* Disabled (Design_Direction.md §6): 40% opacity, no pointer. */
 .button:disabled,
 .chip:disabled {
@@ -266,7 +304,8 @@ textarea {
 .capture-bar {
   position: sticky;
   bottom: 0;
-  padding: 10px var(--space-4) max(28px, env(safe-area-inset-bottom));
+  /* 8 + 52 + 12 = 72 px, 8.5% of an 844 px screen. Where the home bar has an inset (the installed app) the inset replaces the 12. */
+  padding: var(--space-2) var(--space-4) max(12px, env(safe-area-inset-bottom));
   background: var(--color-oat);
 }
 
@@ -633,6 +672,14 @@ dialog::backdrop {
   padding: 0 var(--space-2);
 }
 
+/* Equal columns, not flex shares: a chip's padding and border floor its flex basis, and the date chip's wrapper
+   (DateButton.tsx) has neither, so equal flex shares came out 184 and 166 px at 390. */
+.question .actions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
 /* Steps (Wireframes.md §6) */
 .divider {
   width: 100%;
@@ -672,6 +719,14 @@ dialog::backdrop {
   height: 22px;
   margin: 0;
   accent-color: var(--color-lavender-deep);
+}
+
+/* Below 480 px the grip, checkbox, title, play and menu leave the title 178 px at 390 and 108 at 320. The play goes: the
+   Start bar runs the first open step and the "..." menu carries "Start this step" (EMB-UX-3). */
+@media (max-width: 479.98px) {
+  .row.step > .step-start {
+    display: none;
+  }
 }
 
 .step.done {
@@ -1021,6 +1076,7 @@ dialog::backdrop {
 
 .nook .lead {
   flex-grow: 1;
+  margin: 0;
   font-size: 18px;
 }
 

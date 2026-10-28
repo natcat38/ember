@@ -151,7 +151,7 @@ Copy is fixed by `UX_Flows.md` §4. Empty states are a plain line plus the next 
 | State | Copy |
 |---|---|
 | Empty Inbox | *"Nothing waiting here."* + capture bar |
-| Empty Today: nothing lined up | *"Nothing's lined up for today yet."* → *[Sort a few from Inbox]* *[Capture something]* |
+| Empty Today: nothing lined up | *"Nothing's lined up for today yet."* → *[Sort a few from Inbox]* only when Inbox holds something; the capture bar is the way to add (UX pass, EMB-UX-11) |
 | Empty Today: all done | *"That's everything for today."* Ring full; the nook's cat curled up |
 
 ### Errors

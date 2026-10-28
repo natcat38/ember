@@ -74,6 +74,18 @@ test("split once; the parent ticks itself; ticking the parent finishes the rest 
   await expect(page.getByRole("checkbox", { name: "Open notes doc" })).toBeChecked();
 });
 
+test("below 480 px the step's play button gives way to the title; Start this step in the menu still runs it", async ({ page }) => {
+  await openTask(page);
+  await addSteps(page, "Paste the job description next to the draft");
+  await expect(page.getByRole("button", { name: "Start Paste the job description next to the draft" })).toBeHidden();
+  expect((await stepTitles(page).boundingBox())!.width).toBeGreaterThan(190); // 178 px at 390 with the play button, 207 at 375 without
+  await page.setViewportSize({ width: 600, height: 812 });
+  await expect(page.getByRole("button", { name: "Start Paste the job description next to the draft" })).toBeVisible();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await stepMenu(page, "Paste the job description next to the draft", "Start this step");
+  await expect(page.getByRole("heading", { level: 1, name: "Paste the job description next to the draft" })).toBeVisible();
+});
+
 test("Move up / Move down, and a parent moves with its group", async ({ page }) => {
   await openTask(page);
   await addSteps(page, "A", "B", "C");

@@ -10,7 +10,8 @@ test("the whole loop, from an empty device to a closed day", async ({ page }) =>
 
   // Capture
   await expect(page.getByText("Nothing's lined up for today yet.")).toBeVisible();
-  await page.getByRole("button", { name: "Capture something" }).click();
+  await expect(page.getByRole("button", { name: "Sort a few from Inbox" })).toHaveCount(0); // nothing in Inbox yet: no dead-end button
+  await page.getByRole("button", { name: "What's on your mind?" }).click();
   await page.getByRole("textbox", { name: "Capture a thought" }).fill("Cover letter");
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Close" }).click();

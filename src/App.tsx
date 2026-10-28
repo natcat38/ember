@@ -444,7 +444,6 @@ export function App() {
         onOpenTask={open}
         onStart={(r) => (r.chunk ? start(r.chunk.id) : startTask(r.task))}
         onInbox={() => navigate({ name: "inbox" })}
-        onCapture={openCapture}
         welcome={welcome}
         firstOpen={lastVisitDay !== today}
         onWelcomeDone={() => setWelcome(false)}
