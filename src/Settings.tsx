@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useAnnounce } from "./announce";
 import { ConfirmDialog } from "./dialogs";
 import { refocus } from "./refocus";
@@ -30,6 +30,7 @@ interface Props {
   update: (fn: (s: State) => State) => void;
   browserTz: string;
   backedUp: boolean;
+  dataOpen?: boolean; // arrived from first-run's Sign in: the passkey buttons are the reason for the visit
   onSignedIn: () => void; // this device now has another identity: sync from scratch
 }
 
@@ -40,10 +41,11 @@ const shown = (m: number) => new Date(2000, 0, 1, Math.floor(m / 60), m % 60).to
 const mins = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
 
 // Wireframes.md §8: reminders, quiet hours, time zone, hard blocks, the focus timer, rewards, and devices. Changes save as you make them.
-export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }: Props) {
+export function SettingsView({ state, update, browserTz, backedUp, dataOpen, onSignedIn }: Props) {
   const { quiet_start, quiet_end, tz } = state.settings;
   const set = (patch: Partial<State["settings"]>) => update((s) => ({ ...s, settings: { ...s.settings, ...patch } }));
   const blocks = state.hard_blocks.filter((b) => !b.deleted);
+  const rewardLabel = { rotate: "Surprise me", puzzle: "Chess puzzle", trivia: "Trivia question", fact: "On this day" }[state.settings.unlock];
   const zones = Intl.supportedValuesOf?.("timeZone") ?? [browserTz];
   const [deviceNote, setDeviceNote] = useState<string | null>(null);
   useAnnounce(deviceNote);
@@ -70,8 +72,7 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
     <>
       <Reminders me={me} refresh={refreshMe} />
 
-      <section className="section" aria-labelledby="h-quiet">
-        <h2 id="h-quiet">Quiet hours</h2>
+      <Fold id="h-quiet" title="Quiet hours" summary={`${shown(quiet_start)}–${shown(quiet_end)}`}>
         <p className="empty">
           No nudges between {shown(quiet_start)} and {shown(quiet_end)}.
         </p>
@@ -86,10 +87,9 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
           </label>
         </div>
         <p className="hint">Your day starts when quiet hours end, so Today is rebuilt at {shown(quiet_end)}.</p>
-      </section>
+      </Fold>
 
-      <section className="section" aria-labelledby="h-tz">
-        <h2 id="h-tz">Time zone</h2>
+      <Fold id="h-tz" title="Time zone" summary={(tz ?? browserTz).replaceAll("_", " ")}>
         <label className="question">
           <span className="sr-only">Time zone</span>
           <select className="field" value={tz ?? browserTz} onChange={(e) => set({ tz: e.target.value })}>
@@ -100,12 +100,9 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
             ))}
           </select>
         </label>
-      </section>
+      </Fold>
 
-      <section className="section" aria-labelledby="h-blocks">
-        <h2 id="h-blocks" tabIndex={-1}>
-          Hard blocks
-        </h2>
+      <Fold id="h-blocks" title="Hard blocks" summary={blocks.length === 0 ? "None" : blocks.length === 1 ? "1 block" : `${blocks.length} blocks`}>
         <p className="empty">Hours you're already busy. Ember plans around them.</p>
         {blocks.length > 0 && (
           <ul className="list" aria-label="Hard blocks">
@@ -132,7 +129,7 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
           </ul>
         )}
         <AddBlock onAdd={(b) => update((s) => ({ ...s, hard_blocks: [...s.hard_blocks, b] }))} />
-      </section>
+      </Fold>
 
       {/* Wireframes.md §8, "Focus timer": one choice; the per-session switch lives on Focus. */}
       <section className="section" aria-labelledby="h-timer">
@@ -150,8 +147,7 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
       </section>
 
       {/* Wireframes.md §8, "Rewards": every reward stays skippable, so there is no off switch. */}
-      <section className="section" aria-labelledby="h-rewards">
-        <h2 id="h-rewards">Rewards</h2>
+      <Fold id="h-rewards" title="Rewards" summary={rewardLabel}>
         <p className="empty">After each finished step, Ember offers one quick reward. You can always skip it.</p>
         <Choices
           label="Reward"
@@ -164,10 +160,9 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
             { value: "fact", label: "On this day" },
           ]}
         />
-      </section>
+      </Fold>
 
-      <section className="section" aria-labelledby="h-data">
-        <h2 id="h-data">Data</h2>
+      <Fold id="h-data" title="Data" summary={backedUp ? "Backed up" : "On this device"} defaultOpen={dataOpen}>
         {backedUp && <p className="empty">Your list is backed up, so it won't get lost.</p>}
         {/* Above the buttons, not below: at the foot of the page a result lands off the screen (Verify finding 5). */}
         {deviceNote && <p className="hint">{deviceNote}</p>}
@@ -204,8 +199,33 @@ export function SettingsView({ state, update, browserTz, backedUp, onSignedIn }:
             </button>
           </div>
         )}
-      </section>
+      </Fold>
     </>
+  );
+}
+
+// A group that is set once and then left alone: one row with its title and a one-line summary of the setting, and the
+// controls behind it (EMB-UX-10). A button with aria-expanded, like the Removed list in Inbox, so the controls stay in the
+// page (hidden) and keep their state while closed.
+function Fold({ id, title, summary, defaultOpen = false, children }: { id: string; title: string; summary: string; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="section" aria-labelledby={`${id}-title`}>
+      <h2 id={id} className="fold-heading" tabIndex={-1}>
+        <button className="fold-head" aria-expanded={open} aria-controls={`${id}-body`} onClick={() => setOpen(!open)}>
+          <span className="fold-text">
+            <span id={`${id}-title`}>{title}</span>
+            <span className="meta">{summary}</span>
+          </span>
+          <svg className="fold-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </h2>
+      <div id={`${id}-body`} className="fold-body" hidden={!open}>
+        {children}
+      </div>
+    </section>
   );
 }
 

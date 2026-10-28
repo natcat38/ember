@@ -80,6 +80,7 @@ test("'Already use Ember? Sign in' skips the first run for good and opens Settin
   await page.goto("/");
   await page.getByRole("button", { name: "Already use Ember? Sign in" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Data" })).toHaveAttribute("aria-expanded", "true"); // the way in is not behind a fold
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
   await expect(page.getByText("Nothing's lined up for today yet.")).toBeVisible();

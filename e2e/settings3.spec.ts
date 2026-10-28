@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./fixtures";
+import { expect, openFold, test, type Page } from "./fixtures";
 
 // Slice 22: the phase-3 settings (focus timer, rewards, reminder channel) and the arrival line. The server is routed by
 // hand; Notification and the push manager are stubbed in an init script, because headless Chromium has no push service.
@@ -12,6 +12,7 @@ const openSettings = async (page: Page) => {
 test("the focus timer and the reward choice persist across a reload", async ({ page }) => {
   await page.goto("/");
   await openSettings(page);
+  await openFold(page, "Rewards");
   await expect(page.getByRole("radio", { name: /25 \/ 5/ })).toBeChecked(); // defaults
   await expect(page.getByRole("radio", { name: "Surprise me" })).toBeChecked();
 
@@ -19,6 +20,7 @@ test("the focus timer and the reward choice persist across a reload", async ({ p
   await page.getByRole("radio", { name: "Trivia question" }).check();
   await page.reload();
   await openSettings(page);
+  await openFold(page, "Rewards");
   await expect(page.getByRole("radio", { name: /Flowtime/ })).toBeChecked();
   await expect(page.getByRole("radio", { name: "Trivia question" })).toBeChecked();
   const settings = await page.evaluate(() => JSON.parse(localStorage.getItem("ember")!).settings);
