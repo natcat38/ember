@@ -34,7 +34,7 @@ Persona: 24, final semester, four assignments and two interviews in three weeks.
 3. The turn (hybrid branch):
    - **Dumped several** → *"Got it, six things. Let's make today small."* then *"Which one's weighing on you most?"* with the items listed. One tap picks it; the rest clear off-screen. Cat: sitting up, watching.
    - **Typed one and stalled** → *"Want me to break that one down?"* → straight into chunking that task.
-4. First value, one thing not five: a single task surfaces, big and alone, with two buttons — **Break this down** and **Start**. Everything else is out of sight. First-run Today is deliberately one item; the five-cap is for a normal day, not a cold start.
+4. First value, one thing not five: a single task surfaces, big and alone, with one button, **Break this down** (UX pass R6, 2026-10-24; it had a second, *Start*). Everything else is out of sight. First-run Today is deliberately one item; the five-cap is for a normal day, not a cold start.
 5. First chunk: taps *Break this down* → 3–6 editable steps. *(Phase-1 seam: no AI yet; instead it asks "What's the very next physical action?" and she types one line.)* Picks step one.
 6. First focus: *"Start with two minutes?"* — a short starter, not a full 25. The chunk fills the screen; the rest dims. Cat: stretching.
 7. First reward: two minutes end, progress ring ticks up one, cat curls up purring. Then the offer, after the payoff, never before: *"That's a start. Want Ember to nudge you gently while it's closed?"* This is where Telegram-linking and add-to-home-screen are asked. **If she says no to both:** the app works fully; reminders live in-app, when she opens it. No nagging to turn nagging on.
@@ -473,9 +473,9 @@ Times are required input only.
 | Step | What happens | Time |
 |---|---|---|
 | 1. Land | Capture field already focused. *"What's on your mind?"* + *"One thing or ten. Just get it out of your head."* Cat asleep | 0s |
-| 2. Dump | Type one or more things; each stacks above the field. After the first, the Close control relabels to *"That's it for now"* | 10–40s |
+| 2. Dump | Type one or more things; each stacks above the field. With nothing typed, the way out is a quiet *Skip for now* (UX pass R6, was *Close*); after the first item it relabels to *"That's it for now"* | 10–40s |
 | 3. Branch | Decided on the *That's it for now* tap. **One item** → *"Want me to break that one down?"* · **Two or more** → *"Got it, six things. Let's make today small."* then *"Which one's weighing on you most?"*, one tap to pick | 1–2 taps |
-| 4. First Today | The picked task, big and alone. *Break this down* / *Start*. Cat watching | ~2s |
+| 4. First Today | The picked task, big and alone. *Break this down* (the one button, UX pass R6). Cat watching | ~2s |
 | 5. First chunk | Type one next action (phase 1) or accept an AI breakdown (phase 4) | ~10s |
 | — | **Under-60s target met.** Everything below is optional | |
 | 6. Starter focus | *"Start with two minutes?"* Cat stretching | 2 min |
