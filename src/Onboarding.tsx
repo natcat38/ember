@@ -3,6 +3,7 @@ import { addChunk } from "../core/chunk";
 import { startFocus } from "../core/focus";
 import { capture, placeFirst, type CaptureInput, type State, type Task } from "../core/task";
 import { CaptureForm } from "./Capture";
+import { Cat } from "./Cat";
 
 // UX_Flows.md §7: a real step ready to start within 60 seconds. No tour, no signup, no account screen.
 // Step cards (Wireframes.md §9) without progress dots, since the number of steps depends on the branch.
@@ -47,7 +48,13 @@ export function Onboarding({ state, update, today, onDone, announce }: Props) {
   if (step.name === "dump") {
     return (
       <div className="step-card onboarding">
-        <h1 className="sr-only">Welcome to Ember</h1>
+        {/* Visible name and cat on the first screen (owner decision 2026-11-09, ADR 0012): first run has no header,
+            so without this nothing on the screen said which app it was. <Cat> sizes by height and keeps the drawing's
+            own ratio; a raw <img> here would be stretched by the step card's flex column. */}
+        <div className="welcome">
+          <Cat pose="watching" size={96} />
+          <h1>Welcome to Ember</h1>
+        </div>
         {tasks.length > 0 && (
           <ul className="sent" aria-label="Added just now">
             {tasks.map((t) => (
