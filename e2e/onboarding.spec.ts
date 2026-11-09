@@ -86,3 +86,18 @@ test("'Already use Ember? Sign in' skips the first run for good and opens Settin
   await expect(page.getByRole("heading", { level: 1, name: "Today" })).toBeVisible();
   await expect(page.getByText("Nothing's lined up for today yet.")).toBeVisible();
 });
+
+test("first screen: the watching cat beside a visible 'Welcome to Ember', at the drawing's own ratio", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: "Welcome to Ember" })).toBeVisible();
+  const cat = page.locator("picture.cat");
+  await expect(cat).toHaveAttribute("data-pose", "watching");
+  // Never stretched (owner condition, ADR 0012): rendered width/height equals the file's 337/471 (Cat.tsx BOX),
+  // for the picture box and the image inside it.
+  const ratio = 337 / 471;
+  for (const el of [cat, cat.locator("img")]) {
+    const box = (await el.boundingBox())!;
+    expect(box.height).toBeGreaterThanOrEqual(95);
+    expect(Math.abs(box.width / box.height - ratio)).toBeLessThan(0.015);
+  }
+});
